@@ -1,0 +1,9 @@
+# ignore install dir
+
+wasa_full/
+
+# ignore root files
+
+*.root 
+
+
