@@ -16,6 +16,97 @@
 #include "TMarker.h"
 #include "TLine.h"
 #include "TH2F.h"
+#include "TStyle.h"
+#include "TROOT.h"
+#include "TLatex.h"
+#include "TF1.h"
+#include "TLegend.h"
+#include "TColor.h"
+#include "TPaveText.h"
+
+// =========================================================
+//                 HELPER: Pretty Plot 
+// =========================================================
+
+void SetPrettyStyle() {
+    gROOT->SetStyle("Plain");
+    gStyle->SetOptStat(0);
+    gStyle->SetCanvasColor(0);
+    gStyle->SetFrameLineWidth(2);
+    gStyle->SetLineWidth(2);
+    gStyle->SetPadTickX(1);
+    gStyle->SetPadTickY(1);
+    gStyle->SetLabelSize(0.045, "XY");
+    gStyle->SetTitleSize(0.05, "XY");
+    gStyle->SetTitleOffset(1.2, "X");
+    gStyle->SetTitleOffset(1.4, "Y");
+    // gStyle->SetTextSize(0.045);
+    gStyle->SetTextFont(42);
+    gStyle->SetLegendFont(42);
+    gStyle->SetLegendBorderSize(0);
+    gStyle->SetLegendFillColor(0);
+    gStyle->SetPadLeftMargin(0.15);
+    gStyle->SetPadBottomMargin(0.15);
+}
+
+void PrettyPi0MassPlot(TH1F* hPi0Mass) {
+    SetPrettyStyle();
+
+    TCanvas *c = new TCanvas("cPi0", "Pi0 Mass", 800, 600);
+    c->SetMargin(0.15, 0.05, 0.15, 0.08);
+
+    TF1 *fGaus = new TF1("fGaus", "gaus", 100, 170);
+    fGaus->SetLineColor(kRed+1);
+    fGaus->SetLineWidth(2);
+    hPi0Mass->Fit(fGaus, "RQ");
+
+    double mean  = fGaus->GetParameter(1);
+    double sigma = fGaus->GetParameter(2);
+    double errMu = fGaus->GetParError(1);
+    double errSi = fGaus->GetParError(2);
+
+    hPi0Mass->SetLineColor(kBlack);
+    hPi0Mass->SetLineWidth(2);
+    hPi0Mass->GetXaxis()->SetTitle("M_{#gamma#gamma} [MeV]");
+    hPi0Mass->GetYaxis()->SetTitle("Events");
+
+    hPi0Mass->Draw("HIST");
+    fGaus->Draw("SAME");
+
+    TLegend *leg = new TLegend(0.55, 0.7, 0.88, 0.88);
+    leg->AddEntry(hPi0Mass, "Reconstructed #pi^{0} Invariant mass", "l");
+    leg->AddEntry(fGaus, "Gaussian Fit:", "l");
+    leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f MeV", mean, errMu), "");
+    leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f MeV", sigma, errSi), "");
+    leg->SetTextSize(0.03);
+    leg->Draw();
+
+    TPaveText *info = new TPaveText(0.17, 0.70, 0.50, 0.90, "NDC");  // x1,y1,x2,y2 normalized coordinates
+    info->SetFillStyle(0);
+    info->SetBorderSize(0);
+    info->SetTextFont(42);
+    info->SetTextSize(0.04);
+    // info->AddText("Hibeam Wasafull simulation");
+    info->AddText("GEANT4 #pi^{0} sample");
+    info->AddText("1000 simulated events");
+    info->AddText("E_{kin} #in [1, 500] MeV");
+    info->Draw();
+
+    TLatex l;
+    l.SetNDC();
+    l.SetTextFont(42);
+    l.SetTextSize(0.045);
+    l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
+
+    c->SaveAs("Pi0Mass_pretty.png");
+
+    // clean up
+    delete leg;
+    delete fGaus;
+    delete c;
+}
+
+
 
 // =========================================================
 //                 HIT & CLUSTER STRUCTURES
@@ -448,6 +539,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     std::string mode = argv[2];
+    SetPrettyStyle();
 
     TFile *f = TFile::Open(argv[1]);
     if (!f || f->IsZombie()) return 1;
@@ -573,18 +665,21 @@ int main(int argc, char **argv) {
 
     // TCanvas *c1 = new TCanvas("c1","pi0 mass",800,600);
     // hPi0Mass->Draw();
+    // TCanvas *c1 = new TCanvas("c1","Results",1200,400);
+    // c1->Divide(3,1);
+    // c1->cd(1);
+    // hPi0Mass->Draw();
+    // c1->cd(2);
+    // hClusterE->Draw();
+    // c1->cd(3);
+    // hNClusters->Draw();
+    // c1->SaveAs("pi0_mass.png");
 
-    TCanvas *c1 = new TCanvas("c1","Results",1200,400);
-    c1->Divide(3,1);
-    c1->cd(1);
-    hPi0Mass->Draw();
-    c1->cd(2);
-    hClusterE->Draw();
-    c1->cd(3);
-    hNClusters->Draw();
-    c1->SaveAs("pi0_mass.png");
+    PrettyPi0MassPlot(hPi0Mass);
 
-    delete c1; delete hPi0Mass; delete hClusterE; delete hNClusters;
+
+    // delete c1; 
+    delete hPi0Mass; delete hClusterE; delete hNClusters;
     f->Close(); delete f;
     return 0;
 }
