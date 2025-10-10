@@ -106,8 +106,6 @@ void PrettyPi0MassPlot(TH1F* hPi0Mass) {
     delete c;
 }
 
-
-
 // =========================================================
 //                 HIT & CLUSTER STRUCTURES
 // =========================================================
@@ -157,7 +155,7 @@ void PlotEventDisplay(
     TCanvas *c = new TCanvas(Form("c_evt_%d",eventID), 
                              Form("Event %d display",eventID), 800, 600);
 
-    // Define η–φ histogram
+    // Define eta-phi histogram
     TH2F *hMap = new TH2F(Form("hEvt%d",eventID),
                           Form("Event %d: Energy in #eta-#phi",eventID),
                           100, -TMath::Pi(), TMath::Pi(),   // phi bins
@@ -181,7 +179,7 @@ void PlotEventDisplay(
         for (int idx : clusters[ci].hitIndices) {
             double eta = calcEta(hits[idx].x, hits[idx].y, hits[idx].z);
             double phi = calcPhi(hits[idx].x, hits[idx].y, hits[idx].z);
-            TMarker *m = new TMarker(phi, eta, 24); // open circle
+            TMarker *m = new TMarker(phi, eta, 24); 
             m->SetMarkerColor(colorIdx);
             m->SetMarkerSize(1.5);
             m->Draw("SAME");
@@ -195,82 +193,24 @@ void PlotEventDisplay(
     double phiMin = hMap->GetXaxis()->GetXmin();
     double phiMax = hMap->GetXaxis()->GetXmax();
 
-    // for (double e = floor(etaMin/dEta)*dEta; e <= etaMax; e+=dEta) {
-    //     TLine *l = new TLine(phiMin, e, phiMax, e);
-    //     l->SetLineColor(kGray);
-    //     l->SetLineStyle(3);
-    //     l->Draw("SAME");
-    // }
-    // for (double p = floor(phiMin/dPhi)*dPhi; p <= phiMax; p+=dPhi) {
-    //     TLine *l = new TLine(p, etaMin, p, etaMax);
-    //     l->SetLineColor(kGray);
-    //     l->SetLineStyle(3);
-    //     l->Draw("SAME");
-    // }
+    for (double e = floor(etaMin/dEta)*dEta; e <= etaMax; e+=dEta) {
+        TLine *l = new TLine(phiMin, e, phiMax, e);
+        l->SetLineColor(kGray);
+        l->SetLineStyle(3);
+        l->Draw("SAME");
+    }
+    for (double p = floor(phiMin/dPhi)*dPhi; p <= phiMax; p+=dPhi) {
+        TLine *l = new TLine(p, etaMin, p, etaMax);
+        l->SetLineColor(kGray);
+        l->SetLineStyle(3);
+        l->Draw("SAME");
+    }
 
     c->SaveAs(Form("eventDisplay_evt%d.png",eventID));
 }
 
 // =========================================================
-//   XYZ SPACE SEED-BASED CLUSTERING (simple flood-fill)
-// =========================================================
-std::vector<Cluster> SeedClusterHits(
-    const std::vector<Hit> &hits,
-    const TVector3 &vertex,
-    double seedE = 50.0,
-    double neighborDist = 40.0,
-    double neighborE = 5.0)
-{
-    std::vector<Cluster> clusters;
-    std::vector<bool> used(hits.size(), false);
-
-    for (size_t i = 0; i < hits.size(); ++i) {
-        if (used[i] || hits[i].e < seedE) continue;
-
-        Cluster c;
-        std::vector<size_t> stack = {i};
-        while (!stack.empty()) {
-            size_t idx = stack.back();
-            stack.pop_back();
-            if (used[idx]) continue;
-            used[idx] = true;
-            c.hitIndices.push_back(idx);
-
-            for (size_t j = 0; j < hits.size(); ++j) {
-                if (used[j]) continue;
-                if (hits[j].e < neighborE) continue;
-                double dx = hits[j].x - hits[idx].x;
-                double dy = hits[j].y - hits[idx].y;
-                double dz = hits[j].z - hits[idx].z;
-                if (dx*dx + dy*dy + dz*dz < neighborDist*neighborDist) {
-                    stack.push_back(j);
-                }
-            }
-        }
-
-        // Compute centroid + momentum
-        double sumE=0, cx=0, cy=0, cz=0;
-        TVector3 mom(0,0,0);
-        for (int idx : c.hitIndices) {
-            const auto &h = hits[idx];
-            sumE += h.e;
-            cx += h.x*h.e;
-            cy += h.y*h.e;
-            cz += h.z*h.e;
-            TVector3 v(h.x - vertex.X(), h.y - vertex.Y(), h.z - vertex.Z());
-            if (v.Mag2() > 1e-12) mom += h.e * v.Unit();
-        }
-        if (sumE > 0) {
-            c.centroid = TVector3(cx/sumE, cy/sumE, cz/sumE);
-            c.p4.SetPxPyPzE(mom.X(), mom.Y(), mom.Z(), sumE);
-            clusters.push_back(c);
-        }
-    }
-    return clusters;
-}
-
-// =========================================================
-//   NEW: POST-PROCESSING CLUSTER SPLITTING
+//      POST-PROCESSING CLUSTER SPLITTING
 // =========================================================
 std::vector<Cluster> SplitClusters(
     const std::vector<Hit> &hits,
@@ -534,11 +474,11 @@ std::vector<Cluster> SlidingWindowClusterHits(
 //                           MAIN
 // =========================================================
 int main(int argc, char **argv) {
-    if (argc < 3) {
-        std::cout << "Usage: " << argv[0] << " <filename> <mode=seed|sliding>" << std::endl;
+    if (argc < 2) {
+        std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
         return 1;
     }
-    std::string mode = argv[2];
+
     SetPrettyStyle();
 
     TFile *f = TFile::Open(argv[1]);
@@ -584,13 +524,12 @@ int main(int argc, char **argv) {
         }
 
         std::vector<Cluster> clusters;
-        double dEta = 0.30;  // Consider reducing to 0.05 for finer resolution
+        double dEta = 0.30; 
         double dPhi = 0.30;
         double E_seed = 20.00;
         double E_neighbor = 0.03;
-        int winSize = 3;  // Try 1-2 to avoid large windows
-        if (mode=="seed") clusters = SeedClusterHits(hits,vertex);
-        else clusters = SlidingWindowClusterHits(hits,vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
+        int winSize = 3;  
+        clusters = SlidingWindowClusterHits(hits,vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
 
         // NEW: Split large clusters
         clusters = SplitClusters(hits, clusters, vertex, dEta, dPhi);
@@ -662,18 +601,6 @@ int main(int argc, char **argv) {
             }
         }
     }
-
-    // TCanvas *c1 = new TCanvas("c1","pi0 mass",800,600);
-    // hPi0Mass->Draw();
-    // TCanvas *c1 = new TCanvas("c1","Results",1200,400);
-    // c1->Divide(3,1);
-    // c1->cd(1);
-    // hPi0Mass->Draw();
-    // c1->cd(2);
-    // hClusterE->Draw();
-    // c1->cd(3);
-    // hNClusters->Draw();
-    // c1->SaveAs("pi0_mass.png");
 
     PrettyPi0MassPlot(hPi0Mass);
 
