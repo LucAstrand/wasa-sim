@@ -31,46 +31,65 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // --- Precompute all hardcoded detector cell centers ---
+    std::vector<double> detCenterX, detCenterY, detCenterZ;
+    for (size_t ring = 0; ring < nRings; ++ring) {
+        for (size_t copyNo = 0; copyNo < nCrystalsPerRing; ++copyNo) {
+            double phi = 3.75 + copyNo * 7.5;
+            if (phi > 180.0) phi -= 360.0;
+            double phiRad = phi * TMath::DegToRad();
+
+            double cx = r[ring] * TMath::Sin(phiRad);
+            double cy = -r[ring] * TMath::Cos(phiRad);
+            double cz = dz[ring];
+
+            detCenterX.push_back(cx);
+            detCenterY.push_back(cy);
+            detCenterZ.push_back(cz);
+        }
+    }
+    std::cout << "Precomputed " << detCenterX.size() << " detector cell centers." << std::endl;
+
     std::vector<int>* LayerID[nRings];
     std::vector<double>* edep[nRings];
-    std::vector<double>* truthPosX[nRings];
-    std::vector<double>* truthPosY[nRings];
-    std::vector<double>* truthPosZ[nRings];      
+    // std::vector<double>* truthPosX[nRings];
+    // std::vector<double>* truthPosY[nRings];
+    // std::vector<double>* truthPosZ[nRings];      
     for (int i = 0; i < nRings; ++i) {
         LayerID[i] = nullptr;
         edep[i] = nullptr;
-        truthPosX[i] = nullptr;
-        truthPosY[i] = nullptr;
-        truthPosZ[i] = nullptr;
+        // truthPosX[i] = nullptr;
+        // truthPosY[i] = nullptr;
+        // truthPosZ[i] = nullptr;
     }
     bool allBranchesSet = true;
     for (int i = 0; i < nRings; ++i) {
         TString sec = Form("SECE%d", i);
         TString layerBranch = sec + "_LayerID";
         TString edepBranch = sec + "_EDep";
-        TString GlobalPosXBranch = sec + "_GlobalPosition_X";
-        TString GlobalPosYBranch = sec + "_GlobalPosition_Y";
-        TString GlobalPosZBranch = sec + "_GlobalPosition_Z";
-        if (inTree->GetBranch(layerBranch.Data()) == nullptr || inTree->GetBranch(edepBranch.Data()) == nullptr
-            || inTree->GetBranch(GlobalPosXBranch.Data()) == nullptr || inTree->GetBranch(GlobalPosYBranch.Data()) == nullptr
-            || inTree->GetBranch(GlobalPosZBranch.Data()) == nullptr){
-            std::cerr << "Missing branch: " << layerBranch.Data() 
-                      << " or " << edepBranch.Data() 
-                      << " or " << GlobalPosXBranch.Data()
-                      << " or " << GlobalPosYBranch.Data()
-                      << " or " << GlobalPosZBranch.Data()
-                      << std::endl;
-            allBranchesSet = false;
-        } else {
-            inTree->SetBranchAddress(layerBranch.Data(), &LayerID[i]);
-            inTree->SetBranchAddress(edepBranch.Data(), &edep[i]);
-            inTree->SetBranchAddress(GlobalPosXBranch.Data(), &truthPosX[i]);
-            inTree->SetBranchAddress(GlobalPosYBranch.Data(), &truthPosY[i]);
-            inTree->SetBranchAddress(GlobalPosZBranch.Data(), &truthPosZ[i]);
-#ifdef DEBUG
-            std::cout << "Set branch for ring " << i << ": " << layerBranch.Data() << " and " << edepBranch.Data() << std::endl;
-#endif
-        }
+        // TString GlobalPosXBranch = sec + "_GlobalPosition_X";
+        // TString GlobalPosYBranch = sec + "_GlobalPosition_Y";
+        // TString GlobalPosZBranch = sec + "_GlobalPosition_Z";
+        // if (inTree->GetBranch(layerBranch.Data()) == nullptr || inTree->GetBranch(edepBranch.Data()) == nullptr
+        //     || inTree->GetBranch(GlobalPosXBranch.Data()) == nullptr || inTree->GetBranch(GlobalPosYBranch.Data()) == nullptr
+        //     || inTree->GetBranch(GlobalPosZBranch.Data()) == nullptr){
+        //     std::cerr << "Missing branch: " << layerBranch.Data() 
+        //               << " or " << edepBranch.Data() 
+        //               << " or " << GlobalPosXBranch.Data()
+        //               << " or " << GlobalPosYBranch.Data()
+        //               << " or " << GlobalPosZBranch.Data()
+        //               << std::endl;
+        //     allBranchesSet = false;
+        // } else {
+        //     inTree->SetBranchAddress(layerBranch.Data(), &LayerID[i]);
+        //     inTree->SetBranchAddress(edepBranch.Data(), &edep[i]);
+        //     inTree->SetBranchAddress(GlobalPosXBranch.Data(), &truthPosX[i]);
+        //     inTree->SetBranchAddress(GlobalPosYBranch.Data(), &truthPosY[i]);
+        //     inTree->SetBranchAddress(GlobalPosZBranch.Data(), &truthPosZ[i]);
+// #ifdef DEBUG
+//             std::cout << "Set branch for ring " << i << ": " << layerBranch.Data() << " and " << edepBranch.Data() << std::endl;
+// #endif
+//         }
     }
     if (!allBranchesSet) {
         std::cerr << "Not all branches found—check tree structure with inTree->Print()." << std::endl;
@@ -81,6 +100,11 @@ int main(int argc, char** argv) {
     std::vector<double>* primaryPosX = nullptr;
     std::vector<double>* primaryPosY = nullptr;
     std::vector<double>* primaryPosZ = nullptr;
+
+    std::vector<double>* TruePhotonX = nullptr;
+    std::vector<double>* TruePhotonY = nullptr;
+    std::vector<double>* TruePhotonZ = nullptr;
+
     if (!inTree->GetBranch("PrimaryPosX") || !inTree->GetBranch("PrimaryPosY") || !inTree->GetBranch("PrimaryPosZ")) {
         std::cerr << "Missing one or more PrimaryPos* branches—check tree structure." << std::endl;
         return 1;
@@ -88,37 +112,40 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("PrimaryPosX", &primaryPosX);
     inTree->SetBranchAddress("PrimaryPosY", &primaryPosY);
     inTree->SetBranchAddress("PrimaryPosZ", &primaryPosZ);
+    inTree->SetBranchAddress("TruePhotonX", &TruePhotonX);
+    inTree->SetBranchAddress("TruePhotonY", &TruePhotonY);
+    inTree->SetBranchAddress("TruePhotonZ", &TruePhotonZ);
 
     // Quick test read of first entry to catch issues early
-    if (inTree->GetEntries() > 0) {
-        Long64_t testEntry = 0;
-        std::cout << "Testing first entry..." << std::endl;
-        inTree->GetEntry(testEntry);
-        if (primaryPosX && primaryPosY && primaryPosZ && !primaryPosX->empty()) {
-            std::cout << "Test: Primary vertex for event 0: (" << (*primaryPosX)[0] << ", " << (*primaryPosY)[0] << ", " << (*primaryPosZ)[0] << ")" << std::endl;
-        } else {
-            std::cout << "Test: Primary vertex for event 0: Empty or not set" << std::endl;
-        }
-        int testHits = 0;
-        for (int ring = 0; ring < nRings; ++ring) {
-            if (LayerID[ring] && !LayerID[ring]->empty()) {
-                std::cout << "Test: Ring " << ring << " LayerID size=" << LayerID[ring]->size() 
-                          << ", first value=" << (*LayerID[ring])[0] << std::endl;
-                testHits += LayerID[ring]->size();
-            }
-            if (edep[ring] && !edep[ring]->empty()) {
-                std::cout << "Test: Ring " << ring << " EDep size=" << edep[ring]->size() 
-                          << ", first value=" << (*edep[ring])[0] << std::endl;
-            }
-        }
-        std::cout << "Test: First event has " << testHits << " total hits across rings." << std::endl;
-        if (testHits == 0) {
-            std::cerr << "WARNING: First event has no hits—check if data is in expected branches!" << std::endl;
-        }
-    } else {
-        std::cerr << "Input tree has 0 entries—nothing to process." << std::endl;
-        return 1;
-    }
+    // if (inTree->GetEntries() > 0) {
+    //     Long64_t testEntry = 0;
+    //     std::cout << "Testing first entry..." << std::endl;
+    //     inTree->GetEntry(testEntry);
+    //     if (primaryPosX && primaryPosY && primaryPosZ && !primaryPosX->empty()) {
+    //         std::cout << "Test: Primary vertex for event 0: (" << (*primaryPosX)[0] << ", " << (*primaryPosY)[0] << ", " << (*primaryPosZ)[0] << ")" << std::endl;
+    //     } else {
+    //         std::cout << "Test: Primary vertex for event 0: Empty or not set" << std::endl;
+    //     }
+    //     int testHits = 0;
+    //     for (int ring = 0; ring < nRings; ++ring) {
+    //         if (LayerID[ring] && !LayerID[ring]->empty()) {
+    //             std::cout << "Test: Ring " << ring << " LayerID size=" << LayerID[ring]->size() 
+    //                       << ", first value=" << (*LayerID[ring])[0] << std::endl;
+    //             testHits += LayerID[ring]->size();
+    //         }
+    //         if (edep[ring] && !edep[ring]->empty()) {
+    //             std::cout << "Test: Ring " << ring << " EDep size=" << edep[ring]->size() 
+    //                       << ", first value=" << (*edep[ring])[0] << std::endl;
+    //         }
+    //     }
+    //     std::cout << "Test: First event has " << testHits << " total hits across rings." << std::endl;
+    //     if (testHits == 0) {
+    //         std::cerr << "WARNING: First event has no hits—check if data is in expected branches!" << std::endl;
+    //     }
+    // } else {
+    //     std::cerr << "Input tree has 0 entries—nothing to process." << std::endl;
+    //     return 1;
+    // }
 
     // Create output file and tree (one entry per event, with vectors for hits + vertex vectors)
     TFile* outFile = new TFile(argv[2], "RECREATE");
@@ -126,7 +153,8 @@ int main(int argc, char** argv) {
     std::vector<double> centerXs, centerYs, centerZs, energies;
     std::vector<int> ringNos, copyNos;
     std::vector<double> outPrimaryPosX, outPrimaryPosY, outPrimaryPosZ;  // Preserve vertex vectors per event
-    std::vector<double> outTruthPosX, outTruthPosY, outTruthPosZ;
+    std::vector<double> outTruePhotonX, outTruePhotonY, outTruePhotonZ;
+    std::vector<double> residualX, residualY, residualZ; // --- Create output tree branches (add residuals) ---
     outTree->Branch("centerX", &centerXs);
     outTree->Branch("centerY", &centerYs);
     outTree->Branch("centerZ", &centerZs);
@@ -136,9 +164,12 @@ int main(int argc, char** argv) {
     outTree->Branch("PrimaryPosX", &outPrimaryPosX);
     outTree->Branch("PrimaryPosY", &outPrimaryPosY);
     outTree->Branch("PrimaryPosZ", &outPrimaryPosZ);
-    outTree->Branch("truthPosX", &outTruthPosX);
-    outTree->Branch("truthPosY", &outTruthPosY);
-    outTree->Branch("truthPosZ", &outTruthPosZ);
+    outTree->Branch("truthPosX", &outTruePhotonX);
+    outTree->Branch("truthPosY", &outTruePhotonY);
+    outTree->Branch("truthPosZ", &outTruePhotonZ);
+    outTree->Branch("residualX", &residualX);
+    outTree->Branch("residualY", &residualY);
+    outTree->Branch("residualZ", &residualZ);
 
     // Process each entry (event)
     Long64_t nEntries = inTree->GetEntries();
@@ -149,27 +180,76 @@ int main(int argc, char** argv) {
         if (entry % 100 == 0) std::cout << "Event " << entry << std::endl;
         inTree->GetEntry(entry);
 
-        // Copy primary vertex vectors for this event
-        if (primaryPosX) outPrimaryPosX = *primaryPosX;
-        else outPrimaryPosX.clear();
-        if (primaryPosY) outPrimaryPosY = *primaryPosY;
-        else outPrimaryPosY.clear();
-        if (primaryPosZ) outPrimaryPosZ = *primaryPosZ;
-        else outPrimaryPosZ.clear();
+        // // Copy primary vertex vectors for this event
+        // if (primaryPosX) outPrimaryPosX = *primaryPosX;
+        // else outPrimaryPosX.clear();
+        // if (primaryPosY) outPrimaryPosY = *primaryPosY;
+        // else outPrimaryPosY.clear();
+        // if (primaryPosZ) outPrimaryPosZ = *primaryPosZ;
+        // else outPrimaryPosZ.clear();
 
-        // Copy truth-level hit positions for all rings
-        outTruthPosX.clear();
-        outTruthPosY.clear();
-        outTruthPosZ.clear();
+        // // Copy truth-level hit positions 
+        // if (TruePhotonX) outTruePhotonX = *TruePhotonX;
+        // else outTruePhotonX.clear();
+        // if (TruePhotonY) outTruePhotonY = *TruePhotonY;
+        // else outTruePhotonY.clear();
+        // if (TruePhotonZ) outTruePhotonZ = *TruePhotonZ;
+        // else outTruePhotonZ.clear();
 
-        for (int ring = 0; ring < nRings; ++ring) {
-            if (!truthPosX[ring] || truthPosX[ring]->empty()) continue;
+        // for (int ring = 0; ring < nRings; ++ring) {
+        //     if (!truthPosX[ring] || truthPosX[ring]->empty()) continue;
 
-            // Append all hits in this ring
-            outTruthPosX.insert(outTruthPosX.end(), truthPosX[ring]->begin(), truthPosX[ring]->end());
-            outTruthPosY.insert(outTruthPosY.end(), truthPosY[ring]->begin(), truthPosY[ring]->end());
-            outTruthPosZ.insert(outTruthPosZ.end(), truthPosZ[ring]->begin(), truthPosZ[ring]->end());
+        //     // Append all hits in this ring
+        //     outTruthPosX.insert(outTruthPosX.end(), truthPosX[ring]->begin(), truthPosX[ring]->end());
+        //     outTruthPosY.insert(outTruthPosY.end(), truthPosY[ring]->begin(), truthPosY[ring]->end());
+        //     outTruthPosZ.insert(outTruthPosZ.end(), truthPosZ[ring]->begin(), truthPosZ[ring]->end());
+        // }
+
+        outPrimaryPosX = primaryPosX ? *primaryPosX : std::vector<double>();
+        outPrimaryPosY = primaryPosY ? *primaryPosY : std::vector<double>();
+        outPrimaryPosZ = primaryPosZ ? *primaryPosZ : std::vector<double>();
+        outTruePhotonX = TruePhotonX ? *TruePhotonX : std::vector<double>();
+        outTruePhotonY = TruePhotonY ? *TruePhotonY : std::vector<double>();
+        outTruePhotonZ = TruePhotonZ ? *TruePhotonZ : std::vector<double>();
+
+        // Clear per-event residuals
+        residualX.clear();
+        residualY.clear();
+        residualZ.clear();
+
+        // --- Loop over all TruePhotons in this event ---
+        if (TruePhotonX && !TruePhotonX->empty()) {
+            for (size_t i = 0; i < TruePhotonX->size(); ++i) {
+                double tx = (*TruePhotonX)[i];
+                double ty = (*TruePhotonY)[i];
+                double tz = (*TruePhotonZ)[i];
+
+                double minDist2 = 1e12;
+                double closestCX = 0, closestCY = 0, closestCZ = 0;
+
+                // Find nearest detector cell center
+                for (size_t j = 0; j < detCenterX.size(); ++j) {
+                    double dx = tx - detCenterX[j];
+                    double dy = ty - detCenterY[j];
+                    double dz_ = tz - detCenterZ[j];
+                    double dist2 = dx*dx + dy*dy + dz_*dz_;
+                    if (dist2 < minDist2) {
+                        minDist2 = dist2;
+                        closestCX = detCenterX[j];
+                        closestCY = detCenterY[j];
+                        closestCZ = detCenterZ[j];
+                    }
+                }
+
+                // Compute residuals with respect to the nearest cell
+                residualX.push_back(tx - closestCX);
+                residualY.push_back(ty - closestCY);
+                residualZ.push_back(tz - closestCZ);
+            }
         }
+
+        // outTree->Fill();
+    // }
 
         // Clear vectors for this event
         centerXs.clear();
