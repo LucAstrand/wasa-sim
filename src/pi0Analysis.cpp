@@ -1,6 +1,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TH1F.h"
+#include "TEfficiency.h"
 
 #include "Structures.hpp"
 #include "Clustering.hpp"
@@ -8,6 +9,7 @@
 #include "EventDisplay.hpp"
 #include "Utils.hpp"
 #include "TruePhotonCalc.hpp"
+#include "PhotonMatch.hpp"
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -36,22 +38,28 @@ int main(int argc, char **argv) {
     t->SetBranchAddress("PrimaryPosY",&primaryY);
     t->SetBranchAddress("PrimaryPosZ",&primaryZ);
 
-    // Truth level info 
+    // Truth level info
     std::vector<double> *truthPosX=nullptr, *truthPosY=nullptr, *truthPosZ=nullptr, *truthE=nullptr;
     t->SetBranchAddress("truthPosX", &truthPosX);
     t->SetBranchAddress("truthPosY", &truthPosY);
     t->SetBranchAddress("truthPosZ", &truthPosZ);
     t->SetBranchAddress("truthE", &truthE);
 
-
     Long64_t nentries = t->GetEntries();
+
     TH1F *hPi0Mass = new TH1F("hPi0Mass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *hClusterE = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
     TH1F *hNClusters = new TH1F("hNClusters",";N_{clusters};Events",20,0,20);
-
     // TH1F *hSingleClusterE = new TH1F("hSingleClusterE",";Cluster E [MeV];Count",100,0,500);
-
     TH1F *hPi0TrueMass = new TH1F("hPi0TrueMass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
+    TH1F *h_mass_truthE_recoAngle = new TH1F("h_tE_rA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
+    TH1F *h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
+    TH1F *hEffvsE = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
+
+    TH1F *hTruth = new TH1F("hTruth", "Truth Pi0 Ekin", 100, 1, 500);
+    TH1F *hReco = new TH1F("hReco", "Reco Pi0 Ekin", 100, 1, 500);
+    TH1F *hEff = new TH1F("hEff", "Reconstructed Pi0 efficiency", 100, 1, 500);
+
 
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
         t->GetEntry(ievt);
@@ -73,10 +81,12 @@ int main(int argc, char **argv) {
 
         std::vector<Hit> trueHits;
         size_t nTrueHits = truthE->size();
-        std::cout << "[DEBUG] Event " << ievt << ": " << nTrueHits << " total true hits" << std::endl;
+        // std::cout << "[DEBUG] Event " << ievt << ": " << nTrueHits << " total true hits" << std::endl;
         for (size_t k=0; k<nTrueHits; ++k) {
             trueHits.push_back({(*truthPosX)[k], (*truthPosY)[k], (*truthPosZ)[k], (*truthE)[k]});
         }
+
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
         auto truePhotons = TruePhotonBuilder(trueHits, vertex);
 
@@ -86,17 +96,17 @@ int main(int argc, char **argv) {
             hPi0TrueMass->Fill(diphoton.M());
         }
 
-        // DEBUG print bin contents 
+        // DEBUG print bin contents
         // hPi0TrueMass->Print("all");
 
 
         std::vector<Cluster> clusters;
-        double dEta = 0.30/ 2; 
+        double dEta = 0.30/ 2;
         double dPhi = 0.30/2;
         double E_seed = 20.00;
         double E_neighbor = 0.03;
-        int winSize = 3; 
-        
+        int winSize = 3;
+
         double totalE_Evt = 0;
 
         clusters = SlidingWindowClusterHits(hits, vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
@@ -105,6 +115,7 @@ int main(int argc, char **argv) {
         clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
                                     [](const Cluster &c){ return c.p4.E() < 50.0; }),
                     clusters.end());
+
 
         for (size_t ci=0; ci<clusters.size(); ++ci) {
             hClusterE->Fill(clusters[ci].p4.E());
@@ -117,25 +128,87 @@ int main(int argc, char **argv) {
                 hPi0Mass->Fill(pi0.M());
             }
         }
+
+        // Match clusters to truth photons
+        std::vector<int> clusterToTrue = matchClustersToTruth(clusters, truePhotons, 10);
+
+        // Construct hybrid TLorentzVectors
+        std::vector<TLorentzVector> photons_tE_rA; // truth E + reco angle
+        std::vector<TLorentzVector> photons_rE_tA; // reco E + truth angle
+
+        for (size_t ic=0; ic<clusters.size(); ++ic) {
+            int it = clusterToTrue[ic];
+            if (it < 0) continue; // skip unmatched
+
+            const Cluster &c = clusters[ic];
+            const TruePhoton &t = truePhotons[it];
+
+            // truth energy + reco angle
+            photons_tE_rA.push_back(makePhotonFromEnergyAndDir(t.p4.E(), c.centroid));
+
+            // reco energy + true angle
+            photons_rE_tA.push_back(makePhotonFromEnergyAndDir(c.p4.E(), t.dir));
+        }
+
+        // Compute all pairwise invariant masses
+        auto fillPairs = [](const std::vector<TLorentzVector>& phs, TH1F* hist) {
+            for (size_t i=0; i<phs.size(); ++i) {
+                for (size_t j=i+1; j<phs.size(); ++j) {
+                    TLorentzVector sum = phs[i] + phs[j];
+                    hist->Fill(sum.M());
+                }
+            }
+        };
+
+        fillPairs(photons_tE_rA, h_mass_truthE_recoAngle);
+        fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);
+
+        for (const TruePhoton &tp : truePhotons) {
+            double Ekin = tp.p4.E() - 134.9766; // kinetic energy
+            hTruth->Fill(Ekin);
+        }
+
+        for (size_t ic=0; ic<clusters.size(); ++ic) {
+            int it = clusterToTrue[ic];
+            if (it < 0) continue;
+            double Ekin = clusters[ic].p4.E() - 134.9766;
+            hReco->Fill(Ekin);
+        }
+
+        for (int i=1; i<=100; ++i) {
+            double nTruth = hTruth->GetBinContent(i);
+            double nReco  = hReco->GetBinContent(i);
+            double eff = (nTruth>0) ? nReco/nTruth : 0;
+            hEff->SetBinContent(i, eff);
+
+            // Optional: binomial error
+            double err = (nTruth>0) ? sqrt(eff*(1-eff)/nTruth) : 0;
+            hEff->SetBinError(i, err);
+        }
+
     }
 
-
     // RECO-RECO
-    // PrettyPi0MassPlot(hPi0Mass, "Pi0Mass_Clustered.png");
-    
+    PrettyPi0MassPlot(hPi0Mass, "Pi0Mass_Clustered.png", 100.0, 170.0);
+
     // TRUTH-TRUTH
     // TruthPi0MassPlot(hPi0TrueMass, "Pi0Mass_Truth.png");
-    
+
+    // Mix Plots
+    // PrettyPi0MassPlot(h_mass_truthE_recoAngle, "Pi0Mass_truthE_recoAngle.png", 100.0, 170.0);
+    // // PrettyPi0MassPlot(h_mass_recoE_truthAngle, "Pi0Mass_recoE_truthAngle.png", 100.0, 150.0);
+    // TruthPi0MassPlot(h_mass_recoE_truthAngle, "Pi0Mass_recoE_truthAngle.png");
+
     // CLUSTER NUM &/or DEBUG PLOTS
     // PrettyPi0NumClusterPlot(hNClusters);
     // BasicHistPlot(hSingleClusterE);
 
-    //
-    // PrettyPi0MassPlot(hPi0Mass, "Pi0Mass_Clustered.png");
+    // Efficiency Plot
+    // EffPlot(hEff, "Pi0_eff.png");
 
 
-    // delete c1; 
-    delete hPi0Mass; delete hClusterE; delete hNClusters; delete hPi0TrueMass; 
+    delete hPi0Mass; delete hClusterE; delete hNClusters; delete hPi0TrueMass;
+    delete h_mass_truthE_recoAngle; delete h_mass_recoE_truthAngle; delete hEffvsE;
     f->Close(); delete f;
     return 0;
 }

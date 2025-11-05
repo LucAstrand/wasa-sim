@@ -324,10 +324,10 @@ std::vector<Cluster> SlidingWindowClusterHits(
         }
 
         // --- DEBUG PRINT ---
-        std::cout << "Seed at (iEta,iPhi)=(" << seed.key.iEta << "," << seed.key.iPhi << ") "
-                  << "window covers " << nTowersInWindow << " towers, "
-                  << nHitsInWindow << " hits, "
-                  << "cluster E=" << sumE << std::endl;
+        // std::cout << "Seed at (iEta,iPhi)=(" << seed.key.iEta << "," << seed.key.iPhi << ") "
+        //           << "window covers " << nTowersInWindow << " towers, "
+        //           << nHitsInWindow << " hits, "
+        //           << "cluster E=" << sumE << std::endl;
 
         if (added && sumE > 0) {
             c.centroid = TVector3(cx / sumE, cy / sumE, cz / sumE);
