@@ -1,321 +1,339 @@
-#include <vector>
-#include <map>
-#include <cmath>
-#include <iostream>
-#include <algorithm>
-#include <string>
-#include <set>
-#include <TF1.h>
-#include <TH1F.h>
-#include <TCanvas.h>
-#include <TFile.h>
-#include <TTree.h>
-#include <TMath.h>
-#include <TLorentzVector.h>
-#include <TVector3.h>
+#include "Clustering.hpp"
 
-// Structure for hits
-struct Hit {
-    double x, y, z, e;
-    int index;
-};
+std::vector<Cluster> SplitMergedClusterEM(
+    const Cluster &merged,
+    const std::vector<Hit> &hits,
+    const TVector3 &vertex,
+    double dEta,           // tower size in eta
+    double dPhi,           // tower size in phi
+    int maxIter,
+    double tol,     // relative change tolerance on log-likelihood
+    double minFrac, // minimum fractional energy for a component to be considered real
+    double initSigma  // initial Gaussian sigma in eta-phi units; if <0 use ~1.0 * max(dEta,dPhi)
+)
+{
+    // 1) build per-hit eta/phi list and total energy
+    struct HInfo { int idx; double eta, phi, E; };
+    std::vector<HInfo> local;
+    double totalE = 0;
+    for (auto hitIdx : merged.hitIndices) {
+        const auto &h = hits[hitIdx];
+        double eta = calcEta(h.x, h.y, h.z);
+        double phi = calcPhi(h.x, h.y, h.z);
+        local.push_back({hitIdx, eta, phi, h.e});
+        totalE += h.e;
+    }
+    if (totalE <= 0 || local.size() < 2) return { merged };
 
-// Structure for clusters (neutral objects)
-struct Cluster {
-    std::vector<int> hitIndices;
-    TVector3 centroid;
-    TLorentzVector p4;
-};
+    // 2) initial seeds: use two highest-energy towers inside merged cluster
+    // Build tower map (fine grid using dEta,dPhi)
+    std::map<EtaPhiTowerKey, double> towers;
+    for (auto &hi : local) {
+        int iEta = int(std::floor(hi.eta / dEta));
+        int iPhi = int(std::floor(hi.phi / dPhi));
+        towers[{iEta, iPhi}] += hi.E;
+    }
+    // sort towers by energy
+    std::vector<std::pair<EtaPhiTowerKey,double>> sorted;
+    for (auto &kv : towers) sorted.push_back(kv);
+    std::sort(sorted.begin(), sorted.end(),
+              [](auto &a, auto &b){ return a.second > b.second; });
+    if (sorted.empty()) return { merged };
+    // pick seed1 = highest tower center, seed2 = best next tower > 1 cell away if possible
+    auto towerKeyToEtaPhi = [&](const EtaPhiTowerKey &k){
+        return std::pair<double,double>( (k.iEta + 0.5)*dEta, (k.iPhi + 0.5)*dPhi );
+    };
+    auto [eta1, phi1] = towerKeyToEtaPhi(sorted[0].first);
+    double eta2=eta1, phi2=phi1;
+    bool found2 = false;
+    for (size_t i=1; i<sorted.size(); ++i) {
+        double dEtaCells = std::abs(sorted[i].first.iEta - sorted[0].first.iEta);
+        double dPhiCells = std::abs(sorted[i].first.iPhi - sorted[0].first.iPhi);
+        if (dEtaCells + dPhiCells > 1) { // not immediate neighbor
+            auto p = towerKeyToEtaPhi(sorted[i].first);
+            eta2 = p.first; phi2 = p.second;
+            found2 = true;
+            break;
+        }
+    }
+    if (!found2) {
+        // fallback: pick the next-highest tower regardless
+        if (sorted.size() >= 2) {
+            auto p = towerKeyToEtaPhi(sorted[1].first);
+            eta2 = p.first; phi2 = p.second;
+        } else {
+            // can't find a second seed
+            return { merged };
+        }
+    }
 
-double AngleBetweenVectors(const TVector3& v1, const TVector3& v2) {
-    double dot = v1.Dot(v2);
-    double mag1 = v1.Mag();
-    double mag2 = v2.Mag();
-    if (mag1 * mag2 == 0) return TMath::Pi();
-    return std::acos(std::min(1.0, std::max(-1.0, dot / (mag1 * mag2))));
+    // 3) EM initialization
+    double sigma = (initSigma > 0) ? initSigma : std::max(dEta, dPhi) * 1.0; // tuneable
+    double alpha1 = 0.5, alpha2 = 0.5; // mixture weights (by energy fraction)
+    // optionally seed alpha by tower energies if available
+    double seedE1 = sorted[0].second;
+    double seedE2 = (sorted.size() >= 2) ? sorted[1].second : (totalE - seedE1);
+    if (seedE1 + seedE2 > 0) {
+        alpha1 = seedE1 / (seedE1 + seedE2);
+        alpha2 = seedE2 / (seedE1 + seedE2);
+    }
+
+    std::vector<double> w1(local.size(), 0.0), w2(local.size(), 0.0);
+    double prevLL = -std::numeric_limits<double>::infinity();
+
+    const double eps = 1e-12;
+
+    for (int iter=0; iter<maxIter; ++iter) {
+        // E-step: compute responsibilities (energy-weighted)
+        double ll = 0.0; // log-likelihood (energy-weighted)
+        for (size_t i=0; i<local.size(); ++i) {
+            double eta = local[i].eta, phi = local[i].phi, E = local[i].E;
+            double d1_eta = (eta - eta1);
+            double d1_phi = dphi_wrap(phi, phi1);
+            double d2_eta = (eta - eta2);
+            double d2_phi = dphi_wrap(phi, phi2);
+            double r1 = std::exp(-0.5 * (d1_eta*d1_eta + d1_phi*d1_phi) / (sigma*sigma));
+            double r2 = std::exp(-0.5 * (d2_eta*d2_eta + d2_phi*d2_phi) / (sigma*sigma));
+            double p1 = alpha1 * r1;
+            double p2 = alpha2 * r2;
+            double norm = p1 + p2 + eps;
+            w1[i] = (p1 / norm);
+            w2[i] = (p2 / norm);
+            // accumulate energy-weighted log-likelihood for monitoring convergence
+            ll += E * std::log(norm);
+        }
+
+        // M-step: update centroids and alphas (energy-weighted)
+        double sumW1 = eps, sumW2 = eps; // energy-weighted sums
+        double eta1_num = 0, phi1_num_x = 0, phi1_num_y = 0; // we'll avoid circular phi averaging by vector method
+        double eta2_num = 0, phi2_num_x = 0, phi2_num_y = 0;
+        for (size_t i=0; i<local.size(); ++i) {
+            double E = local[i].E;
+            sumW1 += w1[i] * E;
+            sumW2 += w2[i] * E;
+            eta1_num += w1[i] * E * local[i].eta;
+            eta2_num += w2[i] * E * local[i].eta;
+            // phi average using unit vectors to handle wrap
+            phi1_num_x += w1[i] * E * std::cos(local[i].phi);
+            phi1_num_y += w1[i] * E * std::sin(local[i].phi);
+            phi2_num_x += w2[i] * E * std::cos(local[i].phi);
+            phi2_num_y += w2[i] * E * std::sin(local[i].phi);
+        }
+
+        // update mixture weights
+        alpha1 = sumW1 / (sumW1 + sumW2);
+        alpha2 = sumW2 / (sumW1 + sumW2);
+
+        // update centroids
+        double new_eta1 = eta1_num / sumW1;
+        double new_eta2 = eta2_num / sumW2;
+        double new_phi1 = std::atan2(phi1_num_y, phi1_num_x);
+        double new_phi2 = std::atan2(phi2_num_y, phi2_num_x);
+
+        // small safeguard: if centroids collapse too close, we may abort
+        double dEta_cent = new_eta1 - new_eta2;
+        double dPhi_cent = dphi_wrap(new_phi1, new_phi2);
+        double centDist2 = dEta_cent*dEta_cent + dPhi_cent*dPhi_cent;
+
+        // update
+        eta1 = new_eta1; phi1 = new_phi1;
+        eta2 = new_eta2; phi2 = new_phi2;
+
+        // optional: update sigma from weighted variance (or keep fixed)
+        // compute weighted squared distances to update sigma (could help convergence)
+        double var_num = 0, var_den = eps;
+        for (size_t i=0; i<local.size(); ++i) {
+            double E = local[i].E;
+            double de1 = local[i].eta - eta1, dp1 = dphi_wrap(local[i].phi, phi1);
+            double de2 = local[i].eta - eta2, dp2 = dphi_wrap(local[i].phi, phi2);
+            double r1sq = (de1*de1 + dp1*dp1);
+            double r2sq = (de2*de2 + dp2*dp2);
+            // weight by responsibility
+            var_num += E * (w1[i]*r1sq + w2[i]*r2sq);
+            var_den += E;
+        }
+        double new_sigma = std::sqrt(std::max(var_num / var_den, 1e-6));
+        // limit sigma updates to reasonable bounds:
+        if (new_sigma > 5*std::max(dEta,dPhi)) new_sigma = 5*std::max(dEta,dPhi);
+        if (new_sigma < 0.1*std::max(dEta,dPhi)) new_sigma = 0.1*std::max(dEta,dPhi);
+        sigma = new_sigma;
+
+        // check convergence in log-likelihood
+        if (iter > 0) {
+            double rel = std::abs((ll - prevLL) / (std::abs(prevLL) + 1e-12));
+            if (rel < tol) break;
+        }
+        prevLL = ll;
+
+        // If one component becomes too small in energy fraction -> break early
+        if (alpha1 < minFrac || alpha2 < minFrac) break;
+
+        // If centroids get extremely close compared to cell size, splitting unlikely
+        if (centDist2 < 1e-6) break;
+    } // end EM loop
+
+    // Post-fit decisions: accept split only if both components have reasonable energy
+    if (alpha1 < minFrac || alpha2 < minFrac) {
+        // one component too small -> no reliable split
+        return { merged };
+    }
+
+    // Build two clusters: compute energy share and momentum etc. using fractional weights
+    std::vector<Cluster> out;
+    // accumulate
+    double Esum1 = 0, Esum2 = 0;
+    double cx1=0, cy1=0, cz1=0, cx2=0, cy2=0, cz2=0;
+    TVector3 mom1(0,0,0), mom2(0,0,0);
+    std::vector<int> indices1, indices2;
+
+    for (size_t i=0; i<local.size(); ++i) {
+        const auto &hi = local[i];
+        double frac1 = w1[i];
+        double frac2 = w2[i];
+        double e1 = hi.E * frac1;
+        double e2 = hi.E * frac2;
+        Esum1 += e1; Esum2 += e2;
+        const auto &h = hits[hi.idx];
+        cx1 += h.x * e1; cy1 += h.y * e1; cz1 += h.z * e1;
+        cx2 += h.x * e2; cy2 += h.y * e2; cz2 += h.z * e2;
+        TVector3 v1(h.x - vertex.X(), h.y - vertex.Y(), h.z - vertex.Z());
+        TVector3 v2 = v1;
+        if (v1.Mag2() > 1e-12) {
+            mom1 += e1 * v1.Unit();
+            mom2 += e2 * v2.Unit();
+        }
+        // assign hit index to the dominant fraction for bookkeeping
+        if (frac1 >= frac2) indices1.push_back(hi.idx);
+        if (frac2 >= frac1) indices2.push_back(hi.idx);
+    }
+
+    double tot = Esum1 + Esum2;
+    if (tot <= 0) return { merged };
+
+    // apply a final quality cut: both must have at least minFrac fraction of the merged energy
+    if ( (Esum1 / tot) < minFrac || (Esum2 / tot) < minFrac ) {
+        return { merged };
+    }
+
+    // create output clusters
+    Cluster c1, c2;
+    c1.centroid = TVector3(cx1 / Esum1, cy1 / Esum1, cz1 / Esum1);
+    c1.p4.SetPxPyPzE(mom1.X(), mom1.Y(), mom1.Z(), Esum1);
+    c1.hitIndices = indices1;
+
+    c2.centroid = TVector3(cx2 / Esum2, cy2 / Esum2, cz2 / Esum2);
+    c2.p4.SetPxPyPzE(mom2.X(), mom2.Y(), mom2.Z(), Esum2);
+    c2.hitIndices = indices2;
+
+    return { c1, c2 };
 }
 
-// std::vector<Cluster> MomentumBasedClustering(const std::vector<Hit>& hits, const TVector3& vertex, double phiThreshold = 0.2) {
-//     std::vector<Hit> hSorted = hits;
-//     std::sort(hSorted.begin(), hSorted.end(), [](const Hit& a, const Hit& b) { return a.e > b.e; });
 
-//     std::vector<Cluster> clusters;
-//     std::vector<bool> used(hits.size(), false);
 
-//     while (!hSorted.empty()) {
-//         Hit hi = hSorted[0];
-//         Cluster c;
-//         c.hitIndices.push_back(hi.index);
-//         used[hi.index] = true;
 
-//         TVector3 v_i(hi.x - vertex.X(), hi.y - vertex.Y(), hi.z - vertex.Z());
-//         if (v_i.Mag2() == 0) continue;
-//         v_i = v_i.Unit();
+// =========================================================
+//   SLIDING-WINDOW CLUSTERING (eta-phi towers)
+// =========================================================
+std::vector<Cluster> SlidingWindowClusterHits(
+    const std::vector<Hit> &hits,
+    const TVector3 &vertex,
+    double dEta,
+    double dPhi,
+    double E_seed, 
+    double E_neighbor,
+    int winSize)
+{
+    // 1. Build towers
+    std::map<EtaPhiTowerKey, double> towers;
+    for (size_t i=0; i<hits.size(); ++i) {
+        double eta = calcEta(hits[i].x, hits[i].y, hits[i].z);
+        double phi = calcPhi(hits[i].x, hits[i].y, hits[i].z);
+        int iEta = int(std::floor(eta/dEta));
+        int iPhi = int(std::floor(phi/dPhi));
+        towers[{iEta,iPhi}] += hits[i].e;
+    }
 
-//         for (size_t j = 1; j < hSorted.size(); ++j) {
-//             if (used[hSorted[j].index]) continue;
-//             TVector3 v_j(hSorted[j].x - vertex.X(), hSorted[j].y - vertex.Y(), hSorted[j].z - vertex.Z());
-//             if (v_j.Mag2() == 0) continue;
-//             v_j = v_j.Unit();
-//             double angle = AngleBetweenVectors(v_i, v_j);
-//             if (angle < phiThreshold) {
-//                 c.hitIndices.push_back(hSorted[j].index);
-//                 used[hSorted[j].index] = true;
-//             }
-//         }
+    // 2. Find seeds (local maxima)
+    std::vector<EtaPhiTowerKey> seed_keys;
+    for (auto &[key, E] : towers) {
+        if (E < E_seed) continue;
 
-//         double sumE = 0.0, cx = 0.0, cy = 0.0, cz = 0.0;
-//         for (int idx : c.hitIndices) {
-//             const auto& h = hits[idx];
-//             sumE += h.e;
-//             cx += h.x * h.e;
-//             cy += h.y * h.e;
-//             cz += h.z * h.e;
-//         }
-//         if (sumE > 0) {
-//             c.centroid = TVector3(cx / sumE, cy / sumE, cz / sumE);
-//             TVector3 dir = (c.centroid - vertex).Unit();
-//             c.p4.SetPxPyPzE(sumE * dir.X(), sumE * dir.Y(), sumE * dir.Z(), sumE);
-//             clusters.push_back(c);
-//         }
+        bool isMax = true;
+        for (int dEtaIdx=-1; dEtaIdx<=1; ++dEtaIdx) {
+            for (int dPhiIdx=-1; dPhiIdx<=1; ++dPhiIdx) {
+                if (dEtaIdx==0 && dPhiIdx==0) continue;
+                EtaPhiTowerKey neigh{key.iEta+dEtaIdx, key.iPhi+dPhiIdx};
+                if (towers.count(neigh) && towers[neigh] > E) {
+                    isMax = false;
+                }
+            }
+        }
+        if (isMax) seed_keys.push_back(key);
+    }
 
-//         hSorted.erase(hSorted.begin());
-//         hSorted.erase(std::remove_if(hSorted.begin(), hSorted.end(),
-//                                      [&used](const Hit& h) { return used[h.index]; }),
-//                       hSorted.end());
-//     }
+    // Sort seeds by energy descending
+    struct SeedInfo {
+        EtaPhiTowerKey key;
+        double E;
+    };
+    std::vector<SeedInfo> seeds;
+    for (auto &k : seed_keys) seeds.push_back({k, towers[k]});
+    std::sort(seeds.begin(), seeds.end(), [](const SeedInfo &a, const SeedInfo &b) {
+        return a.E > b.E;
+    });
 
-//     // Filter low-energy clusters
-//     clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
-//                                   [](const Cluster& c) { return c.p4.E() < 10.0; }),
-//                    clusters.end());
-
-//     return clusters;
-// }
-
-std::vector<Cluster> MomentumBasedClustering(const std::vector<Hit>& hits, const TVector3& vertex, double phiThreshold = 0.05) {
-    std::vector<Hit> hSorted = hits;
-    // Sort by energy descending
-    std::sort(hSorted.begin(), hSorted.end(), [](const Hit& a, const Hit& b) { return a.e > b.e; });
-
+    // 3. Cluster filling around seeds (exclusive tower assignment)
     std::vector<Cluster> clusters;
-    std::vector<bool> used(hits.size(), false);
-
-    for (const auto& seed : hSorted) {
-        if (used[seed.index]) continue;
-        
-        // Start new cluster with seed
+    std::set<EtaPhiTowerKey> assigned;
+    for (auto &seed : seeds) {
         Cluster c;
-        c.hitIndices.push_back(seed.index);
-        used[seed.index] = true;
+        double sumE = 0, cx = 0, cy = 0, cz = 0;
+        TVector3 mom(0,0,0);
+        int nTowersInWindow = 0;
+        int nHitsInWindow = 0;
+        bool added = false;
 
-        TVector3 seed_dir(seed.x - vertex.X(), seed.y - vertex.Y(), seed.z - vertex.Z());
-        if (seed_dir.Mag2() == 0) continue;
-        seed_dir = seed_dir.Unit();
+        for (int de = -winSize; de <= winSize; ++de) {
+            for (int dp = -winSize; dp <= winSize; ++dp) {
+                EtaPhiTowerKey key{seed.key.iEta + de, seed.key.iPhi + dp};
+                if (towers.count(key) == 0 || assigned.count(key) || towers[key] < E_neighbor) continue;
 
-        // First pass: gather all hits within cone of seed
-        std::vector<int> cluster_candidates;
-        for (const auto& h : hSorted) {
-            if (used[h.index]) continue;
-            
-            TVector3 hit_dir(h.x - vertex.X(), h.y - vertex.Y(), h.z - vertex.Z());
-            if (hit_dir.Mag2() == 0) continue;
-            hit_dir = hit_dir.Unit();
-            
-            double angle = AngleBetweenVectors(seed_dir, hit_dir);
-            if (angle < phiThreshold) {
-                cluster_candidates.push_back(h.index);
+                assigned.insert(key);
+                added = true;
+                nTowersInWindow++;
+
+                // Assign hits in this tower to cluster
+                for (size_t i = 0; i < hits.size(); ++i) {
+                    double eta = calcEta(hits[i].x, hits[i].y, hits[i].z);
+                    double phi = calcPhi(hits[i].x, hits[i].y, hits[i].z);
+                    int iEta = int(std::floor(eta / dEta));
+                    int iPhi = int(std::floor(phi / dPhi));
+                    if (iEta == key.iEta && iPhi == key.iPhi) {
+                        const auto &h = hits[i];
+                        sumE += h.e;
+                        cx += h.x * h.e;
+                        cy += h.y * h.e;
+                        cz += h.z * h.e;
+                        TVector3 v(h.x - vertex.X(), h.y - vertex.Y(), h.z - vertex.Z());
+                        if (v.Mag2() > 1e-12) mom += h.e * v.Unit();
+                        c.hitIndices.push_back(i);
+                        nHitsInWindow++;
+                    }
+                }
             }
         }
 
-        // Add candidates to cluster
-        for (int idx : cluster_candidates) {
-            c.hitIndices.push_back(idx);
-            used[idx] = true;
-        }
+        // --- DEBUG PRINT ---
+        std::cout << "Seed at (iEta,iPhi)=(" << seed.key.iEta << "," << seed.key.iPhi << ") "
+                  << "window covers " << nTowersInWindow << " towers, "
+                  << nHitsInWindow << " hits, "
+                  << "cluster E=" << sumE << std::endl;
 
-        // Calculate cluster properties
-        double sumE = 0.0, cx = 0.0, cy = 0.0, cz = 0.0;
-        for (int idx : c.hitIndices) {
-            const auto& h = hits[idx];
-            sumE += h.e;
-            cx += h.x * h.e;
-            cy += h.y * h.e;
-            cz += h.z * h.e;
-        }
-        
-        if (sumE > 0) {
+        if (added && sumE > 0) {
             c.centroid = TVector3(cx / sumE, cy / sumE, cz / sumE);
-            TVector3 dir = (c.centroid - vertex).Unit();
-            c.p4.SetPxPyPzE(sumE * dir.X(), sumE * dir.Y(), sumE * dir.Z(), sumE);
+            c.p4.SetPxPyPzE(mom.X(), mom.Y(), mom.Z(), sumE);
             clusters.push_back(c);
         }
     }
-
-    // Filter low-energy clusters (adjust threshold based on your physics)
-    clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
-                                  [](const Cluster& c) { return c.p4.E() < 50.0; }), // Increased threshold
-                   clusters.end());
-
     return clusters;
-}
-
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
-        return 1;
-    }
-
-    TFile *f = TFile::Open(argv[1]);
-    if (!f || f->IsZombie()) return 1;
-
-    TTree *t = (TTree *)f->Get("digitizedHits");
-    if (!t) { std::cerr << "Tree digitizedHits not found" << std::endl; return 1; }
-
-    std::vector<double> *centerXs = nullptr, *centerYs = nullptr, *centerZs = nullptr, *energies = nullptr;
-    t->SetBranchAddress("centerX", &centerXs);
-    t->SetBranchAddress("centerY", &centerYs);
-    t->SetBranchAddress("centerZ", &centerZs);
-    t->SetBranchAddress("energy", &energies);
-
-    std::vector<double> *primaryX = nullptr, *primaryY = nullptr, *primaryZ = nullptr;
-    t->SetBranchAddress("PrimaryPosX", &primaryX);
-    t->SetBranchAddress("PrimaryPosY", &primaryY);
-    t->SetBranchAddress("PrimaryPosZ", &primaryZ);
-
-    Long64_t nentries = t->GetEntries();
-    TH1F *hPi0Mass = new TH1F("hPi0Mass", ";M_{#gamma#gamma} [MeV];Events", 100, 0, 300);
-    TH1F *hClusterE = new TH1F("hClusterE", ";Cluster E [MeV];Count", 100, 0, 500);
-    TH1F *hNClusters = new TH1F("hNClusters", ";N_{clusters};Events", 20, 0, 20);
-    TH1F *hOpeningAngle = new TH1F("hOpeningAngle", ";Opening Angle [rad];Entries", 100, 0, 1.0);
-    TH1F *hHitE = new TH1F("hHitE", ";Hit E [MeV];Count", 100, 0, 10);
-
-    for (Long64_t ievt = 0; ievt < nentries; ++ievt) {
-        t->GetEntry(ievt);
-
-        if (!primaryX || primaryX->empty()) continue;
-        TVector3 vertex((*primaryX)[0], (*primaryY)[0], (*primaryZ)[0]);
-
-        std::vector<Hit> hits;
-        if (!energies || energies->empty()) {
-            std::cout << "Event " << ievt << ": No hits (skipping)" << std::endl;
-            continue;
-        }
-        size_t nHits = energies->size();
-        std::cout << "Event " << ievt << ": " << nHits << " total hits across all rings" << std::endl;
-        for (size_t k = 0; k < nHits; ++k) {
-            double e = (*energies)[k];
-            hHitE->Fill(e);
-            hits.push_back({(*centerXs)[k], (*centerYs)[k], (*centerZs)[k], e, static_cast<int>(k)});
-        }
-
-        std::set<std::tuple<double, double, double>> unique_pos;
-        for (const auto& h : hits) {
-            unique_pos.insert({h.x, h.y, h.z});
-        }
-        double min_dr = 1e9;
-        for (auto it1 = unique_pos.begin(); it1 != unique_pos.end(); ++it1) {
-            auto [x1, y1, z1] = *it1;
-            TVector3 v1(x1 - vertex.X(), y1 - vertex.Y(), z1 - vertex.Z());
-            for (auto it2 = std::next(it1); it2 != unique_pos.end(); ++it2) {
-                auto [x2, y2, z2] = *it2;
-                TVector3 v2(x2 - vertex.X(), y2 - vertex.Y(), z2 - vertex.Z());
-                double deta = v1.PseudoRapidity() - v2.PseudoRapidity();
-                double dphi = TVector2::Phi_mpi_pi(v1.Phi() - v2.Phi());
-                double dr = std::sqrt(deta * deta + dphi * dphi);
-                if (dr > 0 && dr < min_dr) min_dr = dr;
-            }
-        }
-        std::cout << "Min ΔR between unique hit positions: " << min_dr << std::endl;
-
-        // Check hit energy distribution
-        std::cout << "Hit energy stats:" << std::endl;
-        double totalE = 0;
-        for (const auto& h : hits) totalE += h.e;
-        std::cout << "  Total energy: " << totalE << " MeV" << std::endl;
-        std::cout << "  Mean hit energy: " << totalE / hits.size() << " MeV" << std::endl;
-
-        // Check angular separation between highest energy hits
-        if (hits.size() >= 2) {
-            auto h1 = *std::max_element(hits.begin(), hits.end(), 
-                [](const Hit& a, const Hit& b) { return a.e < b.e; });
-            auto hits_copy = hits;
-            hits_copy.erase(std::remove_if(hits_copy.begin(), hits_copy.end(),
-                [&h1](const Hit& h) { return h.index == h1.index; }), hits_copy.end());
-            auto h2 = *std::max_element(hits_copy.begin(), hits_copy.end(),
-                [](const Hit& a, const Hit& b) { return a.e < b.e; });
-            
-            TVector3 v1(h1.x - vertex.X(), h1.y - vertex.Y(), h1.z - vertex.Z());
-            TVector3 v2(h2.x - vertex.X(), h2.y - vertex.Y(), h2.z - vertex.Z());
-            double angle = AngleBetweenVectors(v1.Unit(), v2.Unit());
-            std::cout << "  Angle between 2 highest E hits: " << angle << " rad (" 
-                    << angle * 180 / TMath::Pi() << " deg)" << std::endl;
-        }
-
-        std::vector<Cluster> clusters = MomentumBasedClustering(hits, vertex, 0.3); // Adjusted phi to 0.3 rad
-
-        double unassigned_e = 0.0;
-        int unassigned_count = 0;
-        for (const auto& h : hits) {
-            bool assigned = false;
-            for (const auto& c : clusters) {
-                if (std::find(c.hitIndices.begin(), c.hitIndices.end(), h.index) != c.hitIndices.end()) {
-                    assigned = true;
-                    break;
-                }
-            }
-            if (!assigned) {
-                unassigned_e += h.e;
-                unassigned_count++;
-            }
-        }
-        std::cout << "Unassigned hit E: " << unassigned_e << " MeV, count: " << unassigned_count << std::endl;
-
-        for (size_t ci = 0; ci < clusters.size(); ++ci) {
-            std::cout << "  Final Cluster " << ci << " E=" << clusters[ci].p4.E()
-                      << " MeV, nHits=" << clusters[ci].hitIndices.size() << std::endl;
-            hClusterE->Fill(clusters[ci].p4.E());
-        }
-        hNClusters->Fill(clusters.size());
-
-        std::cout << "Event " << ievt << ": " << clusters.size() << " final clusters" << std::endl;
-
-        if (clusters.size() >= 2) {
-            std::sort(clusters.begin(), clusters.end(), [](const Cluster& a, const Cluster& b) { return a.p4.E() > b.p4.E(); });
-            TLorentzVector g1 = clusters[0].p4;
-            TLorentzVector g2 = clusters[1].p4;
-            TLorentzVector pi0 = g1 + g2;
-            std::cout << "Photon 1: E=" << g1.E() << ", Px=" << g1.Px() << ", Py=" << g1.Py() << ", Pz=" << g1.Pz() << std::endl;
-            std::cout << "Photon 2: E=" << g2.E() << ", Px=" << g2.Px() << ", Py=" << g2.Py() << ", Pz=" << g2.Pz() << std::endl;
-            std::cout << "Pi0: M=" << pi0.M() << " MeV" << std::endl;
-            hPi0Mass->Fill(pi0.M());
-
-            TVector3 d1(g1.Px(), g1.Py(), g1.Pz());
-            TVector3 d2(g2.Px(), g2.Py(), g2.Pz());
-            double cosTheta = d1.Unit().Dot(d2.Unit());
-            double theta = std::acos(std::min(1.0, std::max(-1.0, cosTheta)));
-            std::cout << "DEBUG: E1=" << g1.E() << " E2=" << g2.E() << " theta(deg)=" << (theta * 180. / TMath::Pi())
-                      << " vertex=(" << vertex.X() << "," << vertex.Y() << "," << vertex.Z() << ")" << std::endl;
-            hOpeningAngle->Fill(theta);
-        }
-    }
-
-    TCanvas *c1 = new TCanvas("c1", "Results", 1600, 400);
-    c1->Divide(3, 1);
-    c1->cd(1); hPi0Mass->Draw();
-    c1->cd(2); hClusterE->Draw();
-    c1->cd(3); hNClusters->Draw();
-    // c1->cd(4); hHitE->Draw();
-    c1->SaveAs("pi0_mass.png");
-
-    TCanvas *c2 = new TCanvas("c2", "Debug", 800, 400);
-    c2->Divide(2, 1);
-    c2->cd(1); hOpeningAngle->Draw();
-    c2->cd(2); // Note: hCosTheta not defined, skipping
-    c2->SaveAs("Openingangles.png");
-
-    delete c1; delete hPi0Mass; delete hClusterE; delete hNClusters; delete hHitE;
-    delete c2;
-    f->Close(); delete f;
-    return 0;
 }
