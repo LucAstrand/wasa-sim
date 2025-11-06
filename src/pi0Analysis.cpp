@@ -1,7 +1,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TH1F.h"
-#include "TEfficiency.h"
+#include "TGraph.h"
 
 #include "Structures.hpp"
 #include "Clustering.hpp"
@@ -10,6 +10,7 @@
 #include "Utils.hpp"
 #include "TruePhotonCalc.hpp"
 #include "PhotonMatch.hpp"
+#include "Pi0Efficiency.hpp"
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -56,9 +57,11 @@ int main(int argc, char **argv) {
     TH1F *h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *hEffvsE = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
 
-    TH1F *hTruth = new TH1F("hTruth", "Truth Pi0 Ekin", 100, 1, 500);
-    TH1F *hReco = new TH1F("hReco", "Reco Pi0 Ekin", 100, 1, 500);
-    TH1F *hEff = new TH1F("hEff", "Reconstructed Pi0 efficiency", 100, 1, 500);
+    // TH1F *hTruth = new TH1F("hTruth", "Truth Pi0 Ekin", 100, 1, 500);
+    // TH1F *hReco = new TH1F("hReco", "Reco Pi0 Ekin", 100, 1, 500);
+    // TH1F *hEff = new TH1F("hEff", "Reconstructed Pi0 efficiency", 100, 1, 500);
+
+    Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
 
 
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
@@ -101,7 +104,7 @@ int main(int argc, char **argv) {
 
 
         std::vector<Cluster> clusters;
-        double dEta = 0.30/ 2;
+        double dEta = 0.30/2;
         double dPhi = 0.30/2;
         double E_seed = 20.00;
         double E_neighbor = 0.03;
@@ -161,35 +164,15 @@ int main(int argc, char **argv) {
         };
 
         fillPairs(photons_tE_rA, h_mass_truthE_recoAngle);
-        fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);
-
-        for (const TruePhoton &tp : truePhotons) {
-            double Ekin = tp.p4.E() - 134.9766; // kinetic energy
-            hTruth->Fill(Ekin);
-        }
-
-        for (size_t ic=0; ic<clusters.size(); ++ic) {
-            int it = clusterToTrue[ic];
-            if (it < 0) continue;
-            double Ekin = clusters[ic].p4.E() - 134.9766;
-            hReco->Fill(Ekin);
-        }
-
-        for (int i=1; i<=100; ++i) {
-            double nTruth = hTruth->GetBinContent(i);
-            double nReco  = hReco->GetBinContent(i);
-            double eff = (nTruth>0) ? nReco/nTruth : 0;
-            hEff->SetBinContent(i, eff);
-
-            // Optional: binomial error
-            double err = (nTruth>0) ? sqrt(eff*(1-eff)/nTruth) : 0;
-            hEff->SetBinError(i, err);
-        }
+        fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);  
+        
+        effPlotter.ProcessEvent(clusters, truePhotons);
 
     }
+    
 
     // RECO-RECO
-    PrettyPi0MassPlot(hPi0Mass, "Pi0Mass_Clustered.png", 100.0, 170.0);
+    // PrettyPi0MassPlot(hPi0Mass, "Pi0Mass_Clustered.png", 100.0, 170.0);
 
     // TRUTH-TRUTH
     // TruthPi0MassPlot(hPi0TrueMass, "Pi0Mass_Truth.png");
@@ -205,6 +188,8 @@ int main(int argc, char **argv) {
 
     // Efficiency Plot
     // EffPlot(hEff, "Pi0_eff.png");
+    effPlotter.FinalizePlot("plots/Pi0_efficiency_vs_Ekin.png");
+
 
 
     delete hPi0Mass; delete hClusterE; delete hNClusters; delete hPi0TrueMass;

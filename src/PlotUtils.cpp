@@ -307,37 +307,37 @@ void EffPlot(TH1F* hEff, TString plotname) {
     // fGaus->Draw("SAME");
     // Double_t mean = hPi0Mass->GetMean();
 
-    TLegend *leg = new TLegend(0.55, 0.7, 0.88, 0.88);
-    leg->AddEntry(hEff, "Pi0 Reconstruction Efficiency", "l");
-    // leg->AddEntry(fGaus, "Gaussian Fit:", "l");
-    // leg->AddEntry((TObject*)0, Form("mean = %.3f MeV", mean), "");
-    // leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f MeV", mean, errMu), "");
-    // leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f MeV", sigma, errSi), "");
-    leg->SetTextSize(0.03);
-    leg->Draw();
+    // TLegend *leg = new TLegend(0.55, 0.7, 0.88, 0.88);
+    // leg->AddEntry(hEff, "Pi0 Reconstruction Efficiency", "l");
+    // // leg->AddEntry(fGaus, "Gaussian Fit:", "l");
+    // // leg->AddEntry((TObject*)0, Form("mean = %.3f MeV", mean), "");
+    // // leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f MeV", mean, errMu), "");
+    // // leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f MeV", sigma, errSi), "");
+    // leg->SetTextSize(0.03);
+    // leg->Draw();
 
-    TPaveText *info = new TPaveText(0.17, 0.70, 0.50, 0.90, "NDC");  // x1,y1,x2,y2 normalized coordinates
-    info->SetFillStyle(0);
-    info->SetBorderSize(0);
-    info->SetTextFont(42);
-    info->SetTextSize(0.04);
-    // info->AddText("Hibeam Wasafull simulation");
-    info->AddText("GEANT4 #pi^{0} sample");
-    info->AddText("1000 simulated events");
-    info->AddText("E_{kin} #in [1, 500] MeV");
-    // info->AddText("E_{kin} = 100 MeV");
-    info->Draw();
+    // TPaveText *info = new TPaveText(0.17, 0.70, 0.50, 0.90, "NDC");  // x1,y1,x2,y2 normalized coordinates
+    // info->SetFillStyle(0);
+    // info->SetBorderSize(0);
+    // info->SetTextFont(42);
+    // info->SetTextSize(0.04);
+    // // info->AddText("Hibeam Wasafull simulation");
+    // info->AddText("GEANT4 #pi^{0} sample");
+    // info->AddText("1000 simulated events");
+    // info->AddText("E_{kin} #in [1, 500] MeV");
+    // // info->AddText("E_{kin} = 100 MeV");
+    // info->Draw();
 
-    TLatex l;
-    l.SetNDC();
-    l.SetTextFont(42);
-    l.SetTextSize(0.045);
-    l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
+    // TLatex l;
+    // l.SetNDC();
+    // l.SetTextFont(42);
+    // l.SetTextSize(0.045);
+    // l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
 
     c->SaveAs("plots/" + plotname);
     // c->SaveAs("Pi0Mass_truth.png");
 
     // clean up
-    delete leg;
+    // delete leg;
     delete c;
 }
