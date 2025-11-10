@@ -89,6 +89,11 @@ int main(int argc, char** argv) {
     std::vector<double>* primaryPosX = nullptr;
     std::vector<double>* primaryPosY = nullptr;
     std::vector<double>* primaryPosZ = nullptr;
+    std::vector<double>* primaryEkin = nullptr;
+
+    std::vector<double>* primaryMomX = nullptr;
+    std::vector<double>* primaryMomY = nullptr;
+    std::vector<double>* primaryMomZ = nullptr;
 
     std::vector<double>* TruePhotonX = nullptr;
     std::vector<double>* TruePhotonY = nullptr;
@@ -102,10 +107,16 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("PrimaryPosX", &primaryPosX);
     inTree->SetBranchAddress("PrimaryPosY", &primaryPosY);
     inTree->SetBranchAddress("PrimaryPosZ", &primaryPosZ);
+    inTree->SetBranchAddress("PrimaryEkin", &primaryEkin);
     inTree->SetBranchAddress("TruePhotonX", &TruePhotonX);
+    inTree->SetBranchAddress("PrimaryMomX", &primaryMomX);
+    inTree->SetBranchAddress("PrimaryMomY", &primaryMomY);
+    inTree->SetBranchAddress("PrimaryMomZ", &primaryMomZ);
+    
     inTree->SetBranchAddress("TruePhotonY", &TruePhotonY);
     inTree->SetBranchAddress("TruePhotonZ", &TruePhotonZ);
     inTree->SetBranchAddress("TruePhotonE", &TruePhotonE);
+    
 
     // Quick test read of first entry to catch issues early
     if (inTree->GetEntries() > 0) {
@@ -143,7 +154,7 @@ int main(int argc, char** argv) {
     TTree* outTree = new TTree("digitizedHits", "Digitized calorimeter");
     std::vector<double> centerXs, centerYs, centerZs, energies;
     std::vector<int> ringNos, copyNos;
-    std::vector<double> outPrimaryPosX, outPrimaryPosY, outPrimaryPosZ;  // Preserve vertex vectors per event
+    std::vector<double> outPrimaryPosX, outPrimaryPosY, outPrimaryPosZ, outPrimaryEkin, outPrimaryMomX, outPrimaryMomY, outPrimaryMomZ;
     std::vector<double> outTruePhotonX, outTruePhotonY, outTruePhotonZ, outTruePhotonE;
     // std::vector<double> residualX, residualY, residualZ; // --- Create output tree branches (add residuals) ---
     outTree->Branch("centerX", &centerXs);
@@ -155,6 +166,11 @@ int main(int argc, char** argv) {
     outTree->Branch("PrimaryPosX", &outPrimaryPosX);
     outTree->Branch("PrimaryPosY", &outPrimaryPosY);
     outTree->Branch("PrimaryPosZ", &outPrimaryPosZ);
+    outTree->Branch("PrimaryEkin", &outPrimaryEkin);
+    outTree->Branch("PrimaryMomX", &outPrimaryMomX);
+    outTree->Branch("PrimaryMomY", &outPrimaryMomY);
+    outTree->Branch("PrimaryMomZ", &outPrimaryMomZ);
+
     outTree->Branch("truthPosX", &outTruePhotonX);
     outTree->Branch("truthPosY", &outTruePhotonY);
     outTree->Branch("truthPosZ", &outTruePhotonZ);
@@ -200,6 +216,11 @@ int main(int argc, char** argv) {
         outPrimaryPosX = primaryPosX ? *primaryPosX : std::vector<double>();
         outPrimaryPosY = primaryPosY ? *primaryPosY : std::vector<double>();
         outPrimaryPosZ = primaryPosZ ? *primaryPosZ : std::vector<double>();
+        outPrimaryEkin = primaryEkin ? *primaryEkin : std::vector<double>();
+        outPrimaryMomX = primaryMomX ? *primaryMomX : std::vector<double>();
+        outPrimaryMomY = primaryMomY ? *primaryMomY : std::vector<double>();
+        outPrimaryMomZ = primaryMomZ ? *primaryMomZ : std::vector<double>();
+
         outTruePhotonX = TruePhotonX ? *TruePhotonX : std::vector<double>();
         outTruePhotonY = TruePhotonY ? *TruePhotonY : std::vector<double>();
         outTruePhotonZ = TruePhotonZ ? *TruePhotonZ : std::vector<double>();

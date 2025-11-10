@@ -73,18 +73,15 @@ void Pi0Efficiency::FinalizePlot(const std::string& outFileName) {
         gEff->SetPointError(i, exl, exh, eyl_new, eyh_new);
     }
 
-    // Styling
     gEff->SetMarkerStyle(20);
     gEff->SetMarkerSize(1.0);
     gEff->SetMarkerColor(kBlack);
     gEff->SetLineColor(kBlack);
 
-    // Axis labels and ranges: percent on y-axis
     gEff->GetXaxis()->SetTitle("True #pi^{0} E_{kin} [MeV]");
     gEff->GetYaxis()->SetTitle("Efficiency [%]");
-    gEff->GetYaxis()->SetRangeUser(0.0, 110.0); // show up to 110% for headroom
+    gEff->GetYaxis()->SetRangeUser(0.0, 110.0);
 
-    // Draw
     gStyle->SetOptStat(0);
     gEff->Draw("AP");
 
@@ -101,7 +98,7 @@ void Pi0Efficiency::FinalizePlot(const std::string& outFileName) {
     c->SaveAs(outFileName.c_str());
     // std::cout << "[Pi0Efficiency] Saved plot to " << outFileName << std::endl;
 
-    // cleanup (ROOT will usually own things but explicit delete is fine)
+    // cleanup
     delete gEff;
     delete c;
 }

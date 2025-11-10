@@ -11,6 +11,7 @@
 #include "TruePhotonCalc.hpp"
 #include "PhotonMatch.hpp"
 #include "Pi0Efficiency.hpp"
+#include "Pi0Acceptance.hpp"
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -34,10 +35,15 @@ int main(int argc, char **argv) {
     t->SetBranchAddress("energy", &energies);
 
     // Primary vertex (vector, but size=1 per event)
-    std::vector<double> *primaryX=nullptr,*primaryY=nullptr,*primaryZ=nullptr;
+    std::vector<double> *primaryX=nullptr,*primaryY=nullptr,*primaryZ=nullptr,*primaryEkin=nullptr;
+    std::vector<double>* primaryPx = nullptr, *primaryPy = nullptr, *primaryPz = nullptr;
     t->SetBranchAddress("PrimaryPosX",&primaryX);
     t->SetBranchAddress("PrimaryPosY",&primaryY);
     t->SetBranchAddress("PrimaryPosZ",&primaryZ);
+    t->SetBranchAddress("PrimaryEkin",&primaryEkin);
+    t->SetBranchAddress("PrimaryMomX", &primaryPx);
+    t->SetBranchAddress("PrimaryMomY", &primaryPy);
+    t->SetBranchAddress("PrimaryMomZ", &primaryPz);   
 
     // Truth level info
     std::vector<double> *truthPosX=nullptr, *truthPosY=nullptr, *truthPosZ=nullptr, *truthE=nullptr;
@@ -57,19 +63,19 @@ int main(int argc, char **argv) {
     TH1F *h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *hEffvsE = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
 
-    // TH1F *hTruth = new TH1F("hTruth", "Truth Pi0 Ekin", 100, 1, 500);
-    // TH1F *hReco = new TH1F("hReco", "Reco Pi0 Ekin", 100, 1, 500);
-    // TH1F *hEff = new TH1F("hEff", "Reconstructed Pi0 efficiency", 100, 1, 500);
-
-    Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
-
-
+    // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
+    // Pi0Acceptance accPlotter(120.0, 150.0, 134.977, 20, 1, 500);
+    Pi0Acceptance pi0AcceptanceVsEta(-10, 10, 100);
+    
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
         t->GetEntry(ievt);
 
         // Get the event's vertex
         if (!primaryX||primaryX->empty()) continue;
         TVector3 vertex((*primaryX)[0],(*primaryY)[0],(*primaryZ)[0]);
+
+        if (!primaryEkin || primaryEkin->empty()) continue; // safety check
+        double genEkin = primaryEkin->at(0); // one pion per event
 
         std::vector<Hit> hits;
         if (!energies || energies->empty()) {
@@ -102,11 +108,10 @@ int main(int argc, char **argv) {
         // DEBUG print bin contents
         // hPi0TrueMass->Print("all");
 
-
         std::vector<Cluster> clusters;
-        double dEta = 0.30/2;
-        double dPhi = 0.30/2;
-        double E_seed = 20.00;
+        double dEta = 0.10/2;
+        double dPhi = 0.10/2;
+        double E_seed = 15.00;
         double E_neighbor = 0.03;
         int winSize = 3;
 
@@ -166,7 +171,18 @@ int main(int argc, char **argv) {
         fillPairs(photons_tE_rA, h_mass_truthE_recoAngle);
         fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);  
         
-        effPlotter.ProcessEvent(clusters, truePhotons);
+        // effPlotter.ProcessEvent(clusters, truePhotons);
+        // accPlotter.ProcessEvent(clusters, truePhotons, genEkin);
+
+        double px = primaryPx->at(0);
+        double py = primaryPy->at(0);
+        double pz = primaryPz->at(0);
+        double p = sqrt(px*px + py*py + pz*pz);
+
+        double eta = 0.5 * log((p + pz) / (p - pz)); // pseudorapidity
+
+        pi0AcceptanceVsEta.ProcessEvent(clusters, truePhotons, eta);
+
 
     }
     
@@ -187,9 +203,12 @@ int main(int argc, char **argv) {
     // BasicHistPlot(hSingleClusterE);
 
     // Efficiency Plot
-    // EffPlot(hEff, "Pi0_eff.png");
-    effPlotter.FinalizePlot("plots/Pi0_efficiency_vs_Ekin.png");
+    // EffPlot(hEff, "Pi0_eff.png"); // OLD
+    // effPlotter.FinalizePlot("plots/Pi0_efficiency_vs_Ekin.png");
 
+    // Acceptance Plot
+    // accPlotter.FinalizePlot("plots/Pi0_acceptance_vs_Ekin.png");
+    pi0AcceptanceVsEta.FinalizePlot("plots/Pi0_acceptance_vs_Eta.png");
 
 
     delete hPi0Mass; delete hClusterE; delete hNClusters; delete hPi0TrueMass;
