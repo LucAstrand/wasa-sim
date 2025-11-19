@@ -18,6 +18,31 @@
 #include "TApplication.h"
 #include "TColor.h"
 #include "TStyle.h"
+// #include "TEveProjectionAxes.h"
+#include "TEveProjectionManager.h"
+#include "TEveProjections.h"
+
+#include <TApplication.h>
+#include <TFile.h>
+#include <TTree.h>
+#include <TGeoManager.h>
+#include <TColor.h>
+#include <TStyle.h>
+
+#include <TEveManager.h>
+#include <TEveBrowser.h>
+// #include <TEveGeoTopNode.h>
+#include <TEveArrow.h>
+// #include <TEveElementList.h>
+#include <TEveLine.h>
+#include <TEvePointSet.h>
+
+#include <TEveProjectionManager.h>
+#include <TEveProjectionAxes.h>
+#include <TEveViewer.h>
+#include <TEveScene.h>
+#include <TGLViewer.h>
+
 
 #include "Clustering.hpp"
 
