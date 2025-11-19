@@ -9,6 +9,8 @@ void SetPrettyStyle();
 void PrettyPi0MassPlot(TH1F* hPi0Mass, TString plotname, double fitMin, double fitMax);
 void TruthPi0MassPlot(TH1F* hPi0Mass, TString plotname);
 void PrettyPi0NumClusterPlot(TH1F* hNCluster);
+// void Pi0ClusterNumPlotEkin(TH1F* hNClusters_lowE, TH1F* hNClusters_midE, TH1F* hNClusters_highE);
+void Pi0ClusterNumPlotEkin(TH1F* hNClusters_lowE, TH1F* hNClusters_highE);
 void BasicHistPlot(TH1F* histogram);
 void EffPlot(TH1F* hEff, TString plotname);
 

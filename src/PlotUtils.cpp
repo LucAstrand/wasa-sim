@@ -74,6 +74,8 @@ void PrettyPi0MassPlot(TH1F* hPi0Mass, TString plotname, double fitMin, double f
     leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f MeV", mean, errMu), "");
     leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f MeV", sigma, errSi), "");
     leg->SetTextSize(0.03);
+    leg->SetFillStyle(0);   // no fill
+    leg->SetBorderSize(0);  // no border box
     leg->Draw();
 
     TPaveText *info = new TPaveText(0.17, 0.70, 0.50, 0.90, "NDC");  // x1,y1,x2,y2 normalized coordinates
@@ -136,6 +138,8 @@ void TruthPi0MassPlot(TH1F* hPi0Mass, TString plotname) {
     // leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f MeV", mean, errMu), "");
     // leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f MeV", sigma, errSi), "");
     leg->SetTextSize(0.03);
+    leg->SetFillStyle(0);   // no fill
+    leg->SetBorderSize(0);  // no border box
     leg->Draw();
 
     TPaveText *info = new TPaveText(0.17, 0.70, 0.50, 0.90, "NDC");  // x1,y1,x2,y2 normalized coordinates
@@ -211,6 +215,8 @@ void PrettyPi0NumClusterPlot(TH1F* hNCluster) {
     info->AddText("GEANT4 #pi^{0} sample");
     info->AddText("1000 simulated events");
     info->AddText("E_{kin} #in [1, 500] MeV");
+    leg->SetFillStyle(0);   // no fill
+    leg->SetBorderSize(0);  // no border box
     info->Draw();
 
     TLatex l;
@@ -228,6 +234,137 @@ void PrettyPi0NumClusterPlot(TH1F* hNCluster) {
     // delete fGaus;
     delete c;
 }
+
+// void Pi0ClusterNumPlotEkin(TH1F* hNClusters_lowE, TH1F* hNClusters_midE, TH1F* hNClusters_highE) {
+//     SetPrettyStyle();
+
+//     TCanvas *c = new TCanvas("c", "Cluster multiplicity vs E_kin", 800, 600);
+//     hNClusters_lowE->SetLineColor(kRed);
+//     hNClusters_midE->SetLineColor(kBlue);
+//     hNClusters_highE->SetLineColor(kGreen+2);
+
+//     double maxY = std::max({
+//     hNClusters_lowE->GetMaximum(),
+//     hNClusters_midE->GetMaximum(),
+//     hNClusters_highE->GetMaximum()
+//     });
+
+//     hNClusters_lowE->SetMaximum(1.2 * maxY);  
+
+//     hNClusters_lowE->Draw();
+//     hNClusters_midE->Draw("SAME");
+//     hNClusters_highE->Draw("SAME");
+
+//     auto legend = new TLegend(0.6,0.7,0.88,0.88);
+//     legend->AddEntry(hNClusters_lowE, "E_{kin} < 200 MeV", "l");
+//     legend->AddEntry(hNClusters_midE, "200-400 MeV", "l");
+//     legend->AddEntry(hNClusters_highE, "E_{kin} > 400 MeV", "l");
+//     legend->SetFillStyle(0);   // no fill
+//     legend->SetBorderSize(0);  // no border box
+//     legend->Draw();
+
+//     // int numEvts2Photon = hNCluster->GetBinContent(hNCluster->FindBin(2));
+
+//     // TLegend *leg = new TLegend(0.55, 0.7, 0.88, 0.88);
+//     // leg->AddEntry(hNCluster, "Number of clusters per event", "l");
+//     // // leg->AddEntry(fGaus, "Gaussian Fit:", "l");
+//     // // leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f MeV", mean, errMu), "");
+//     // // leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f MeV", sigma, errSi), "");
+
+//     // leg->AddEntry((TObject*)0, Form("2 photon events = %d", numEvts2Photon), "");
+
+//     // leg->SetTextSize(0.03);
+//     // leg->Draw();
+
+//     TPaveText *info = new TPaveText(0.6,0.2,0.88,0.48, "NDC");  // x1,y1,x2,y2 normalized coordinates
+//     info->SetFillStyle(0);
+//     info->SetBorderSize(0);
+//     info->SetTextFont(42);
+//     info->SetTextSize(0.04);
+//     // info->AddText("Hibeam Wasafull simulation");
+//     info->AddText("GEANT4 #pi^{0} sample");
+//     info->AddText("1000 simulated events");
+//     info->AddText("E_{kin} #in [1, 500] MeV");
+//     info->Draw();
+
+//     TLatex l;
+//     l.SetNDC();
+//     l.SetTextFont(42);
+//     l.SetTextSize(0.045);
+//     l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
+
+//     c->SaveAs("plots/ClusterNum_Ekin.png");
+
+//     // clean up
+//     delete legend;
+//     delete c;
+// }
+
+void Pi0ClusterNumPlotEkin(TH1F* hNClusters_lowE, TH1F* hNClusters_highE) {
+    SetPrettyStyle();
+
+    TCanvas *c = new TCanvas("c", "Cluster multiplicity vs E_kin", 800, 600);
+    hNClusters_lowE->SetLineColor(kRed);
+    // hNClusters_midE->SetLineColor(kBlue);
+    hNClusters_highE->SetLineColor(kGreen+2);
+
+    double maxY = std::max({
+    hNClusters_lowE->GetMaximum(),
+    // hNClusters_midE->GetMaximum(),
+    hNClusters_highE->GetMaximum()
+    });
+
+    hNClusters_lowE->SetMaximum(1.2 * maxY);  
+
+    hNClusters_lowE->Draw();
+    // hNClusters_midE->Draw("SAME");
+    hNClusters_highE->Draw("SAME");
+
+    auto legend = new TLegend(0.6,0.7,0.88,0.88);
+    legend->AddEntry(hNClusters_lowE, "E_{kin} = 50 MeV", "l");
+    // legend->AddEntry(hNClusters_midE, "200-400 MeV", "l");
+    legend->AddEntry(hNClusters_highE, "E_{kin} = 500 MeV", "l");
+    legend->SetFillStyle(0);   // no fill
+    legend->SetBorderSize(0);  // no border box
+    legend->Draw();
+
+    // int numEvts2Photon = hNCluster->GetBinContent(hNCluster->FindBin(2));
+
+    // TLegend *leg = new TLegend(0.55, 0.7, 0.88, 0.88);
+    // leg->AddEntry(hNCluster, "Number of clusters per event", "l");
+    // // leg->AddEntry(fGaus, "Gaussian Fit:", "l");
+    // // leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f MeV", mean, errMu), "");
+    // // leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f MeV", sigma, errSi), "");
+
+    // leg->AddEntry((TObject*)0, Form("2 photon events = %d", numEvts2Photon), "");
+
+    // leg->SetTextSize(0.03);
+    // leg->Draw();
+
+    TPaveText *info = new TPaveText(0.6,0.2,0.88,0.48, "NDC");  // x1,y1,x2,y2 normalized coordinates
+    info->SetFillStyle(0);
+    info->SetBorderSize(0);
+    info->SetTextFont(42);
+    info->SetTextSize(0.04);
+    // info->AddText("Hibeam Wasafull simulation");
+    info->AddText("GEANT4 #pi^{0} sample");
+    info->AddText("1000 simulated events");
+    info->AddText("E_{kin} #in [1, 500] MeV");
+    info->Draw();
+
+    TLatex l;
+    l.SetNDC();
+    l.SetTextFont(42);
+    l.SetTextSize(0.045);
+    l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
+
+    c->SaveAs("plots/ClusterNum_Ekin_50_150_MeV.png");
+
+    // clean up
+    delete legend;
+    delete c;
+}
+
 
 void BasicHistPlot(TH1F* histogram) {
     SetPrettyStyle();
@@ -254,8 +391,9 @@ void BasicHistPlot(TH1F* histogram) {
 
     TLegend *leg = new TLegend(0.55, 0.7, 0.88, 0.88);
     leg->AddEntry(histogram, "Counts", "l");
-
     leg->SetTextSize(0.03);
+    leg->SetFillStyle(0);   // no fill
+    leg->SetBorderSize(0);  // no border box
     leg->Draw();
 
     TPaveText *info = new TPaveText(0.17, 0.70, 0.50, 0.90, "NDC");  // x1,y1,x2,y2 normalized coordinates
@@ -314,6 +452,8 @@ void EffPlot(TH1F* hEff, TString plotname) {
     // // leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f MeV", mean, errMu), "");
     // // leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f MeV", sigma, errSi), "");
     // leg->SetTextSize(0.03);
+    // leg->SetFillStyle(0);   // no fill
+    // leg->SetBorderSize(0);  // no border box
     // leg->Draw();
 
     // TPaveText *info = new TPaveText(0.17, 0.70, 0.50, 0.90, "NDC");  // x1,y1,x2,y2 normalized coordinates

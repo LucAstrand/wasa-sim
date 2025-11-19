@@ -5,6 +5,7 @@
 #include "TH1D.h"
 #include "TGraphAsymmErrors.h"
 #include "TLorentzVector.h"
+#include "TPaveText.h"
 #include <vector>
 #include <string>
 
@@ -15,14 +16,19 @@
 
 class Pi0Acceptance {
 public:
-    // Pi0Acceptance(double massLow = 120.0, double massHigh = 150.0, 
-    //               double pi0Mass = 134.977, int nBins = 20, double eMin = 0, double eMax = 500);
+    Pi0Acceptance(double massLow = 120.0, double massHigh = 150.0, 
+                  double pi0Mass = 134.977, int nBins = 20, double eMin = 0, double eMax = 500);
     
-    Pi0Acceptance(double etaMin, double etaMax, int nBins);
+    // Pi0Acceptance(double etaMin, double etaMax, int nBins);
 
     void ProcessEvent(const std::vector<Cluster>& clusters, 
                       const std::vector<TruePhoton>& truePhotons, 
                       const double primaryEkin);
+    
+    void ProcessEventTwoHist(const std::vector<Cluster>& clusters,
+                             const std::vector<TruePhoton>& TruePhotons,
+                             const double primaryEkin,
+                             const double primaryTheta);
 
     void FinalizePlot(const std::string& outFileName = "Pi0Efficiency.png");
 
@@ -31,6 +37,10 @@ private:
     double pi0Mass_;
     TH1D* h_num_;
     TH1D* h_den_;
+    TH1D* h_num_1;
+    TH1D* h_den_1;
+    TH1D* h_num_2;
+    TH1D* h_den_2;
     int nBins_;
     double eMin_, eMax_;
     int countTot;

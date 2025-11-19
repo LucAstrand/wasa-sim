@@ -55,17 +55,26 @@ int main(int argc, char **argv) {
     Long64_t nentries = t->GetEntries();
 
     TH1F *hPi0Mass = new TH1F("hPi0Mass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
+
     TH1F *hClusterE = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
-    TH1F *hNClusters = new TH1F("hNClusters",";N_{clusters};Events",20,0,20);
+    // TH1F *hNClusters = new TH1F("hNClusters",";N_{clusters};Events",20,0,20);
+    
+    TH1F *hNClusters_lowEkin = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
+    TH1F *hNClusters_midEkin = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
+    TH1F *hNClusters_highEkin = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
+
+    
     // TH1F *hSingleClusterE = new TH1F("hSingleClusterE",";Cluster E [MeV];Count",100,0,500);
     TH1F *hPi0TrueMass = new TH1F("hPi0TrueMass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *h_mass_truthE_recoAngle = new TH1F("h_tE_rA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *hEffvsE = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
 
-    // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
+    Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
     // Pi0Acceptance accPlotter(120.0, 150.0, 134.977, 20, 1, 500);
-    Pi0Acceptance pi0AcceptanceVsEta(-10, 10, 100);
+    // Pi0Acceptance pi0AcceptanceVsEta(-10, 10, 100);
+    Pi0Acceptance pi0AcceptanceVsTheta(0, TMath::Pi(), 60);
+
     
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
         t->GetEntry(ievt);
@@ -74,8 +83,8 @@ int main(int argc, char **argv) {
         if (!primaryX||primaryX->empty()) continue;
         TVector3 vertex((*primaryX)[0],(*primaryY)[0],(*primaryZ)[0]);
 
-        if (!primaryEkin || primaryEkin->empty()) continue; // safety check
-        double genEkin = primaryEkin->at(0); // one pion per event
+        if (!primaryEkin || primaryEkin->empty()) continue; 
+        double genEkin = primaryEkin->at(0); 
 
         std::vector<Hit> hits;
         if (!energies || energies->empty()) {
@@ -128,7 +137,12 @@ int main(int argc, char **argv) {
         for (size_t ci=0; ci<clusters.size(); ++ci) {
             hClusterE->Fill(clusters[ci].p4.E());
         }
-        hNClusters->Fill(clusters.size());
+        // hNClusters->Fill(clusters.size());
+
+        // Fill cluster num plots based on primary Ekin
+        // if (genEkin < 200) hNClusters_lowEkin->Fill(clusters.size());
+        // else if (genEkin >= 200 && genEkin < 400) hNClusters_midEkin->Fill(clusters.size());
+        // else hNClusters_highEkin->Fill(clusters.size());
 
         for (size_t a=0;a<clusters.size();++a) {
             for (size_t b=a+1;b<clusters.size();++b) {
@@ -171,7 +185,7 @@ int main(int argc, char **argv) {
         fillPairs(photons_tE_rA, h_mass_truthE_recoAngle);
         fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);  
         
-        // effPlotter.ProcessEvent(clusters, truePhotons);
+        effPlotter.ProcessEvent(clusters, truePhotons);
         // accPlotter.ProcessEvent(clusters, truePhotons, genEkin);
 
         double px = primaryPx->at(0);
@@ -180,8 +194,22 @@ int main(int argc, char **argv) {
         double p = sqrt(px*px + py*py + pz*pz);
 
         double eta = 0.5 * log((p + pz) / (p - pz)); // pseudorapidity
+        double theta = acos(pz / p); // theta 
 
-        pi0AcceptanceVsEta.ProcessEvent(clusters, truePhotons, eta);
+        // pi0AcceptanceVsEta.ProcessEvent(clusters, truePhotons, eta);
+        // pi0AcceptanceVsTheta.ProcessEvent(clusters, truePhotons, theta);
+
+        // pi0AcceptanceVsTheta.ProcessEventTwoHist(clusters, truePhotons, genEkin, theta);
+
+        // double targetTheta = TMath::Pi() / 2;
+        // double deltaTheta = 0.1;
+
+        // if (genEkin == 50 && std::abs(theta - targetTheta) < deltaTheta) {
+        //     std::cout << "[Theta] " << theta << std::endl;
+        //     hNClusters_lowEkin->Fill(clusters.size());
+        // }
+        // else if (genEkin == 500 && std::abs(theta - targetTheta) < deltaTheta) hNClusters_highEkin->Fill(clusters.size());
+
 
 
     }
@@ -200,19 +228,31 @@ int main(int argc, char **argv) {
 
     // CLUSTER NUM &/or DEBUG PLOTS
     // PrettyPi0NumClusterPlot(hNClusters);
+    // Pi0ClusterNumPlotEkin(hNClusters_lowEkin, hNClusters_midEkin, hNClusters_highEkin);
+    // Pi0ClusterNumPlotEkin(hNClusters_lowEkin, hNClusters_highEkin);
     // BasicHistPlot(hSingleClusterE);
 
     // Efficiency Plot
     // EffPlot(hEff, "Pi0_eff.png"); // OLD
-    // effPlotter.FinalizePlot("plots/Pi0_efficiency_vs_Ekin.png");
+    effPlotter.FinalizePlot("plots/Pi0_efficiency_vs_Ekin.png");
 
     // Acceptance Plot
     // accPlotter.FinalizePlot("plots/Pi0_acceptance_vs_Ekin.png");
-    pi0AcceptanceVsEta.FinalizePlot("plots/Pi0_acceptance_vs_Eta.png");
+    // pi0AcceptanceVsEta.FinalizePlot("plots/Pi0_acceptance_vs_Eta.png");
+    // pi0AcceptanceVsTheta.FinalizePlot("plots/Pi0_acceptance_vs_Theta_50_500.png");
 
 
-    delete hPi0Mass; delete hClusterE; delete hNClusters; delete hPi0TrueMass;
-    delete h_mass_truthE_recoAngle; delete h_mass_recoE_truthAngle; delete hEffvsE;
+
+    delete hPi0Mass; 
+    delete hClusterE;
+    // delete hNClusters; 
+    delete hNClusters_lowEkin; 
+    delete hNClusters_midEkin; 
+    delete hNClusters_highEkin; 
+    delete hPi0TrueMass;
+    delete h_mass_truthE_recoAngle; 
+    delete h_mass_recoE_truthAngle; 
+    delete hEffvsE;
     f->Close(); delete f;
     return 0;
 }

@@ -87,6 +87,8 @@ void Pi0Efficiency::FinalizePlot(const std::string& outFileName) {
 
     auto legend = new TLegend(0.55, 0.75, 0.88, 0.88);
     legend->AddEntry(gEff, "Efficiency", "p");
+    legend->SetFillStyle(0);   // no fill
+    legend->SetBorderSize(0);  // no border box
     legend->Draw();
 
     TLatex l;

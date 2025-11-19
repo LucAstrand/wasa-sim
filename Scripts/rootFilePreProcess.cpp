@@ -100,6 +100,13 @@ int main(int argc, char** argv) {
     std::vector<double>* TruePhotonZ = nullptr;
     std::vector<double>* TruePhotonE = nullptr;
 
+    std::vector<double>* TruePhotonCreationX = nullptr;
+    std::vector<double>* TruePhotonCreationY = nullptr;
+    std::vector<double>* TruePhotonCreationZ = nullptr;
+    std::vector<double>* TruePhotonEndX = nullptr;
+    std::vector<double>* TruePhotonEndY = nullptr;
+    std::vector<double>* TruePhotonEndZ = nullptr;
+
     if (!inTree->GetBranch("PrimaryPosX") || !inTree->GetBranch("PrimaryPosY") || !inTree->GetBranch("PrimaryPosZ")) {
         std::cerr << "Missing one or more PrimaryPos* branches—check tree structure." << std::endl;
         return 1;
@@ -108,14 +115,21 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("PrimaryPosY", &primaryPosY);
     inTree->SetBranchAddress("PrimaryPosZ", &primaryPosZ);
     inTree->SetBranchAddress("PrimaryEkin", &primaryEkin);
-    inTree->SetBranchAddress("TruePhotonX", &TruePhotonX);
     inTree->SetBranchAddress("PrimaryMomX", &primaryMomX);
     inTree->SetBranchAddress("PrimaryMomY", &primaryMomY);
     inTree->SetBranchAddress("PrimaryMomZ", &primaryMomZ);
-    
+    inTree->SetBranchAddress("TruePhotonX", &TruePhotonX);
     inTree->SetBranchAddress("TruePhotonY", &TruePhotonY);
     inTree->SetBranchAddress("TruePhotonZ", &TruePhotonZ);
     inTree->SetBranchAddress("TruePhotonE", &TruePhotonE);
+    
+    inTree->SetBranchAddress("TruePhotonCreationX", &TruePhotonCreationX);
+    inTree->SetBranchAddress("TruePhotonCreationY", &TruePhotonCreationY);
+    inTree->SetBranchAddress("TruePhotonCreationZ", &TruePhotonCreationZ);
+    inTree->SetBranchAddress("TruePhotonEndX", &TruePhotonEndX);
+    inTree->SetBranchAddress("TruePhotonEndY", &TruePhotonEndY);
+    inTree->SetBranchAddress("TruePhotonEndZ", &TruePhotonEndZ);
+
     
 
     // Quick test read of first entry to catch issues early
@@ -156,6 +170,8 @@ int main(int argc, char** argv) {
     std::vector<int> ringNos, copyNos;
     std::vector<double> outPrimaryPosX, outPrimaryPosY, outPrimaryPosZ, outPrimaryEkin, outPrimaryMomX, outPrimaryMomY, outPrimaryMomZ;
     std::vector<double> outTruePhotonX, outTruePhotonY, outTruePhotonZ, outTruePhotonE;
+    std::vector<double> outTruePhotonCreationX, outTruePhotonCreationY, outTruePhotonCreationZ;
+    std::vector<double> outTruePhotonEndX, outTruePhotonEndY, outTruePhotonEndZ;
     // std::vector<double> residualX, residualY, residualZ; // --- Create output tree branches (add residuals) ---
     outTree->Branch("centerX", &centerXs);
     outTree->Branch("centerY", &centerYs);
@@ -178,6 +194,14 @@ int main(int argc, char** argv) {
     // outTree->Branch("residualX", &residualX);
     // outTree->Branch("residualY", &residualY);
     // outTree->Branch("residualZ", &residualZ);
+    outTree->Branch("TruePhotonCreationX", &outTruePhotonCreationX);
+    outTree->Branch("TruePhotonCreationY", &outTruePhotonCreationY);
+    outTree->Branch("TruePhotonCreationZ", &outTruePhotonCreationZ);
+    outTree->Branch("TruePhotonEndX", &outTruePhotonEndX);
+    outTree->Branch("TruePhotonEndY", &outTruePhotonEndY);
+    outTree->Branch("TruePhotonEndZ", &outTruePhotonEndZ);
+
+
 
     // Process each entry (event)
     Long64_t nEntries = inTree->GetEntries();
@@ -225,6 +249,15 @@ int main(int argc, char** argv) {
         outTruePhotonY = TruePhotonY ? *TruePhotonY : std::vector<double>();
         outTruePhotonZ = TruePhotonZ ? *TruePhotonZ : std::vector<double>();
         outTruePhotonE = TruePhotonE ? *TruePhotonE : std::vector<double>();
+
+        outTruePhotonCreationX = TruePhotonCreationX ? *TruePhotonCreationX : std::vector<double>();
+        outTruePhotonCreationY = TruePhotonCreationY ? *TruePhotonCreationY : std::vector<double>();
+        outTruePhotonCreationZ = TruePhotonCreationZ ? *TruePhotonCreationZ : std::vector<double>();
+
+        outTruePhotonEndX = TruePhotonEndX ? *TruePhotonEndX : std::vector<double>();
+        outTruePhotonEndY = TruePhotonEndY ? *TruePhotonEndY : std::vector<double>();
+        outTruePhotonEndZ = TruePhotonEndZ ? *TruePhotonEndZ : std::vector<double>();
+
 
 
         // // Clear per-event residuals
