@@ -222,25 +222,6 @@ int main(int argc, char **argv) {
     // gEve->AddGlobalElement(top);
     scene3D->AddElement(top);
 
-    // ADD XYZ axes... This can be done within the viewer so kind of pointless...
-    // double ox = 0, oy = 0, oz = 0;
-    // double L = 50;
-
-    // TEveArrow* ax = new TEveArrow(L, 0, 0, ox, oy, oz);
-    // ax->SetMainColor(kRed);
-
-    // TEveArrow* ay = new TEveArrow(0, L, 0, ox, oy, oz);
-    // ay->SetMainColor(kGreen + 2);
-
-    // TEveArrow* az = new TEveArrow(0, 0, L, ox, oy, oz);
-    // az->SetMainColor(kBlue);
-
-    // gEve->AddGlobalElement(ax);
-    // gEve->AddGlobalElement(ay);
-    // gEve->AddGlobalElement(az);
-
-
-
     TFile* f = TFile::Open(dataFile);
     if (!f) { std::cerr << "ERROR: cannot open datafile\n"; return 1; }
 
