@@ -159,49 +159,49 @@ int main(int argc, char **argv) {
 //    gEve->AddToListTree(axes, kTRUE);
 //    gEve->AddToListTree(mng, kTRUE);
 
-    // =====================================================
-    // 1. Create two scenes: one for 3D, one for projections
-    // =====================================================
-    TEveScene* scene3D  = gEve->SpawnNewScene("3D Scene");
-    TEveScene* scene2D  = gEve->SpawnNewScene("Projection Scene");
+    // // =====================================================
+    // // 1. Create two scenes: one for 3D, one for projections
+    // // =====================================================
+    // TEveScene* scene3D  = gEve->SpawnNewScene("3D Scene");
+    // TEveScene* scene2D  = gEve->SpawnNewScene("Projection Scene");
 
-    // =====================================================
-    // 2. Create two viewers (two separate windows/tabs)
-    // =====================================================
-    TEveViewer* viewer3D = gEve->SpawnNewViewer("3D View");
-    TEveViewer* viewer2D = gEve->SpawnNewViewer("Projected View");
+    // // =====================================================
+    // // 2. Create two viewers (two separate windows/tabs)
+    // // =====================================================
+    // TEveViewer* viewer3D = gEve->SpawnNewViewer("3D View");
+    // TEveViewer* viewer2D = gEve->SpawnNewViewer("Projected View");
 
-    // Attach scenes to viewers
-    viewer3D->AddScene(scene3D);
-    viewer2D->AddScene(scene2D);
+    // // Attach scenes to viewers
+    // viewer3D->AddScene(scene3D);
+    // viewer2D->AddScene(scene2D);
 
-    // =====================================================
-    // 3. Configure cameras
-    // =====================================================
+    // // =====================================================
+    // // 3. Configure cameras
+    // // =====================================================
 
-    // --- 3D viewer uses standard perspective camera ---
-    TGLViewer* glv3D = viewer3D->GetGLViewer();
-    glv3D->SetCurrentCamera(TGLViewer::kCameraPerspXOZ);
+    // // --- 3D viewer uses standard perspective camera ---
+    // TGLViewer* glv3D = viewer3D->GetGLViewer();
+    // glv3D->SetCurrentCamera(TGLViewer::kCameraPerspXOZ);
 
-    // --- 2D viewer uses R–Phi orthographic camera ---
-    TGLViewer* glv2D = viewer2D->GetGLViewer();
-    glv2D->SetCurrentCamera(TGLViewer::kCameraOrthoXOY);
-    TGLOrthoCamera& cam2D = (TGLOrthoCamera&) glv2D->CurrentCamera();
-    cam2D.SetZoomMinMax(0.2, 20);
+    // // --- 2D viewer uses R–Phi orthographic camera ---
+    // TGLViewer* glv2D = viewer2D->GetGLViewer();
+    // glv2D->SetCurrentCamera(TGLViewer::kCameraOrthoXOY);
+    // TGLOrthoCamera& cam2D = (TGLOrthoCamera&) glv2D->CurrentCamera();
+    // cam2D.SetZoomMinMax(0.2, 20);
 
-    // =====================================================
-    // 4. Create projection manager & attach only to 2D scene
-    // =====================================================
-    TEveProjectionManager* projMgr =
-        new TEveProjectionManager(TEveProjection::kPT_RPhi);
-    scene2D->AddElement(projMgr);
+    // // =====================================================
+    // // 4. Create projection manager & attach only to 2D scene
+    // // =====================================================
+    // TEveProjectionManager* projMgr =
+    //     new TEveProjectionManager(TEveProjection::kPT_RPhi);
+    // scene2D->AddElement(projMgr);
 
-    TEveProjectionAxes* projAxes = new TEveProjectionAxes(projMgr);
-    projAxes->SetTitle("R-φ Projection");
-    scene2D->AddElement(projAxes);
+    // TEveProjectionAxes* projAxes = new TEveProjectionAxes(projMgr);
+    // projAxes->SetTitle("R-φ Projection");
+    // scene2D->AddElement(projAxes);
 
-    gEve->AddToListTree(projMgr, kTRUE);
-    gEve->AddToListTree(projAxes, kTRUE);
+    // gEve->AddToListTree(projMgr, kTRUE);
+    // gEve->AddToListTree(projAxes, kTRUE);
 
     
 
@@ -219,8 +219,8 @@ int main(int argc, char **argv) {
 
     auto top = new TEveGeoTopNode(gGeoManager, gGeoManager->GetTopNode());
     top->SetVisLevel(4);
-    // gEve->AddGlobalElement(top);
-    scene3D->AddElement(top);
+    gEve->AddGlobalElement(top);
+    // scene3D->AddElement(top);
 
     TFile* f = TFile::Open(dataFile);
     if (!f) { std::cerr << "ERROR: cannot open datafile\n"; return 1; }
@@ -350,8 +350,8 @@ int main(int argc, char **argv) {
         TEveElementList* eventList =
             new TEveElementList(Form("Event_%lld", ev));
         eventList->SetMainColor(eventColor);
-        // gEve->AddElement(eventList);
-        scene3D->AddElement(eventList);
+        gEve->AddElement(eventList);
+        // scene3D->AddElement(eventList);
 
 
         // ============ 3. Draw photons =======================
@@ -419,7 +419,7 @@ int main(int argc, char **argv) {
         }
 
         // ============ 6. Update TEve ========================
-        projMgr->ImportElements(eventList, scene2D);
+        // projMgr->ImportElements(eventList, scene2D);
     }
     gEve->Redraw3D(kTRUE);
 

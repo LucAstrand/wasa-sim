@@ -70,8 +70,10 @@ int main(int argc, char **argv) {
     TH1F *h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *hEffvsE = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
 
-    Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
-    // Pi0Acceptance accPlotter(120.0, 150.0, 134.977, 20, 1, 500);
+    // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
+    // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 4, 1, 500);
+
+    Pi0Acceptance accPlotter(120.0, 150.0, 134.977, 20, 1, 500);
     // Pi0Acceptance pi0AcceptanceVsEta(-10, 10, 100);
     Pi0Acceptance pi0AcceptanceVsTheta(0, TMath::Pi(), 60);
 
@@ -185,8 +187,8 @@ int main(int argc, char **argv) {
         fillPairs(photons_tE_rA, h_mass_truthE_recoAngle);
         fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);  
         
-        effPlotter.ProcessEvent(clusters, truePhotons);
-        // accPlotter.ProcessEvent(clusters, truePhotons, genEkin);
+        // effPlotter.ProcessEvent(clusters, truePhotons);
+        accPlotter.ProcessEvent(clusters, truePhotons, genEkin);
 
         double px = primaryPx->at(0);
         double py = primaryPy->at(0);
@@ -234,10 +236,10 @@ int main(int argc, char **argv) {
 
     // Efficiency Plot
     // EffPlot(hEff, "Pi0_eff.png"); // OLD
-    effPlotter.FinalizePlot("plots/Pi0_efficiency_vs_Ekin.png");
+    // effPlotter.FinalizePlot("plots/Pi0_efficiency_vs_Ekin.png");
 
     // Acceptance Plot
-    // accPlotter.FinalizePlot("plots/Pi0_acceptance_vs_Ekin.png");
+    accPlotter.FinalizePlot("plots/Pi0_acceptance_vs_Ekin.png");
     // pi0AcceptanceVsEta.FinalizePlot("plots/Pi0_acceptance_vs_Eta.png");
     // pi0AcceptanceVsTheta.FinalizePlot("plots/Pi0_acceptance_vs_Theta_50_500.png");
 

@@ -43,6 +43,20 @@
 #include <TEveScene.h>
 #include <TGLViewer.h>
 
+#include <TGClient.h>
+#include <TGFrame.h>
+#include <TGButton.h>
+#include <TGLabel.h>
+// #include <TGPictureButton.h>
+#include <TGPicture.h>
+#include <TGText.h>
+// #include <TGTextButton.h>
+#include <TSystem.h>
+#include <TRootBrowser.h>
+#include <TROOT.h>
+
+#include <TGTab.h>
+
 
 #include "Clustering.hpp"
 
