@@ -337,3 +337,50 @@ std::vector<Cluster> SlidingWindowClusterHits(
     }
     return clusters;
 }
+
+// =========================================================
+//   CHARGED OBJECT CLUSTERING (Angular acceptance based)
+// =========================================================
+
+
+std::vector<ChargedCluster> MatchHitsToTracks(
+    const std::vector<ChargedTrack>& tracks,
+    const std::vector<Hit>& hits,
+    double thetaMax
+) {
+    std::vector<ChargedCluster> clusters;
+
+    // Initialize one cluster per track
+    for (const auto& trk : tracks) {
+        ChargedCluster c;
+        c.trackID   = trk.id;
+        c.direction = trk.direction;
+        clusters.push_back(c);
+    }
+
+    for (const auto& hit : hits) {
+        TVector3 hitPos(hit.x, hit.y, hit.z);
+
+        double bestAngle = std::numeric_limits<double>::max();
+        int bestTrack = -1;
+
+        for (size_t i = 0; i < tracks.size(); ++i) {
+            TVector3 hitDir = (hitPos - tracks[i].vertex).Unit();
+            double cosTheta = tracks[i].direction.Dot(hitDir);
+            cosTheta = std::clamp(cosTheta, -1.0, 1.0);
+            double theta = std::acos(cosTheta);
+
+            if (theta < bestAngle) {
+                bestAngle = theta;
+                bestTrack = i;
+            }
+        }
+
+        if (bestTrack >= 0 && bestAngle < thetaMax) {
+            clusters[bestTrack].hits.push_back(hit);
+            clusters[bestTrack].totalEnergy += hit.e;
+        }
+    }
+
+    return clusters;
+}

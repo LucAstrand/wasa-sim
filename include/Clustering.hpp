@@ -4,6 +4,9 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <cmath>
+#include <limits>
+#include <algorithm>
 
 #include "TVector3.h"
 
@@ -17,7 +20,8 @@ std::vector<Cluster> SlidingWindowClusterHits(
     double dPhi,
     double E_seed, 
     double E_neighbor,
-    int winSize = 7);
+    int winSize = 7
+);
 
 std::vector<Cluster> SplitMergedClusterEM(
     const Cluster &merged,
@@ -28,6 +32,14 @@ std::vector<Cluster> SplitMergedClusterEM(
     int maxIter = 50,
     double tol = 1e-4,
     double minFrac = 0.02,
-    double initSigma = -1);
+    double initSigma = -1
+);
+
+std::vector<ChargedCluster> MatchHitsToTracks(
+    const std::vector<ChargedTrack>& tracks,
+    const std::vector<Hit>& hits,
+    double thetaMax
+);
+
 
 #endif

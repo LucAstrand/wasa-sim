@@ -107,6 +107,19 @@ int main(int argc, char** argv) {
     std::vector<double>* TruePhotonEndY = nullptr;
     std::vector<double>* TruePhotonEndZ = nullptr;
 
+    std::vector<double>* TPC_PosX = nullptr;
+    std::vector<double>* TPC_PosY = nullptr;
+    std::vector<double>* TPC_PosZ = nullptr;
+    std::vector<double>* TPC_Edep = nullptr;
+    std::vector<double>* TPC_dEdx_rho = nullptr;
+    std::vector<double>* TPC_PathLength = nullptr;
+
+    std::vector<double>* TPC_Psm = nullptr;
+    // std::vector<double>* TPC_res = nullptr;
+    // std::vector<double>* TPC_eff = nullptr;
+    // std::vector<double>* TPC_Time = nullptr;
+    // std::vector<double>* TPC_pdg = nullptr;
+
     if (!inTree->GetBranch("PrimaryPosX") || !inTree->GetBranch("PrimaryPosY") || !inTree->GetBranch("PrimaryPosZ")) {
         std::cerr << "Missing one or more PrimaryPos* branches—check tree structure." << std::endl;
         return 1;
@@ -130,7 +143,20 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("TruePhotonEndY", &TruePhotonEndY);
     inTree->SetBranchAddress("TruePhotonEndZ", &TruePhotonEndZ);
 
-    
+    inTree->SetBranchAddress("TPC_PosX", &TPC_PosX);
+    inTree->SetBranchAddress("TPC_PosY", &TPC_PosY);
+    inTree->SetBranchAddress("TPC_PosZ", &TPC_PosZ);
+
+    inTree->SetBranchAddress("TPC_EDep", &TPC_Edep);
+    inTree->SetBranchAddress("TPC_dEdx", &TPC_dEdx_rho);
+    inTree->SetBranchAddress("TPC_PathLength", &TPC_PathLength);
+
+    inTree->SetBranchAddress("TPC_Psm", &TPC_Psm);
+    // inTree->SetBranchAddress("TPC_res", &TPC_res);
+    // inTree->SetBranchAddress("TPC_eff", &TPC_eff);
+    // inTree->SetBranchAddress("TPC_Time", &TPC_Time);
+    // inTree->SetBranchAddress("TPC_pdg", &TPC_pdg);
+
 
     // Quick test read of first entry to catch issues early
     if (inTree->GetEntries() > 0) {
@@ -172,7 +198,9 @@ int main(int argc, char** argv) {
     std::vector<double> outTruePhotonX, outTruePhotonY, outTruePhotonZ, outTruePhotonE;
     std::vector<double> outTruePhotonCreationX, outTruePhotonCreationY, outTruePhotonCreationZ;
     std::vector<double> outTruePhotonEndX, outTruePhotonEndY, outTruePhotonEndZ;
-    // std::vector<double> residualX, residualY, residualZ; // --- Create output tree branches (add residuals) ---
+    std::vector<double> outTPC_PosX, outTPC_PosY, outTPC_PosZ;
+    std::vector<double> outTPC_Edep, outTPC_dEdx_rho, outTPC_PathLength, outTPC_Psm;
+    
     outTree->Branch("centerX", &centerXs);
     outTree->Branch("centerY", &centerYs);
     outTree->Branch("centerZ", &centerZs);
@@ -191,9 +219,6 @@ int main(int argc, char** argv) {
     outTree->Branch("truthPosY", &outTruePhotonY);
     outTree->Branch("truthPosZ", &outTruePhotonZ);
     outTree->Branch("truthE", &outTruePhotonE);
-    // outTree->Branch("residualX", &residualX);
-    // outTree->Branch("residualY", &residualY);
-    // outTree->Branch("residualZ", &residualZ);
     outTree->Branch("TruePhotonCreationX", &outTruePhotonCreationX);
     outTree->Branch("TruePhotonCreationY", &outTruePhotonCreationY);
     outTree->Branch("TruePhotonCreationZ", &outTruePhotonCreationZ);
@@ -201,7 +226,14 @@ int main(int argc, char** argv) {
     outTree->Branch("TruePhotonEndY", &outTruePhotonEndY);
     outTree->Branch("TruePhotonEndZ", &outTruePhotonEndZ);
 
+    outTree->Branch("TPC_PosX", &outTPC_PosX);
+    outTree->Branch("TPC_PosY", &outTPC_PosY);
+    outTree->Branch("TPC_PosZ", &outTPC_PosZ);
 
+    outTree->Branch("TPC_Edep", &outTPC_Edep);
+    outTree->Branch("TPC_dEdx_rho", &outTPC_dEdx_rho);
+    outTree->Branch("TPC_PathLength", &outTPC_PathLength);
+    outTree->Branch("TPC_Psm", &outTPC_Psm);
 
     // Process each entry (event)
     Long64_t nEntries = inTree->GetEntries();
@@ -211,31 +243,6 @@ int main(int argc, char** argv) {
     for (Long64_t entry = 0; entry < nEntries; ++entry) {
         if (entry % 100 == 0) std::cout << "Event " << entry << std::endl;
         inTree->GetEntry(entry);
-
-        // // Copy primary vertex vectors for this event
-        // if (primaryPosX) outPrimaryPosX = *primaryPosX;
-        // else outPrimaryPosX.clear();
-        // if (primaryPosY) outPrimaryPosY = *primaryPosY;
-        // else outPrimaryPosY.clear();
-        // if (primaryPosZ) outPrimaryPosZ = *primaryPosZ;
-        // else outPrimaryPosZ.clear();
-
-        // // Copy truth-level hit positions 
-        // if (TruePhotonX) outTruePhotonX = *TruePhotonX;
-        // else outTruePhotonX.clear();
-        // if (TruePhotonY) outTruePhotonY = *TruePhotonY;
-        // else outTruePhotonY.clear();
-        // if (TruePhotonZ) outTruePhotonZ = *TruePhotonZ;
-        // else outTruePhotonZ.clear();
-
-        // for (int ring = 0; ring < nRings; ++ring) {
-        //     if (!truthPosX[ring] || truthPosX[ring]->empty()) continue;
-
-        //     // Append all hits in this ring
-        //     outTruthPosX.insert(outTruthPosX.end(), truthPosX[ring]->begin(), truthPosX[ring]->end());
-        //     outTruthPosY.insert(outTruthPosY.end(), truthPosY[ring]->begin(), truthPosY[ring]->end());
-        //     outTruthPosZ.insert(outTruthPosZ.end(), truthPosZ[ring]->begin(), truthPosZ[ring]->end());
-        // }
 
         outPrimaryPosX = primaryPosX ? *primaryPosX : std::vector<double>();
         outPrimaryPosY = primaryPosY ? *primaryPosY : std::vector<double>();
@@ -257,47 +264,15 @@ int main(int argc, char** argv) {
         outTruePhotonEndX = TruePhotonEndX ? *TruePhotonEndX : std::vector<double>();
         outTruePhotonEndY = TruePhotonEndY ? *TruePhotonEndY : std::vector<double>();
         outTruePhotonEndZ = TruePhotonEndZ ? *TruePhotonEndZ : std::vector<double>();
+        
+        outTPC_PosX = TPC_PosX ? *TPC_PosX : std::vector<double>();
+        outTPC_PosY = TPC_PosY ? *TPC_PosY : std::vector<double>();
+        outTPC_PosZ = TPC_PosZ ? *TPC_PosZ : std::vector<double>();
 
-
-
-        // // Clear per-event residuals
-        // residualX.clear();
-        // residualY.clear();
-        // residualZ.clear();
-
-        // // --- Loop over all TruePhotons in this event ---
-        // if (TruePhotonX && !TruePhotonX->empty()) {
-        //     for (size_t i = 0; i < TruePhotonX->size(); ++i) {
-        //         double tx = (*TruePhotonX)[i];
-        //         double ty = (*TruePhotonY)[i];
-        //         double tz = (*TruePhotonZ)[i];
-
-        //         double minDist2 = 1e12;
-        //         double closestCX = 0, closestCY = 0, closestCZ = 0;
-
-        //         // Find nearest detector cell center
-        //         for (size_t j = 0; j < detCenterX.size(); ++j) {
-        //             double dx = tx - detCenterX[j];
-        //             double dy = ty - detCenterY[j];
-        //             double dz_ = tz - detCenterZ[j];
-        //             double dist2 = dx*dx + dy*dy + dz_*dz_;
-        //             if (dist2 < minDist2) {
-        //                 minDist2 = dist2;
-        //                 closestCX = detCenterX[j];
-        //                 closestCY = detCenterY[j];
-        //                 closestCZ = detCenterZ[j];
-        //             }
-        //         }
-
-        //         // Compute residuals with respect to the nearest cell
-        //         residualX.push_back(tx - closestCX);
-        //         residualY.push_back(ty - closestCY);
-        //         residualZ.push_back(tz - closestCZ);
-        //     }
-        // }
-
-        // outTree->Fill();
-    // }
+        outTPC_Edep = TPC_Edep ? *TPC_Edep : std::vector<double>();
+        outTPC_dEdx_rho = TPC_dEdx_rho ? *TPC_dEdx_rho : std::vector<double>();
+        outTPC_PathLength = TPC_PathLength ? *TPC_PathLength : std::vector<double>();
+        outTPC_Psm = TPC_Psm ? *TPC_Psm : std::vector<double>();
 
         // Clear vectors for this event
         centerXs.clear();

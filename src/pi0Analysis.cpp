@@ -52,6 +52,14 @@ int main(int argc, char **argv) {
     t->SetBranchAddress("truthPosZ", &truthPosZ);
     t->SetBranchAddress("truthE", &truthE);
 
+    // TPC info
+    std::vector<double> *TPC_Edep=nullptr, *TPC_PosX=nullptr, *TPC_PosY=nullptr, *TPC_PosZ=nullptr;
+    t->SetBranchAddress("TPC_Edep", &TPC_Edep);
+    t->SetBranchAddress("TPC_PosX", &TPC_PosX);
+    t->SetBranchAddress("TPC_PosY", &TPC_PosY);
+    t->SetBranchAddress("TPC_PosZ", &TPC_PosZ);
+
+
     Long64_t nentries = t->GetEntries();
 
     TH1F *hPi0Mass = new TH1F("hPi0Mass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
@@ -99,46 +107,70 @@ int main(int argc, char **argv) {
             hits.push_back({(*centerXs)[k], (*centerYs)[k], (*centerZs)[k], (*energies)[k]});
         }
 
-        std::vector<Hit> trueHits;
-        size_t nTrueHits = truthE->size();
-        // std::cout << "[DEBUG] Event " << ievt << ": " << nTrueHits << " total true hits" << std::endl;
-        for (size_t k=0; k<nTrueHits; ++k) {
-            trueHits.push_back({(*truthPosX)[k], (*truthPosY)[k], (*truthPosZ)[k], (*truthE)[k]});
+        std::vector<ChargedTrack> ChargedTracks;
+        size_t nChargedTracks = TPC_Edep->size();
+        for (size_t k=0; k<nChargedTracks; ++k) {
+            ChargedTracks.push_back({1, vertex, TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]), TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]) - vertex});
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-        auto truePhotons = TruePhotonBuilder(trueHits, vertex);
+        // // TRUE HITS --> True photon hits:
+        // std::vector<Hit> trueHits;
+        // size_t nTrueHits = truthE->size();
+        // // std::cout << "[DEBUG] Event " << ievt << ": " << nTrueHits << " total true hits" << std::endl;
+        // for (size_t k=0; k<nTrueHits; ++k) {
+        //     trueHits.push_back({(*truthPosX)[k], (*truthPosY)[k], (*truthPosZ)[k], (*truthE)[k]});
+        // }
 
-        if (truePhotons.size() == 2) {
-            TLorentzVector diphoton = truePhotons[0].p4 + truePhotons[1].p4;
-            // std::cout << "[DIPHOTON] " << diphoton.M() << std::endl;
-            hPi0TrueMass->Fill(diphoton.M());
-        }
-
+        
+        // auto truePhotons = TruePhotonBuilder(trueHits, vertex);
+        
+        // if (truePhotons.size() == 2) {
+            //     TLorentzVector diphoton = truePhotons[0].p4 + truePhotons[1].p4;
+            //     // std::cout << "[DIPHOTON] " << diphoton.M() << std::endl;
+            //     hPi0TrueMass->Fill(diphoton.M());
+            // }
+            
         // DEBUG print bin contents
         // hPi0TrueMass->Print("all");
 
-        std::vector<Cluster> clusters;
-        double dEta = 0.10/2;
-        double dPhi = 0.10/2;
-        double E_seed = 15.00;
-        double E_neighbor = 0.03;
-        int winSize = 3;
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-        double totalE_Evt = 0;
+        // // Charged Object Clustering 
 
-        clusters = SlidingWindowClusterHits(hits, vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
+        double thetaMax = 5.0 * TMath::DegToRad();
+        auto chargedClusters = MatchHitsToTracks(ChargedTracks, hits, thetaMax);
 
-        // Apply cluster energy threshold
-        clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
-                                    [](const Cluster &c){ return c.p4.E() < 50.0; }),
-                    clusters.end());
-
-
-        for (size_t ci=0; ci<clusters.size(); ++ci) {
-            hClusterE->Fill(clusters[ci].p4.E());
+        for (ChargedCluster cluster : chargedClusters) {
+        
+            std::cout << "Charged Cluster Energy: " << cluster.totalEnergy << std::endl;
         }
+
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+        
+        // // Neutral Object Clustering --> To be done after the Charged Object Clustering 
+        // std::vector<Cluster> clusters;
+        // double dEta = 0.10/2;
+        // double dPhi = 0.10/2;
+        // double E_seed = 15.00;
+        // double E_neighbor = 0.03;
+        // int winSize = 3;
+
+        // double totalE_Evt = 0;
+
+        // clusters = SlidingWindowClusterHits(hits, vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
+
+        // // Apply cluster energy threshold
+        // clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
+        //                             [](const Cluster &c){ return c.p4.E() < 50.0; }),
+        //             clusters.end());
+
+
+        // for (size_t ci=0; ci<clusters.size(); ++ci) {
+        //     hClusterE->Fill(clusters[ci].p4.E());
+        // }
         // hNClusters->Fill(clusters.size());
 
         // Fill cluster num plots based on primary Ekin
@@ -146,57 +178,57 @@ int main(int argc, char **argv) {
         // else if (genEkin >= 200 && genEkin < 400) hNClusters_midEkin->Fill(clusters.size());
         // else hNClusters_highEkin->Fill(clusters.size());
 
-        for (size_t a=0;a<clusters.size();++a) {
-            for (size_t b=a+1;b<clusters.size();++b) {
-                TLorentzVector pi0 = clusters[a].p4 + clusters[b].p4;
-                hPi0Mass->Fill(pi0.M());
-            }
-        }
+        // for (size_t a=0;a<clusters.size();++a) {
+        //     for (size_t b=a+1;b<clusters.size();++b) {
+        //         TLorentzVector pi0 = clusters[a].p4 + clusters[b].p4;
+        //         hPi0Mass->Fill(pi0.M());
+        //     }
+        // }
 
-        // Match clusters to truth photons
-        std::vector<int> clusterToTrue = matchClustersToTruth(clusters, truePhotons, 10);
+        // // Match clusters to truth photons
+        // std::vector<int> clusterToTrue = matchClustersToTruth(clusters, truePhotons, 10);
 
-        // Construct hybrid TLorentzVectors
-        std::vector<TLorentzVector> photons_tE_rA; // truth E + reco angle
-        std::vector<TLorentzVector> photons_rE_tA; // reco E + truth angle
+        // // Construct hybrid TLorentzVectors
+        // std::vector<TLorentzVector> photons_tE_rA; // truth E + reco angle
+        // std::vector<TLorentzVector> photons_rE_tA; // reco E + truth angle
 
-        for (size_t ic=0; ic<clusters.size(); ++ic) {
-            int it = clusterToTrue[ic];
-            if (it < 0) continue; // skip unmatched
+        // for (size_t ic=0; ic<clusters.size(); ++ic) {
+        //     int it = clusterToTrue[ic];
+        //     if (it < 0) continue; // skip unmatched
 
-            const Cluster &c = clusters[ic];
-            const TruePhoton &t = truePhotons[it];
+        //     const Cluster &c = clusters[ic];
+        //     const TruePhoton &t = truePhotons[it];
 
-            // truth energy + reco angle
-            photons_tE_rA.push_back(makePhotonFromEnergyAndDir(t.p4.E(), c.centroid));
+        //     // truth energy + reco angle
+        //     photons_tE_rA.push_back(makePhotonFromEnergyAndDir(t.p4.E(), c.centroid));
 
-            // reco energy + true angle
-            photons_rE_tA.push_back(makePhotonFromEnergyAndDir(c.p4.E(), t.dir));
-        }
+        //     // reco energy + true angle
+        //     photons_rE_tA.push_back(makePhotonFromEnergyAndDir(c.p4.E(), t.dir));
+        // }
 
         // Compute all pairwise invariant masses
-        auto fillPairs = [](const std::vector<TLorentzVector>& phs, TH1F* hist) {
-            for (size_t i=0; i<phs.size(); ++i) {
-                for (size_t j=i+1; j<phs.size(); ++j) {
-                    TLorentzVector sum = phs[i] + phs[j];
-                    hist->Fill(sum.M());
-                }
-            }
-        };
+        // auto fillPairs = [](const std::vector<TLorentzVector>& phs, TH1F* hist) {
+        //     for (size_t i=0; i<phs.size(); ++i) {
+        //         for (size_t j=i+1; j<phs.size(); ++j) {
+        //             TLorentzVector sum = phs[i] + phs[j];
+        //             hist->Fill(sum.M());
+        //         }
+        //     }
+        // };
 
-        fillPairs(photons_tE_rA, h_mass_truthE_recoAngle);
-        fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);  
+        // fillPairs(photons_tE_rA, h_mass_truthE_recoAngle);
+        // fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);  
         
         // effPlotter.ProcessEvent(clusters, truePhotons);
-        accPlotter.ProcessEvent(clusters, truePhotons, genEkin);
+        // accPlotter.ProcessEvent(clusters, truePhotons, genEkin);
 
-        double px = primaryPx->at(0);
-        double py = primaryPy->at(0);
-        double pz = primaryPz->at(0);
-        double p = sqrt(px*px + py*py + pz*pz);
+        // double px = primaryPx->at(0);
+        // double py = primaryPy->at(0);
+        // double pz = primaryPz->at(0);
+        // double p = sqrt(px*px + py*py + pz*pz);
 
-        double eta = 0.5 * log((p + pz) / (p - pz)); // pseudorapidity
-        double theta = acos(pz / p); // theta 
+        // double eta = 0.5 * log((p + pz) / (p - pz)); // pseudorapidity
+        // double theta = acos(pz / p); // theta 
 
         // pi0AcceptanceVsEta.ProcessEvent(clusters, truePhotons, eta);
         // pi0AcceptanceVsTheta.ProcessEvent(clusters, truePhotons, theta);
@@ -239,7 +271,7 @@ int main(int argc, char **argv) {
     // effPlotter.FinalizePlot("plots/Pi0_efficiency_vs_Ekin.png");
 
     // Acceptance Plot
-    accPlotter.FinalizePlot("plots/Pi0_acceptance_vs_Ekin.png");
+    // accPlotter.FinalizePlot("plots/Pi0_acceptance_vs_Ekin.png");
     // pi0AcceptanceVsEta.FinalizePlot("plots/Pi0_acceptance_vs_Eta.png");
     // pi0AcceptanceVsTheta.FinalizePlot("plots/Pi0_acceptance_vs_Theta_50_500.png");
 
