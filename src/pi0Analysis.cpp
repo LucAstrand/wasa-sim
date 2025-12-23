@@ -12,6 +12,7 @@
 #include "PhotonMatch.hpp"
 #include "Pi0Efficiency.hpp"
 #include "Pi0Acceptance.hpp"
+// #include "ParticleID.hpp"
 
 int main(int argc, char **argv) {
     if (argc < 2) {
@@ -54,11 +55,14 @@ int main(int argc, char **argv) {
 
     // TPC info
     std::vector<double> *TPC_Edep=nullptr, *TPC_PosX=nullptr, *TPC_PosY=nullptr, *TPC_PosZ=nullptr;
+    std::vector<double> *TPC_PathLength=nullptr, *TPC_dEdx=nullptr, *TPC_Psm=nullptr;
     t->SetBranchAddress("TPC_Edep", &TPC_Edep);
     t->SetBranchAddress("TPC_PosX", &TPC_PosX);
     t->SetBranchAddress("TPC_PosY", &TPC_PosY);
     t->SetBranchAddress("TPC_PosZ", &TPC_PosZ);
-
+    t->SetBranchAddress("TPC_PathLength", &TPC_PathLength);
+    t->SetBranchAddress("TPC_dEdx_rho", &TPC_dEdx);
+    t->SetBranchAddress("TPC_Psm", &TPC_Psm);
 
     Long64_t nentries = t->GetEntries();
 
@@ -110,7 +114,13 @@ int main(int argc, char **argv) {
         std::vector<ChargedTrack> ChargedTracks;
         size_t nChargedTracks = TPC_Edep->size();
         for (size_t k=0; k<nChargedTracks; ++k) {
-            ChargedTracks.push_back({1, vertex, TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]), TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]) - vertex});
+            // for noe the resolution is hardcoded to be 0.15
+            ChargedTracks.push_back(
+                {k, 
+                vertex, 
+                TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]), 
+                TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]) - vertex,
+                (*TPC_Edep)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -145,12 +155,13 @@ int main(int argc, char **argv) {
         for (ChargedCluster cluster : chargedClusters) {
         
             std::cout << "Charged Cluster Energy: " << cluster.totalEnergy << std::endl;
+            std::cout << "Charged Cluster nSigma: " << cluster.nSigma << std::endl;
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-        
         // // Neutral Object Clustering --> To be done after the Charged Object Clustering 
+
         // std::vector<Cluster> clusters;
         // double dEta = 0.10/2;
         // double dPhi = 0.10/2;
@@ -168,6 +179,8 @@ int main(int argc, char **argv) {
         //             clusters.end());
 
 
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
         // for (size_t ci=0; ci<clusters.size(); ++ci) {
         //     hClusterE->Fill(clusters[ci].p4.E());
         // }
@@ -178,6 +191,10 @@ int main(int argc, char **argv) {
         // else if (genEkin >= 200 && genEkin < 400) hNClusters_midEkin->Fill(clusters.size());
         // else hNClusters_highEkin->Fill(clusters.size());
 
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+       
+        // // Invariant mass plot (neutral pion / double photon)
+
         // for (size_t a=0;a<clusters.size();++a) {
         //     for (size_t b=a+1;b<clusters.size();++b) {
         //         TLorentzVector pi0 = clusters[a].p4 + clusters[b].p4;
@@ -185,7 +202,10 @@ int main(int argc, char **argv) {
         //     }
         // }
 
-        // // Match clusters to truth photons
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+        // // Truth level + reco level plots 
+
         // std::vector<int> clusterToTrue = matchClustersToTruth(clusters, truePhotons, 10);
 
         // // Construct hybrid TLorentzVectors
@@ -218,6 +238,10 @@ int main(int argc, char **argv) {
 
         // fillPairs(photons_tE_rA, h_mass_truthE_recoAngle);
         // fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);  
+
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+        // // Eff and Acc Plots 
         
         // effPlotter.ProcessEvent(clusters, truePhotons);
         // accPlotter.ProcessEvent(clusters, truePhotons, genEkin);

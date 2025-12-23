@@ -16,10 +16,14 @@ struct Cluster {
 };
 
 struct ChargedTrack {
-    int id;                 // track ID // I might just build this dynamically not sure yet If I want to use GEANT4's TrackID --> Avoid Truth level stuff?
+    size_t id;                 // track ID // I might just build this dynamically not sure yet If I want to use GEANT4's TrackID --> Avoid Truth level stuff?
     TVector3 vertex;
     TVector3 exitPoint;     // TPC exit
     TVector3 direction;     // cached (exit - vertex).Unit()
+    double EdepSmeared;
+    double pathLength;
+    double dEdxTheory;
+    double resolution;
 };
 
 struct ChargedCluster {
@@ -27,6 +31,7 @@ struct ChargedCluster {
     std::vector<Hit> hits;
     double totalEnergy = 0.0;
     TVector3 direction;
+    double nSigma;
 };
 
 struct TruePhoton {

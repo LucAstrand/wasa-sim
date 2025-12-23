@@ -12,6 +12,8 @@
 
 #include "Structures.hpp"
 #include "Utils.hpp"
+#include "ParticleID.hpp"
+
 
 std::vector<Cluster> SlidingWindowClusterHits(
     const std::vector<Hit> &hits,
