@@ -12,7 +12,7 @@ void PrettyPi0NumClusterPlot(TH1F* hNCluster);
 // void Pi0ClusterNumPlotEkin(TH1F* hNClusters_lowE, TH1F* hNClusters_midE, TH1F* hNClusters_highE);
 void Pi0ClusterNumPlotEkin(TH1F* hNClusters_lowE, TH1F* hNClusters_highE);
 void BasicHistPlot(TH1F* histogram);
-void EffPlot(TH1F* hEff, TString plotname);
+void nSigmaPlot(TH1F* hNSigma, TString plotname, double fitMin, double fitMax);
 
 
 

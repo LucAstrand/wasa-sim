@@ -423,38 +423,46 @@ void BasicHistPlot(TH1F* histogram) {
     delete c;
 }
 
-
-
-
-void EffPlot(TH1F* hEff, TString plotname) {
+void nSigmaPlot(TH1F* hNSigma, TString plotname, double fitMin, double fitMax) {
     SetPrettyStyle();
-    // gStyle->SetOptStat(1);
 
-    TCanvas *c = new TCanvas("cEff", "Pi0 Reconstruction Efficiency", 800, 600);
+    TCanvas *c = new TCanvas("cPi0", "Pi0 Mass", 800, 600);
     c->SetMargin(0.15, 0.05, 0.15, 0.08);
 
-    hEff->SetTitle("; E_{kin} [MeV]; Efficiency");
-    hEff->SetLineColor(kBlack);
-    hEff->SetLineWidth(2);
-    hEff->SetMarkerColor(kBlack);
-    hEff->SetMarkerStyle(20);
+    // TF1 *fGaus = new TF1("fGaus", "gaus", 100, 170);
+    TF1 *fGaus = new TF1("fGaus", "gaus", fitMin, fitMax);
+    fGaus->SetLineColor(kRed+1);
+    fGaus->SetLineWidth(2);
+    // hPi0Mass->Fit(fGaus, "RQ");
 
-    // hEff->Draw("E1");
-    hEff->Draw();
+    double maxBin = hNSigma->GetMaximum();
+    double meanGuess = hNSigma->GetBinCenter(hNSigma->GetMaximumBin());
+    double sigmaGuess = hNSigma->GetRMS();  // or ~5 MeV if you want
+    fGaus->SetParameters(maxBin, meanGuess, sigmaGuess);
+    hNSigma->Fit(fGaus, "RQ");
 
-    // fGaus->Draw("SAME");
-    // Double_t mean = hPi0Mass->GetMean();
+    double mean  = fGaus->GetParameter(1);
+    double sigma = fGaus->GetParameter(2);
+    double errMu = fGaus->GetParError(1);
+    double errSi = fGaus->GetParError(2);
 
-    // TLegend *leg = new TLegend(0.55, 0.7, 0.88, 0.88);
-    // leg->AddEntry(hEff, "Pi0 Reconstruction Efficiency", "l");
-    // // leg->AddEntry(fGaus, "Gaussian Fit:", "l");
-    // // leg->AddEntry((TObject*)0, Form("mean = %.3f MeV", mean), "");
-    // // leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f MeV", mean, errMu), "");
-    // // leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f MeV", sigma, errSi), "");
-    // leg->SetTextSize(0.03);
-    // leg->SetFillStyle(0);   // no fill
-    // leg->SetBorderSize(0);  // no border box
-    // leg->Draw();
+    hNSigma->SetLineColor(kBlack);
+    hNSigma->SetLineWidth(2);
+    hNSigma->GetXaxis()->SetTitle("n#sigma");
+    hNSigma->GetYaxis()->SetTitle("Counts");
+
+    hNSigma->Draw("HIST");
+    fGaus->Draw("SAME");
+
+    TLegend *leg = new TLegend(0.55, 0.7, 0.88, 0.88);
+    leg->AddEntry(hNSigma, "n#sigma", "l");
+    leg->AddEntry(fGaus, "Gaussian Fit:", "l");
+    leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f MeV", mean, errMu), "");
+    leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f MeV", sigma, errSi), "");
+    leg->SetTextSize(0.03);
+    leg->SetFillStyle(0);   // no fill
+    leg->SetBorderSize(0);  // no border box
+    leg->Draw();
 
     // TPaveText *info = new TPaveText(0.17, 0.70, 0.50, 0.90, "NDC");  // x1,y1,x2,y2 normalized coordinates
     // info->SetFillStyle(0);
@@ -468,16 +476,17 @@ void EffPlot(TH1F* hEff, TString plotname) {
     // // info->AddText("E_{kin} = 100 MeV");
     // info->Draw();
 
-    // TLatex l;
-    // l.SetNDC();
-    // l.SetTextFont(42);
-    // l.SetTextSize(0.045);
-    // l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
+    TLatex l;
+    l.SetNDC();
+    l.SetTextFont(42);
+    l.SetTextSize(0.045);
+    l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
 
     c->SaveAs("plots/" + plotname);
     // c->SaveAs("Pi0Mass_truth.png");
 
     // clean up
-    // delete leg;
+    delete leg;
+    delete fGaus;
     delete c;
 }

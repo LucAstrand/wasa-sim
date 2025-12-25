@@ -67,23 +67,23 @@ int main(int argc, char** argv) {
         TString sec = Form("SECE%d", i);
         TString layerBranch = sec + "_LayerID";
         TString edepBranch = sec + "_EDep";
-        if (inTree->GetBranch(layerBranch.Data()) == nullptr || inTree->GetBranch(edepBranch.Data()) == nullptr) {
-            std::cerr << "Missing branch: " << layerBranch.Data() 
-                      << " or " << edepBranch.Data() 
-                      << std::endl;
-            allBranchesSet = false;
-        } else {
+        // if (inTree->GetBranch(layerBranch.Data()) == nullptr || inTree->GetBranch(edepBranch.Data()) == nullptr) {
+        //     std::cerr << "Missing branch: " << layerBranch.Data() 
+        //               << " or " << edepBranch.Data() 
+        //               << std::endl;
+        //     allBranchesSet = false;
+        // } else {
             inTree->SetBranchAddress(layerBranch.Data(), &LayerID[i]);
             inTree->SetBranchAddress(edepBranch.Data(), &edep[i]);
 #ifdef DEBUG
             std::cout << "Set branch for ring " << i << ": " << layerBranch.Data() << " and " << edepBranch.Data() << std::endl;
 #endif
-        }
+        // }
     }
-    if (!allBranchesSet) {
-        std::cerr << "Not all branches found—check tree structure with inTree->Print()." << std::endl;
-        return 1;
-    }
+    // if (!allBranchesSet) {
+    //     std::cerr << "Not all branches found—check tree structure with inTree->Print()." << std::endl;
+    //     return 1;
+    // }
 
     // Set addresses for primary vertex branches (vectors per event)
     std::vector<double>* primaryPosX = nullptr;

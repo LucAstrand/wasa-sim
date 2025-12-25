@@ -14,6 +14,19 @@
 #include "Pi0Acceptance.hpp"
 // #include "ParticleID.hpp"
 
+    // ---------------------- Helper ----------------------
+    template <typename T>
+    bool SafeSetBranch(TTree* tree, const char* branchName, T*& ptr) {
+        if (tree->GetListOfBranches()->FindObject(branchName)) {
+            tree->SetBranchAddress(branchName, &ptr);
+            return true;
+        } else {
+            std::cout << "[Warning] Branch " << branchName << " not found. Skipping." << std::endl;
+            return false;
+        }
+    }
+    // ----------------------------------------------------
+
 int main(int argc, char **argv) {
     if (argc < 2) {
         std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
@@ -28,41 +41,78 @@ int main(int argc, char **argv) {
     TTree *t = (TTree *)f->Get("digitizedHits");
     if (!t) { std::cerr << "Tree digitizedHits not found" << std::endl; return 1; }
 
-    // Single consolidated vectors (matches preprocessed output—no per-ring arrays!)
+    // // Single consolidated vectors (matches preprocessed output—no per-ring arrays!)
+    // std::vector<double> *centerXs = nullptr, *centerYs = nullptr, *centerZs = nullptr, *energies = nullptr;
+    // t->SetBranchAddress("centerX", &centerXs);
+    // t->SetBranchAddress("centerY", &centerYs);
+    // t->SetBranchAddress("centerZ", &centerZs);
+    // t->SetBranchAddress("energy", &energies);
+
+    // // Primary vertex (vector, but size=1 per event)
+    // std::vector<double> *primaryX=nullptr,*primaryY=nullptr,*primaryZ=nullptr,*primaryEkin=nullptr;
+    // std::vector<double>* primaryPx = nullptr, *primaryPy = nullptr, *primaryPz = nullptr;
+    // t->SetBranchAddress("PrimaryPosX",&primaryX);
+    // t->SetBranchAddress("PrimaryPosY",&primaryY);
+    // t->SetBranchAddress("PrimaryPosZ",&primaryZ);
+    // t->SetBranchAddress("PrimaryEkin",&primaryEkin);
+    // t->SetBranchAddress("PrimaryMomX", &primaryPx);
+    // t->SetBranchAddress("PrimaryMomY", &primaryPy);
+    // t->SetBranchAddress("PrimaryMomZ", &primaryPz);   
+
+    // // Truth level info
+    // std::vector<double> *truthPosX=nullptr, *truthPosY=nullptr, *truthPosZ=nullptr, *truthE=nullptr;
+    // t->SetBranchAddress("truthPosX", &truthPosX);
+    // t->SetBranchAddress("truthPosY", &truthPosY);
+    // t->SetBranchAddress("truthPosZ", &truthPosZ);
+    // t->SetBranchAddress("truthE", &truthE);
+
+    // // TPC info
+    // std::vector<double> *TPC_Edep=nullptr, *TPC_PosX=nullptr, *TPC_PosY=nullptr, *TPC_PosZ=nullptr;
+    // std::vector<double> *TPC_PathLength=nullptr, *TPC_dEdx=nullptr, *TPC_Psm=nullptr;
+    // t->SetBranchAddress("TPC_Edep", &TPC_Edep);
+    // t->SetBranchAddress("TPC_PosX", &TPC_PosX);
+    // t->SetBranchAddress("TPC_PosY", &TPC_PosY);
+    // t->SetBranchAddress("TPC_PosZ", &TPC_PosZ);
+    // t->SetBranchAddress("TPC_PathLength", &TPC_PathLength);
+    // t->SetBranchAddress("TPC_dEdx_rho", &TPC_dEdx);
+    // t->SetBranchAddress("TPC_Psm", &TPC_Psm);
+
+    // Example usage in main
+    // Single consolidated vectors
     std::vector<double> *centerXs = nullptr, *centerYs = nullptr, *centerZs = nullptr, *energies = nullptr;
-    t->SetBranchAddress("centerX", &centerXs);
-    t->SetBranchAddress("centerY", &centerYs);
-    t->SetBranchAddress("centerZ", &centerZs);
-    t->SetBranchAddress("energy", &energies);
+    SafeSetBranch(t, "centerX", centerXs);
+    SafeSetBranch(t, "centerY", centerYs);
+    SafeSetBranch(t, "centerZ", centerZs);
+    SafeSetBranch(t, "energy", energies);
 
-    // Primary vertex (vector, but size=1 per event)
-    std::vector<double> *primaryX=nullptr,*primaryY=nullptr,*primaryZ=nullptr,*primaryEkin=nullptr;
-    std::vector<double>* primaryPx = nullptr, *primaryPy = nullptr, *primaryPz = nullptr;
-    t->SetBranchAddress("PrimaryPosX",&primaryX);
-    t->SetBranchAddress("PrimaryPosY",&primaryY);
-    t->SetBranchAddress("PrimaryPosZ",&primaryZ);
-    t->SetBranchAddress("PrimaryEkin",&primaryEkin);
-    t->SetBranchAddress("PrimaryMomX", &primaryPx);
-    t->SetBranchAddress("PrimaryMomY", &primaryPy);
-    t->SetBranchAddress("PrimaryMomZ", &primaryPz);   
+    // Primary vertex
+    std::vector<double> *primaryX = nullptr, *primaryY = nullptr, *primaryZ = nullptr, *primaryEkin = nullptr;
+    std::vector<double> *primaryPx = nullptr, *primaryPy = nullptr, *primaryPz = nullptr;
+    SafeSetBranch(t, "PrimaryPosX", primaryX);
+    SafeSetBranch(t, "PrimaryPosY", primaryY);
+    SafeSetBranch(t, "PrimaryPosZ", primaryZ);
+    SafeSetBranch(t, "PrimaryEkin", primaryEkin);
+    SafeSetBranch(t, "PrimaryMomX", primaryPx);
+    SafeSetBranch(t, "PrimaryMomY", primaryPy);
+    SafeSetBranch(t, "PrimaryMomZ", primaryPz);
 
-    // Truth level info
-    std::vector<double> *truthPosX=nullptr, *truthPosY=nullptr, *truthPosZ=nullptr, *truthE=nullptr;
-    t->SetBranchAddress("truthPosX", &truthPosX);
-    t->SetBranchAddress("truthPosY", &truthPosY);
-    t->SetBranchAddress("truthPosZ", &truthPosZ);
-    t->SetBranchAddress("truthE", &truthE);
+    // Truth info
+    std::vector<double> *truthPosX = nullptr, *truthPosY = nullptr, *truthPosZ = nullptr, *truthE = nullptr;
+    SafeSetBranch(t, "truthPosX", truthPosX);
+    SafeSetBranch(t, "truthPosY", truthPosY);
+    SafeSetBranch(t, "truthPosZ", truthPosZ);
+    SafeSetBranch(t, "truthE", truthE);
 
     // TPC info
-    std::vector<double> *TPC_Edep=nullptr, *TPC_PosX=nullptr, *TPC_PosY=nullptr, *TPC_PosZ=nullptr;
-    std::vector<double> *TPC_PathLength=nullptr, *TPC_dEdx=nullptr, *TPC_Psm=nullptr;
-    t->SetBranchAddress("TPC_Edep", &TPC_Edep);
-    t->SetBranchAddress("TPC_PosX", &TPC_PosX);
-    t->SetBranchAddress("TPC_PosY", &TPC_PosY);
-    t->SetBranchAddress("TPC_PosZ", &TPC_PosZ);
-    t->SetBranchAddress("TPC_PathLength", &TPC_PathLength);
-    t->SetBranchAddress("TPC_dEdx_rho", &TPC_dEdx);
-    t->SetBranchAddress("TPC_Psm", &TPC_Psm);
+    std::vector<double> *TPC_Edep = nullptr, *TPC_PosX = nullptr, *TPC_PosY = nullptr, *TPC_PosZ = nullptr;
+    std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_Psm = nullptr;
+    SafeSetBranch(t, "TPC_Edep", TPC_Edep);
+    SafeSetBranch(t, "TPC_PosX", TPC_PosX);
+    SafeSetBranch(t, "TPC_PosY", TPC_PosY);
+    SafeSetBranch(t, "TPC_PosZ", TPC_PosZ);
+    SafeSetBranch(t, "TPC_PathLength", TPC_PathLength);
+    SafeSetBranch(t, "TPC_dEdx_rho", TPC_dEdx);
+    SafeSetBranch(t, "TPC_Psm", TPC_Psm);
 
     Long64_t nentries = t->GetEntries();
 
@@ -81,6 +131,10 @@ int main(int argc, char **argv) {
     TH1F *h_mass_truthE_recoAngle = new TH1F("h_tE_rA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *hEffvsE = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
+
+    //PID Plots
+
+    TH1F *hNSigma = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
 
     // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
     // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 4, 1, 500);
@@ -120,7 +174,8 @@ int main(int argc, char **argv) {
                 vertex, 
                 TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]), 
                 TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]) - vertex,
-                (*TPC_Edep)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
+                // (*TPC_Edep)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
+                (*TPC_Psm)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -154,8 +209,9 @@ int main(int argc, char **argv) {
 
         for (ChargedCluster cluster : chargedClusters) {
         
-            std::cout << "Charged Cluster Energy: " << cluster.totalEnergy << std::endl;
-            std::cout << "Charged Cluster nSigma: " << cluster.nSigma << std::endl;
+            // std::cout << "Charged Cluster Energy: " << cluster.totalEnergy << std::endl;
+            // std::cout << "Charged Cluster nSigma: " << cluster.nSigma << std::endl;
+            hNSigma->Fill(cluster.nSigma);
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -299,6 +355,8 @@ int main(int argc, char **argv) {
     // pi0AcceptanceVsEta.FinalizePlot("plots/Pi0_acceptance_vs_Eta.png");
     // pi0AcceptanceVsTheta.FinalizePlot("plots/Pi0_acceptance_vs_Theta_50_500.png");
 
+    //PID Plots 
+    nSigmaPlot(hNSigma, "nSigma.png", -3, 3);
 
 
     delete hPi0Mass; 
@@ -311,6 +369,7 @@ int main(int argc, char **argv) {
     delete h_mass_truthE_recoAngle; 
     delete h_mass_recoE_truthAngle; 
     delete hEffvsE;
+    delete hNSigma;
     f->Close(); delete f;
     return 0;
 }
