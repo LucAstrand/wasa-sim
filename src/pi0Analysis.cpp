@@ -1,6 +1,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TH1F.h"
+#include "TH2F.h"
 #include "TGraph.h"
 
 #include "Structures.hpp"
@@ -135,6 +136,13 @@ int main(int argc, char **argv) {
     //PID Plots
 
     TH1F *hNSigma = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
+    // TH2F *hdEdxVsE = new TH2F("hdEdxVsE", ";E [MeV];dEdx", 200, 0, 1000);
+    TH2F* hdEdxVsE = new TH2F(
+    "hdEdxVsE",
+    ";E [MeV];dE/dx [MeV/cm]",
+    200, 0, 500,        // E axis
+    200, 0, 0.1          // dE/dx axis
+    );
 
     // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
     // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 4, 1, 500);
@@ -212,6 +220,7 @@ int main(int argc, char **argv) {
             // std::cout << "Charged Cluster Energy: " << cluster.totalEnergy << std::endl;
             // std::cout << "Charged Cluster nSigma: " << cluster.nSigma << std::endl;
             hNSigma->Fill(cluster.nSigma);
+            hdEdxVsE->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -357,6 +366,7 @@ int main(int argc, char **argv) {
 
     //PID Plots 
     nSigmaPlot(hNSigma, "nSigma.png", -3, 3);
+    dEdxVsEPlot(hdEdxVsE, "dEdxVsE.png");
 
 
     delete hPi0Mass; 

@@ -355,6 +355,7 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         ChargedCluster c;
         c.trackID   = trk.id;
         c.direction = trk.direction;
+        c.clusterdEdx = trk.EdepSmeared / trk.pathLength;
         c.nSigma = nSigmaCalc(trk.EdepSmeared, trk.pathLength, trk.dEdxTheory, trk.resolution);
         clusters.push_back(c);
     }

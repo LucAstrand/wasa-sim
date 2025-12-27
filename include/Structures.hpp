@@ -31,6 +31,7 @@ struct ChargedCluster {
     std::vector<Hit> hits;
     double totalEnergy = 0.0;
     TVector3 direction;
+    double clusterdEdx;
     double nSigma;
 };
 
