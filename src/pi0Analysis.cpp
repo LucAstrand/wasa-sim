@@ -365,8 +365,13 @@ int main(int argc, char **argv) {
     // pi0AcceptanceVsTheta.FinalizePlot("plots/Pi0_acceptance_vs_Theta_50_500.png");
 
     //PID Plots 
-    nSigmaPlot(hNSigma, "nSigma.png", -3, 3);
-    dEdxVsEPlot(hdEdxVsE, "dEdxVsE.png");
+    // nSigmaPlot(hNSigma, "nSigma.png", -3, 3);
+    // dEdxVsEPlot(hdEdxVsE, "dEdxVsE.png");
+    PlotOptions opts;
+    opts.addLegend = false;
+    opts.addInfoPave = false;
+    // opts.drawOption = "COLZ";  // If you want color instead of HIST
+    Plot2D(hdEdxVsE, "dEdxVsE.png", opts);
 
 
     delete hPi0Mass; 
