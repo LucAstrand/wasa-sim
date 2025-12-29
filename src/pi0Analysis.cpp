@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 
     // TPC info
     std::vector<double> *TPC_Edep = nullptr, *TPC_PosX = nullptr, *TPC_PosY = nullptr, *TPC_PosZ = nullptr;
-    std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_Psm = nullptr;
+    std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_Psm = nullptr, *TPC_TrueKE = nullptr;
     SafeSetBranch(t, "TPC_Edep", TPC_Edep);
     SafeSetBranch(t, "TPC_PosX", TPC_PosX);
     SafeSetBranch(t, "TPC_PosY", TPC_PosY);
@@ -114,6 +114,7 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "TPC_PathLength", TPC_PathLength);
     SafeSetBranch(t, "TPC_dEdx_rho", TPC_dEdx);
     SafeSetBranch(t, "TPC_Psm", TPC_Psm);
+    SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
 
     Long64_t nentries = t->GetEntries();
 
@@ -137,12 +138,8 @@ int main(int argc, char **argv) {
 
     TH1F *hNSigma = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
     // TH2F *hdEdxVsE = new TH2F("hdEdxVsE", ";E [MeV];dEdx", 200, 0, 1000);
-    TH2F* hdEdxVsE = new TH2F(
-    "hdEdxVsE",
-    ";E [MeV];dE/dx [MeV/cm]",
-    200, 0, 500,        // E axis
-    200, 0, 0.1          // dE/dx axis
-    );
+    TH2F* hdEdxVsE_cluster = new TH2F("hdEdxVsE_cluster",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
+    TH2F* hdEdxVsE_true = new TH2F("hdEdxVsE_true",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
 
     // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
     // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 4, 1, 500);
@@ -183,7 +180,7 @@ int main(int argc, char **argv) {
                 TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]), 
                 TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]) - vertex,
                 // (*TPC_Edep)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
-                (*TPC_Psm)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
+                (*TPC_TrueKE)[k],(*TPC_Psm)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -220,9 +217,23 @@ int main(int argc, char **argv) {
             // std::cout << "Charged Cluster Energy: " << cluster.totalEnergy << std::endl;
             // std::cout << "Charged Cluster nSigma: " << cluster.nSigma << std::endl;
             hNSigma->Fill(cluster.nSigma);
-            hdEdxVsE->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
+            hdEdxVsE_cluster->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
+            hdEdxVsE_true->Fill(cluster.objectTrueKE, cluster.clusterdEdx);
         }
-
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+        // Double check to see if ownership logic is working! 
+        // Only uncomment if you want to check!
+        // for (const auto& h : hits) {
+        //     if (h.owner == HitOwner::Charged) {
+        //         std::cout << "Charged reco claimed this hit" << std::endl;
+        //     }
+        //     if (h.owner == HitOwner::Neutral) {
+        //         std::cout << "Neutral reco claimed this hit" << std::endl;
+        //     }
+        //     if (h.owner == HitOwner::None) {
+        //         std::cout << "No one claimed this hit" << std::endl;
+        //     }
+        // }
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
         // // Neutral Object Clustering --> To be done after the Charged Object Clustering 
@@ -367,11 +378,17 @@ int main(int argc, char **argv) {
     //PID Plots 
     // nSigmaPlot(hNSigma, "nSigma.png", -3, 3);
     // dEdxVsEPlot(hdEdxVsE, "dEdxVsE.png");
-    PlotOptions opts;
-    opts.addLegend = false;
-    opts.addInfoPave = false;
+    PlotOptions opts_hdEdxVsE_cluster;
+    opts_hdEdxVsE_cluster.addLegend = false;
+    opts_hdEdxVsE_cluster.addInfoPave = false;
     // opts.drawOption = "COLZ";  // If you want color instead of HIST
-    Plot2D(hdEdxVsE, "dEdxVsE.png", opts);
+    Plot2D(hdEdxVsE_cluster, "dEdxVsE_clusterE.png", opts_hdEdxVsE_cluster);
+
+    PlotOptions opts_hdEdxVsE_true;
+    opts_hdEdxVsE_true.addLegend = false;
+    opts_hdEdxVsE_true.addInfoPave = false;
+    // opts.drawOption = "COLZ";  // If you want color instead of HIST
+    Plot2D(hdEdxVsE_true, "dEdxVsE_trueKE.png", opts_hdEdxVsE_true);
 
 
     delete hPi0Mass; 
@@ -385,6 +402,8 @@ int main(int argc, char **argv) {
     delete h_mass_recoE_truthAngle; 
     delete hEffvsE;
     delete hNSigma;
+    delete hdEdxVsE_cluster;
+    delete hdEdxVsE_true; 
     f->Close(); delete f;
     return 0;
 }

@@ -71,38 +71,38 @@ TEveElementList* BuildClusterBoundingBox(const Cluster& c,
     ps->SetMarkerColor(col);
     group->AddElement(ps);
 
-    // ---------------- Cluster box ----------------
-    double xmin=1e9, xmax=-1e9;
-    double ymin=1e9, ymax=-1e9;
-    double zmin=1e9, zmax=-1e9;
+    // // ---------------- Cluster box ----------------
+    // double xmin=1e9, xmax=-1e9;
+    // double ymin=1e9, ymax=-1e9;
+    // double zmin=1e9, zmax=-1e9;
 
-    for (int idx : c.hitIndices) {
-        double x = centerX[idx];
-        double y = centerY[idx];
-        double z = centerZ[idx];
+    // for (int idx : c.hitIndices) {
+    //     double x = centerX[idx];
+    //     double y = centerY[idx];
+    //     double z = centerZ[idx];
 
-        xmin = std::min(xmin, x);
-        xmax = std::max(xmax, x);
-        ymin = std::min(ymin, y);
-        ymax = std::max(ymax, y);
-        zmin = std::min(zmin, z);
-        zmax = std::max(zmax, z);
-    }
+    //     xmin = std::min(xmin, x);
+    //     xmax = std::max(xmax, x);
+    //     ymin = std::min(ymin, y);
+    //     ymax = std::max(ymax, y);
+    //     zmin = std::min(zmin, z);
+    //     zmax = std::max(zmax, z);
+    // }
 
-    TEveBox* box = new TEveBox();
-    box->SetMainColor(col);
-    box->SetMainTransparency(60);
+    // TEveBox* box = new TEveBox();
+    // box->SetMainColor(col);
+    // box->SetMainTransparency(60);
 
-    box->SetVertex(0, xmin, ymin, zmin);
-    box->SetVertex(1, xmax, ymin, zmin);
-    box->SetVertex(2, xmax, ymax, zmin);
-    box->SetVertex(3, xmin, ymax, zmin);
-    box->SetVertex(4, xmin, ymin, zmax);
-    box->SetVertex(5, xmax, ymin, zmax);
-    box->SetVertex(6, xmax, ymax, zmax);
-    box->SetVertex(7, xmin, ymax, zmax);
+    // box->SetVertex(0, xmin, ymin, zmin);
+    // box->SetVertex(1, xmax, ymin, zmin);
+    // box->SetVertex(2, xmax, ymax, zmin);
+    // box->SetVertex(3, xmin, ymax, zmin);
+    // box->SetVertex(4, xmin, ymin, zmax);
+    // box->SetVertex(5, xmax, ymin, zmax);
+    // box->SetVertex(6, xmax, ymax, zmax);
+    // box->SetVertex(7, xmin, ymax, zmax);
 
-    group->AddElement(box);
+    // group->AddElement(box);
     
     // ---------------- Momentum arrow ----------------
     TVector3 dir = c.p4.Vect().Unit();

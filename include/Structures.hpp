@@ -5,21 +5,34 @@
 #include "TLorentzVector.h"
 #include "TVector3.h"
 
+// struct Hit {
+//     double x, y, z, e;
+// };
+
+enum class HitOwner {
+    None,
+    Charged,
+    Neutral
+};
+
 struct Hit {
-    double x, y, z, e;
+    double x, y, z;
+    double e;
+    HitOwner owner = HitOwner::None;
 };
 
 struct Cluster {
-    std::vector<int> hitIndices;
+    std::vector<Hit*> hits; // Pointer now! use -> to access the quantities!
     TVector3 centroid;
     TLorentzVector p4;
 };
 
 struct ChargedTrack {
-    size_t id;                 // track ID // I might just build this dynamically not sure yet If I want to use GEANT4's TrackID --> Avoid Truth level stuff?
+    size_t id;              // track ID // I might just build this dynamically not sure yet If I want to use GEANT4's TrackID --> Avoid Truth level stuff?
     TVector3 vertex;
     TVector3 exitPoint;     // TPC exit
     TVector3 direction;     // cached (exit - vertex).Unit()
+    double TrueKE;
     double EdepSmeared;
     double pathLength;
     double dEdxTheory;
@@ -28,9 +41,10 @@ struct ChargedTrack {
 
 struct ChargedCluster {
     int trackID;
-    std::vector<Hit> hits;
+    std::vector<Hit*> hits; // Pointer now! use -> to access the quantities!
     double totalEnergy = 0.0;
     TVector3 direction;
+    double objectTrueKE; // true info from sim for control plots 
     double clusterdEdx;
     double nSigma;
 };
