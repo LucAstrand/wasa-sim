@@ -136,7 +136,10 @@ int main(int argc, char **argv) {
 
     //PID Plots
 
-    TH1F *hNSigma = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
+    TH1F *hNSigmaPion = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
+    TH1F *hNSigmaProton = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
+    TH1F *hNSigmaElectron = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
+
     // TH2F *hdEdxVsE = new TH2F("hdEdxVsE", ";E [MeV];dEdx", 200, 0, 1000);
     TH2F* hdEdxVsE_cluster = new TH2F("hdEdxVsE_cluster",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
     TH2F* hdEdxVsE_true = new TH2F("hdEdxVsE_true",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
@@ -213,10 +216,12 @@ int main(int argc, char **argv) {
         auto chargedClusters = MatchHitsToTracks(ChargedTracks, hits, thetaMax);
 
         for (ChargedCluster cluster : chargedClusters) {
-        
+            std::cout << "PID Guess: " << PIDToString(cluster.pidGuess) << std::endl;
             // std::cout << "Charged Cluster Energy: " << cluster.totalEnergy << std::endl;
             // std::cout << "Charged Cluster nSigma: " << cluster.nSigma << std::endl;
-            hNSigma->Fill(cluster.nSigma);
+            hNSigmaPion->Fill(cluster.nSigmaPion);
+            hNSigmaProton->Fill(cluster.nSigmaProton);
+            hNSigmaElectron->Fill(cluster.nSigmaElectron);
             hdEdxVsE_cluster->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
             hdEdxVsE_true->Fill(cluster.objectTrueKE, cluster.clusterdEdx);
         }
@@ -378,6 +383,23 @@ int main(int argc, char **argv) {
     //PID Plots 
     // nSigmaPlot(hNSigma, "nSigma.png", -3, 3);
     // dEdxVsEPlot(hdEdxVsE, "dEdxVsE.png");
+
+    PlotOptions opts_nSigma;
+    opts_nSigma.doFit = true;
+    opts_nSigma.addLegend = true;
+    opts_nSigma.legendEntries = {
+    "#pi hypothesis",
+    "p hypothesis",
+    "e hypothesis"
+    };
+    std::vector<TH1F *> plots1D = {hNSigmaPion, hNSigmaProton, hNSigmaElectron};
+    std::vector<int> colors = {
+        kRed+1,
+        kBlue+1,
+        kGreen+2
+    };
+    Plot1D(plots1D, colors, "nSigmaPlots.png", opts_nSigma);
+
     PlotOptions opts_hdEdxVsE_cluster;
     opts_hdEdxVsE_cluster.addLegend = false;
     opts_hdEdxVsE_cluster.addInfoPave = false;
@@ -401,7 +423,9 @@ int main(int argc, char **argv) {
     delete h_mass_truthE_recoAngle; 
     delete h_mass_recoE_truthAngle; 
     delete hEffvsE;
-    delete hNSigma;
+    delete hNSigmaPion;
+    delete hNSigmaProton;
+    delete hNSigmaElectron;
     delete hdEdxVsE_cluster;
     delete hdEdxVsE_true; 
     f->Close(); delete f;

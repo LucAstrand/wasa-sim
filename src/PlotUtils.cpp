@@ -73,28 +73,75 @@ std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entrie
     return leg;
 }
 
-void PerformFitAndAddToLegend(TH1* hist, TLegend* leg, const PlotOptions& options) {
-    double fitMin = (options.fitMin == -999) ? hist->GetXaxis()->GetXmin() : options.fitMin;
-    double fitMax = (options.fitMax == -999) ? hist->GetXaxis()->GetXmax() : options.fitMax;
-    auto f = std::make_unique<TF1>("fit", options.fitFunction.c_str(), fitMin, fitMax);
+// void PerformFitAndAddToLegend(TH1* hist, TLegend* leg, const PlotOptions& options) {
+//     double fitMin = (options.fitMin == -999) ? hist->GetXaxis()->GetXmin() : options.fitMin;
+//     double fitMax = (options.fitMax == -999) ? hist->GetXaxis()->GetXmax() : options.fitMax;
+//     auto f = std::make_unique<TF1>("fit", options.fitFunction.c_str(), fitMin, fitMax);
+//     f->SetLineColor(kRed + 1);
+//     f->SetLineWidth(2);
+//     double maxBin = hist->GetMaximum();
+//     double meanGuess = hist->GetBinCenter(hist->GetMaximumBin());
+//     double sigmaGuess = hist->GetRMS();
+//     f->SetParameters(maxBin, meanGuess, sigmaGuess);
+//     hist->Fit(f.get(), "RQ");  // Quiet, range
+//     double mean = f->GetParameter(1);
+//     double sigma = f->GetParameter(2);
+//     double errMu = f->GetParError(1);
+//     double errSi = f->GetParError(2);
+//     f->Draw("SAME");  // Draw fit on current canvas
+//     if (leg) {
+//         leg->AddEntry(f.get(), "Gaussian Fit:", "l");
+//         leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f", mean, errMu), "");
+//         leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f", sigma, errSi), "");
+//     }
+// }
+
+void PerformFitAndAddToLegend(TH1* hist, TLegend* leg, const PlotOptions& options)
+{
+    if (!hist || hist->GetEntries() < 5) return;
+
+    double fitMin = (options.fitMin == -999)
+                    ? hist->GetXaxis()->GetXmin()
+                    : options.fitMin;
+    double fitMax = (options.fitMax == -999)
+                    ? hist->GetXaxis()->GetXmax()
+                    : options.fitMax;
+
+    // ROOT must own this
+    TF1* f = new TF1(
+        Form("fit_%s", hist->GetName()),
+        options.fitFunction.c_str(),
+        fitMin,
+        fitMax
+    );
+
     f->SetLineColor(kRed + 1);
     f->SetLineWidth(2);
+
     double maxBin = hist->GetMaximum();
     double meanGuess = hist->GetBinCenter(hist->GetMaximumBin());
     double sigmaGuess = hist->GetRMS();
     f->SetParameters(maxBin, meanGuess, sigmaGuess);
-    hist->Fit(f.get(), "RQ");  // Quiet, range
+
+    // "S" stores fit result
+    // "R" respects range
+    // "Q" quiet
+    hist->Fit(f, "SRQ");
+
     double mean = f->GetParameter(1);
     double sigma = f->GetParameter(2);
     double errMu = f->GetParError(1);
     double errSi = f->GetParError(2);
-    f->Draw("SAME");  // Draw fit on current canvas
+
+    f->Draw("SAME");
+
     if (leg) {
-        leg->AddEntry(f.get(), "Gaussian Fit:", "l");
+        leg->AddEntry(f, "Gaussian Fit:", "l");
         leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f", mean, errMu), "");
         leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f", sigma, errSi), "");
     }
 }
+
 
 void SavePlot(TCanvas* c, const std::string& plotname) {
     c->SaveAs(("plots/" + plotname).c_str());
@@ -133,6 +180,11 @@ void Plot1D(const std::vector<TH1F*>& hists, const std::vector<int>& colors, con
     // Fit (on first hist only, for simplicity)
     std::unique_ptr<TLegend> leg;
     if (options.addLegend) {
+        if (!options.legendEntries.empty() &&
+            options.legendEntries.size() != hists.size()) {
+            std::cerr << "Legend entries size mismatch!" << std::endl;
+            return;
+        }
         std::vector<TObject*> objs(hists.begin(), hists.end());
         leg = PlotCreateLegend(options.legendEntries, options.extraLegendLines, options.legendX1, options.legendY1, options.legendX2, options.legendY2, objs);
     }

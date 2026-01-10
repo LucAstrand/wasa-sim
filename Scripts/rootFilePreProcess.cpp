@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
     // std::vector<double>* TPC_res = nullptr;
     // std::vector<double>* TPC_eff = nullptr;
     // std::vector<double>* TPC_Time = nullptr;
-    // std::vector<double>* TPC_pdg = nullptr;
+    std::vector<double>* TPC_pdg = nullptr;
 
     if (!inTree->GetBranch("PrimaryPosX") || !inTree->GetBranch("PrimaryPosY") || !inTree->GetBranch("PrimaryPosZ")) {
         std::cerr << "Missing one or more PrimaryPos* branches—check tree structure." << std::endl;
@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
     // inTree->SetBranchAddress("TPC_res", &TPC_res);
     // inTree->SetBranchAddress("TPC_eff", &TPC_eff);
     // inTree->SetBranchAddress("TPC_Time", &TPC_Time);
-    // inTree->SetBranchAddress("TPC_pdg", &TPC_pdg);
+    inTree->SetBranchAddress("TPC_pdg", &TPC_pdg);
 
 
     // Quick test read of first entry to catch issues early
@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
     std::vector<double> outTruePhotonCreationX, outTruePhotonCreationY, outTruePhotonCreationZ;
     std::vector<double> outTruePhotonEndX, outTruePhotonEndY, outTruePhotonEndZ;
     std::vector<double> outTPC_PosX, outTPC_PosY, outTPC_PosZ;
-    std::vector<double> outTPC_Edep, outTPC_dEdx_rho, outTPC_PathLength, outTPC_Psm, outTPC_TrueKE;
+    std::vector<double> outTPC_Edep, outTPC_dEdx_rho, outTPC_PathLength, outTPC_Psm, outTPC_TrueKE, outTPC_pdg;
     
     outTree->Branch("centerX", &centerXs);
     outTree->Branch("centerY", &centerYs);
@@ -237,6 +237,7 @@ int main(int argc, char** argv) {
     outTree->Branch("TPC_PathLength", &outTPC_PathLength);
     outTree->Branch("TPC_Psm", &outTPC_Psm);
     outTree->Branch("TPC_TrueKE", &outTPC_TrueKE);
+    outTree->Branch("TPC_pdg", &outTPC_pdg);
 
     // Process each entry (event)
     Long64_t nEntries = inTree->GetEntries();
@@ -277,6 +278,7 @@ int main(int argc, char** argv) {
         outTPC_PathLength = TPC_PathLength ? *TPC_PathLength : std::vector<double>();
         outTPC_Psm = TPC_Psm ? *TPC_Psm : std::vector<double>();
         outTPC_TrueKE = TPC_TrueKE ? *TPC_TrueKE : std::vector<double>();
+        outTPC_pdg = TPC_pdg ? *TPC_pdg : std::vector<double>();
 
         // Clear vectors for this event
         centerXs.clear();

@@ -5,6 +5,8 @@
 #include "TLorentzVector.h"
 #include "TVector3.h"
 
+#include "ParticleID.hpp"
+
 // struct Hit {
 //     double x, y, z, e;
 // };
@@ -46,7 +48,11 @@ struct ChargedCluster {
     TVector3 direction;
     double objectTrueKE; // true info from sim for control plots 
     double clusterdEdx;
-    double nSigma;
+    double nSigmaPion;
+    double nSigmaProton;
+    double nSigmaElectron;
+    PIDLikelihoods pidL;
+    PID pidGuess;
 };
 
 struct TruePhoton {

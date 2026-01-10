@@ -31,5 +31,41 @@ double BetheBloch(
     PotentialGas gas
 );
 
+inline double LikelihoodFromNSigma(double nSigma);
+
+struct PIDLikelihoods {
+    double Lpi;
+    double Lp;
+    double Le;
+
+    double Ppi;
+    double Pp;
+    double Pe;
+};
+
+PIDLikelihoods ComputePIDLikelihoods(
+    double nSigmaPi,
+    double nSigmaP,
+    double nSigmaE
+);
+
+enum class PID { Pion, Proton, Electron, Unknown };
+
+inline const char* PIDToString(PID pid)
+{
+    switch(pid) {
+        case PID::Pion:     return "Pion";
+        case PID::Proton:   return "Proton";
+        case PID::Electron: return "Electron";
+        case PID::Unknown:  return "Unknown";
+        default:            return "InvalidPID";
+    }
+}
+
+PID AssignPIDFromLikelihood(
+    const PIDLikelihoods& L,
+    double minProb = 0.7
+);
+
 
 #endif

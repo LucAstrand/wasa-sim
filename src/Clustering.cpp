@@ -355,11 +355,23 @@ std::vector<ChargedCluster> MatchHitsToTracks(
     // Initialize one cluster per track
     for (const auto& trk : tracks) {
         ChargedCluster c;
-        c.trackID   = trk.id;
+        c.trackID = trk.id;
         c.direction = trk.direction;
         c.objectTrueKE = trk.TrueKE;
         c.clusterdEdx = trk.EdepSmeared / trk.pathLength;
-        c.nSigma = nSigmaCalc(trk.EdepSmeared, trk.pathLength, trk.dEdxTheory, trk.resolution);
+        // one nSigma per assumption
+        PotentialGas tpcGas = PotentialGas::eArCO2_8020;
+        c.nSigmaPion = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(211, trk.TrueKE, tpcGas), trk.resolution);
+        c.nSigmaProton = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(2212, trk.TrueKE, tpcGas), trk.resolution);
+        c.nSigmaElectron = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(11, trk.TrueKE, tpcGas), trk.resolution);
+
+        c.pidL = ComputePIDLikelihoods(
+            c.nSigmaPion,
+            c.nSigmaProton,
+            c.nSigmaElectron
+        );
+        c.pidGuess = AssignPIDFromLikelihood(c.pidL, 0.7);
+        
         clusters.push_back(c);
     }
 
