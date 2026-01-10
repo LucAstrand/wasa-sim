@@ -264,6 +264,7 @@ add_executable(pi0Analysis
     src/Pi0Efficiency.cpp
     src/PlotUtils.cpp
     src/TruePhotonCalc.cpp
+    src/PIDEfficiency.cpp
 )
 
 target_include_directories(pi0Analysis PRIVATE include)

@@ -358,6 +358,7 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         c.trackID = trk.id;
         c.direction = trk.direction;
         c.objectTrueKE = trk.TrueKE;
+        c.objectTruePDG = trk.TruePDG; // Keep this for efficiency plots
         c.clusterdEdx = trk.EdepSmeared / trk.pathLength;
         // one nSigma per assumption
         PotentialGas tpcGas = PotentialGas::eArCO2_8020;
@@ -371,7 +372,7 @@ std::vector<ChargedCluster> MatchHitsToTracks(
             c.nSigmaElectron
         );
         c.pidGuess = AssignPIDFromLikelihood(c.pidL, 0.7);
-        
+
         clusters.push_back(c);
     }
 

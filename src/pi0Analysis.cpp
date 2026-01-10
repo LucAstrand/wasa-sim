@@ -13,7 +13,7 @@
 #include "PhotonMatch.hpp"
 #include "Pi0Efficiency.hpp"
 #include "Pi0Acceptance.hpp"
-// #include "ParticleID.hpp"
+#include "PIDEfficiency.hpp"
 
     // ---------------------- Helper ----------------------
     template <typename T>
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 
     // TPC info
     std::vector<double> *TPC_Edep = nullptr, *TPC_PosX = nullptr, *TPC_PosY = nullptr, *TPC_PosZ = nullptr;
-    std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_Psm = nullptr, *TPC_TrueKE = nullptr;
+    std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_Psm = nullptr, *TPC_TrueKE = nullptr, *TPC_pdg = nullptr;
     SafeSetBranch(t, "TPC_Edep", TPC_Edep);
     SafeSetBranch(t, "TPC_PosX", TPC_PosX);
     SafeSetBranch(t, "TPC_PosY", TPC_PosY);
@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "TPC_dEdx_rho", TPC_dEdx);
     SafeSetBranch(t, "TPC_Psm", TPC_Psm);
     SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
+    SafeSetBranch(t, "TPC_pdg", TPC_pdg);
 
     Long64_t nentries = t->GetEntries();
 
@@ -151,6 +152,8 @@ int main(int argc, char **argv) {
     // Pi0Acceptance pi0AcceptanceVsEta(-10, 10, 100);
     Pi0Acceptance pi0AcceptanceVsTheta(0, TMath::Pi(), 60);
 
+    PIDEfficiency pidEff(20, 0, 500);
+
     
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
         t->GetEntry(ievt);
@@ -183,7 +186,7 @@ int main(int argc, char **argv) {
                 TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]), 
                 TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]) - vertex,
                 // (*TPC_Edep)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
-                (*TPC_TrueKE)[k],(*TPC_Psm)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
+                (*TPC_pdg)[k], (*TPC_TrueKE)[k],(*TPC_Psm)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -349,6 +352,7 @@ int main(int argc, char **argv) {
         // }
         // else if (genEkin == 500 && std::abs(theta - targetTheta) < deltaTheta) hNClusters_highEkin->Fill(clusters.size());
 
+        pidEff.ProcessEvent(chargedClusters);
 
 
     }
@@ -412,6 +416,7 @@ int main(int argc, char **argv) {
     // opts.drawOption = "COLZ";  // If you want color instead of HIST
     Plot2D(hdEdxVsE_true, "dEdxVsE_trueKE.png", opts_hdEdxVsE_true);
 
+    pidEff.FinalizePlot("plots/PIDEfficiency");
 
     delete hPi0Mass; 
     delete hClusterE;

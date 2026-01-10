@@ -35,6 +35,7 @@ struct ChargedTrack {
     TVector3 exitPoint;     // TPC exit
     TVector3 direction;     // cached (exit - vertex).Unit()
     double TrueKE;
+    double TruePDG;
     double EdepSmeared;
     double pathLength;
     double dEdxTheory;
@@ -47,6 +48,7 @@ struct ChargedCluster {
     double totalEnergy = 0.0;
     TVector3 direction;
     double objectTrueKE; // true info from sim for control plots 
+    int objectTruePDG;
     double clusterdEdx;
     double nSigmaPion;
     double nSigmaProton;

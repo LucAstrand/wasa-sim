@@ -62,6 +62,26 @@ inline const char* PIDToString(PID pid)
     }
 }
 
+inline const int PIDToPDG(PID pid)
+{
+    switch(pid) {
+        case PID::Pion:     return 211;
+        case PID::Proton:   return 2212;
+        case PID::Electron: return 11;
+        case PID::Unknown:  return -1; // Unknown
+        default:            return -2; // InvalidPID
+    }
+}
+
+inline const PID PDGToPID(int pdg){
+    switch(pdg){
+        case 211: return PID::Pion;
+        case 2212: return PID::Proton;
+        case 11: return PID::Electron;
+        default: return PID::Unknown;
+    }
+}
+
 PID AssignPIDFromLikelihood(
     const PIDLikelihoods& L,
     double minProb = 0.7
