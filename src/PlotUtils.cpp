@@ -147,7 +147,7 @@ void SavePlot(TCanvas* c, const std::string& plotname) {
     c->SaveAs(("plots/" + plotname).c_str());
 }
 
-void Plot1D(const std::vector<TH1F*>& hists, const std::vector<int>& colors, const std::string& plotname, const PlotOptions& options) {
+void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, const std::string& plotname, const PlotOptions& options) {
     if (hists.empty() || hists[0] == nullptr) {
         std::cerr << "Error: No valid histograms provided." << std::endl;
         return;
@@ -222,5 +222,54 @@ void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& options)
         info->Draw();
     }
     if (options.addTopLatex) AddTopLatex(c.get(), options.topLatex);
+    SavePlot(c.get(), plotname);
+}
+
+void PlotGraph(TGraph* graph, const std::string& plotname, const PlotOptions& options)
+{
+    if (!graph) {
+        std::cerr << "Error: null graph passed to PlotGraph\n";
+        return;
+    }
+
+    SetPrettyStyle();
+    gStyle->SetOptStat(0);
+
+    auto c = PlotCreateCanvas("cGraph_" + plotname);
+
+    graph->SetLineWidth(2);
+    graph->SetMarkerStyle(20);
+    graph->SetMarkerSize(1.0);
+
+    graph->Draw("AP");
+
+    std::unique_ptr<TLegend> leg;
+    if (options.addLegend && !options.legendEntries.empty()) {
+        leg = PlotCreateLegend(
+            options.legendEntries,
+            options.extraLegendLines,
+            options.legendX1,
+            options.legendY1,
+            options.legendX2,
+            options.legendY2,
+            { graph }
+        );
+        leg->Draw();
+    }
+
+    if (options.addInfoPave) {
+        auto info = PlotCreateInfoPave(
+            options.infoLines,
+            options.infoX1,
+            options.infoY1,
+            options.infoX2,
+            options.infoY2
+        );
+        info->Draw();
+    }
+
+    if (options.addTopLatex)
+        AddTopLatex(c.get(), options.topLatex);
+
     SavePlot(c.get(), plotname);
 }

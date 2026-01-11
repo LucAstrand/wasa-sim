@@ -1,10 +1,12 @@
+#include "Pi0Efficiency.hpp"
+
 #include "TCanvas.h"
 #include "TLegend.h"
 #include "TStyle.h"
 #include "TGraphAsymmErrors.h"
 #include "TLatex.h"
 
-#include "Pi0Efficiency.hpp"
+#include "PlotUtils.hpp"
 
 #include <iostream>
 
@@ -45,12 +47,12 @@ void Pi0Efficiency::ProcessEvent(const std::vector<Cluster>& clusters, const std
 }
 
 void Pi0Efficiency::FinalizePlot(const std::string& outFileName) {
-    TCanvas* c = new TCanvas("cEff", "Pi0 Efficiency", 900, 650);
+    // TCanvas* c = new TCanvas("cEff", "Pi0 Efficiency", 900, 650);
 
     // Create graph with binomial (asymmetric) errors
     TGraphAsymmErrors* gEff = new TGraphAsymmErrors(h_num_, h_den_, "cl=0.683 b(1,1) mode"); // fraction in [0,1]
-    gEff->SetTitle("");
-    gEff->SetName("Pi0EfficiencyGraph");
+    // gEff->SetTitle("");
+    // gEff->SetName("Pi0EfficiencyGraph");
 
     // --- SCALE TO PERCENT (important) ---
     // Multiply y-values and Y-errors by 100 to convert fraction -> percent
@@ -82,7 +84,7 @@ void Pi0Efficiency::FinalizePlot(const std::string& outFileName) {
     gEff->GetYaxis()->SetTitle("Efficiency [%]");
     gEff->GetYaxis()->SetRangeUser(0.0, 110.0);
 
-    gStyle->SetOptStat(0);
+    // gStyle->SetOptStat(0);
     gEff->Draw("AP");
 
     // auto legend = new TLegend(0.55, 0.75, 0.88, 0.88);
@@ -91,16 +93,22 @@ void Pi0Efficiency::FinalizePlot(const std::string& outFileName) {
     // legend->SetBorderSize(0);  // no border box
     // legend->Draw();
 
-    TLatex l;
-    l.SetNDC();
-    l.SetTextFont(42);
-    l.SetTextSize(0.045);
-    l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
+    // TLatex l;
+    // l.SetNDC();
+    // l.SetTextFont(42);
+    // l.SetTextSize(0.045);
+    // l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
 
-    c->SaveAs(outFileName.c_str());
-    // std::cout << "[Pi0Efficiency] Saved plot to " << outFileName << std::endl;
+    // c->SaveAs(outFileName.c_str());
+    PlotOptions opts;
+    opts.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
+    opts.legendEntries = { "Efficiency" };
+    opts.infoLines = {"GEANT4 #pi^{0} sample"}; // Add others
+    opts.addInfoPave = true;
+    PlotGraph(gEff, outFileName.c_str(), opts);
+    std::cout << "[Pi0Efficiency] Saved plot to " << outFileName << std::endl;
 
     // cleanup
     delete gEff;
-    delete c;
+    // delete c;
 }

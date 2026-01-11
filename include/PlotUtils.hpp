@@ -1,6 +1,7 @@
 #ifndef PLOTUTILS_H
 #define PLOTUTILS_H
 
+#include "TH1.h"
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TGraph.h"  // For future if needed
@@ -34,8 +35,10 @@ struct PlotOptions {
 };
 
 // Core functions
-void Plot1D(const std::vector<TH1F*>& hists, const std::vector<int>& colors, const std::string& plotname, const PlotOptions& options = PlotOptions());
+void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, const std::string& plotname, const PlotOptions& options = PlotOptions());
 void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& options = PlotOptions());
+void PlotGraph(TGraph* graph, const std::string& plotname, const PlotOptions& options);
+
 
 // Helpers (exposed if you want to use standalone, else make static/private)
 void SetPrettyStyle();

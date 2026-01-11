@@ -1,10 +1,12 @@
+#include "Pi0Acceptance.hpp"
+
 #include "TCanvas.h"
 #include "TLegend.h"
 #include "TStyle.h"
 #include "TGraphAsymmErrors.h"
 #include "TLatex.h"
 
-#include "Pi0Acceptance.hpp"
+#include "PlotUtils.hpp"
 
 #include <iostream>
 
@@ -160,12 +162,12 @@ void Pi0Acceptance::FinalizePlot(const std::string& outFileName) {
 
     std::cout << "[FinilizePlot] Total RECO count: " << countTot << std::endl;
 
-    TCanvas* c = new TCanvas("cEff", "Pi0 Acceptance", 900, 650);
+    // TCanvas* c = new TCanvas("cEff", "Pi0 Acceptance", 900, 650);
 
     // Create graph with binomial (asymmetric) errors
     TGraphAsymmErrors* gEff = new TGraphAsymmErrors(h_num_, h_den_, "cl=0.683 b(1,1) mode"); // fraction in [0,1]
-    gEff->SetTitle("");
-    gEff->SetName("Pi0AccemptanceGraph");
+    // gEff->SetTitle("");
+    // gEff->SetName("Pi0AccemptanceGraph");
 
     // --- SCALE TO PERCENT (important) ---
     // Multiply y-values and Y-errors by 100 to convert fraction -> percent
@@ -225,19 +227,25 @@ void Pi0Acceptance::FinalizePlot(const std::string& outFileName) {
     // info->AddText("E_{kin} = 100 MeV");
     info->Draw();
 
-    TLatex l;
-    l.SetNDC();
-    l.SetTextFont(42);
-    l.SetTextSize(0.045);
-    l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
+    // TLatex l;
+    // l.SetNDC();
+    // l.SetTextFont(42);
+    // l.SetTextSize(0.045);
+    // l.DrawLatex(0.16, 0.93, "#bf{Hibeam}  #it{Wasa full simulation}");
 
 
-    c->SaveAs(outFileName.c_str());
-    // std::cout << "[Pi0Efficiency] Saved plot to " << outFileName << std::endl;
+    // c->SaveAs(outFileName.c_str());
+    PlotOptions opts;
+    opts.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
+    opts.legendEntries = { "Acceptance" };
+    opts.infoLines = {"GEANT4 #pi^{0} sample"}; // Add others
+    opts.addInfoPave = true;
+    PlotGraph(gEff, outFileName.c_str(), opts);
+    std::cout << "[Pi0Efficiency] Saved plot to " << outFileName << std::endl;
 
     // cleanup
     delete gEff;
-    delete c;
+    // delete c;
 }
 
 // void Pi0Acceptance::FinalizePlot(const std::string& outFileName)

@@ -398,7 +398,7 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         }
 
         if (bestTrack >= 0 && bestAngle < thetaMax) {
-            clusters[bestTrack].hits.push_back(&hit); // DO I really care about keeping hits in there? 
+            clusters[bestTrack].hits.push_back(&hit); // Do I really care about keeping hits in there? 
             clusters[bestTrack].totalEnergy += hit.e;
             hit.owner = HitOwner::Charged; // Mark used
         }

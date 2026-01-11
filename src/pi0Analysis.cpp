@@ -1,6 +1,8 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "TH1F.h"
+#include "TH1.h"
+#include "TProfile.h"
 #include "TH2F.h"
 #include "TGraph.h"
 
@@ -154,6 +156,8 @@ int main(int argc, char **argv) {
 
     PIDEfficiency pidEff(20, 0, 500);
 
+    TH2F* h2_Eres = new TH2F("h2_Eres", ";True KE [MeV];Energy Residual", 20, 0, 500, 100, -1.0, 1.0);
+
     
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
         t->GetEntry(ievt);
@@ -186,7 +190,7 @@ int main(int argc, char **argv) {
                 TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]), 
                 TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]) - vertex,
                 // (*TPC_Edep)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
-                (*TPC_pdg)[k], (*TPC_TrueKE)[k],(*TPC_Psm)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
+                (*TPC_TrueKE)[k], (*TPC_pdg)[k], (*TPC_Psm)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -219,7 +223,7 @@ int main(int argc, char **argv) {
         auto chargedClusters = MatchHitsToTracks(ChargedTracks, hits, thetaMax);
 
         for (ChargedCluster cluster : chargedClusters) {
-            std::cout << "PID Guess: " << PIDToString(cluster.pidGuess) << std::endl;
+            // std::cout << "PID Guess: " << PIDToString(cluster.pidGuess) << std::endl;
             // std::cout << "Charged Cluster Energy: " << cluster.totalEnergy << std::endl;
             // std::cout << "Charged Cluster nSigma: " << cluster.nSigma << std::endl;
             hNSigmaPion->Fill(cluster.nSigmaPion);
@@ -227,6 +231,9 @@ int main(int argc, char **argv) {
             hNSigmaElectron->Fill(cluster.nSigmaElectron);
             hdEdxVsE_cluster->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
             hdEdxVsE_true->Fill(cluster.objectTrueKE, cluster.clusterdEdx);
+
+            double Eres = (cluster.totalEnergy - cluster.objectTrueKE) / cluster.objectTrueKE;
+            h2_Eres->Fill(cluster.objectTrueKE, Eres);
         }
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
         // Double check to see if ownership logic is working! 
@@ -396,7 +403,7 @@ int main(int argc, char **argv) {
     "p hypothesis",
     "e hypothesis"
     };
-    std::vector<TH1F *> plots1D = {hNSigmaPion, hNSigmaProton, hNSigmaElectron};
+    std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaProton, hNSigmaElectron};
     std::vector<int> colors = {
         kRed+1,
         kBlue+1,
@@ -416,7 +423,12 @@ int main(int argc, char **argv) {
     // opts.drawOption = "COLZ";  // If you want color instead of HIST
     Plot2D(hdEdxVsE_true, "dEdxVsE_trueKE.png", opts_hdEdxVsE_true);
 
-    pidEff.FinalizePlot("plots/PIDEfficiency");
+    PlotOptions opts_h2_Eres;
+    TProfile* pEres = h2_Eres->ProfileX();
+    Plot1D({pEres}, {kBlack}, "energy_residual.png", opts_h2_Eres);
+
+    //Pion + 
+    pidEff.FinalizePlot("plots/PIDEfficiency", 211);
 
     delete hPi0Mass; 
     delete hClusterE;
