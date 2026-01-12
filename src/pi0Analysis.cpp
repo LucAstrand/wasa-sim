@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
 
     
     // TH1F *hSingleClusterE = new TH1F("hSingleClusterE",";Cluster E [MeV];Count",100,0,500);
-    TH1F *hPi0TrueMass = new TH1F("hPi0TrueMass",";M_{#gamma#gamma} [MeV];Events",300,1.5,301.5);
+    TH1F *hPi0TrueMass = new TH1F("hPi0TrueMass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *h_mass_truthE_recoAngle = new TH1F("h_tE_rA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     TH1F *hEffvsE = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
@@ -148,9 +148,9 @@ int main(int argc, char **argv) {
     TH2F* hdEdxVsE_true = new TH2F("hdEdxVsE_true",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
 
     // Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 20, 1, 500);
-    Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 5, 1, 550);
+    Pi0Efficiency effPlotter(120.0, 150.0, 134.977, 4, 1, 550);
 
-    Pi0Acceptance accPlotter(120.0, 150.0, 134.977, 5, 1, 550);
+    Pi0Acceptance accPlotter(120.0, 150.0, 134.977, 4, 1, 550);
     // Pi0Acceptance pi0AcceptanceVsEta(-10, 10, 100);
     // Pi0Acceptance pi0AcceptanceVsTheta(0, TMath::Pi(), 60);
 
@@ -376,36 +376,37 @@ int main(int argc, char **argv) {
     optsPi0InvMass.fitMin = 100;
     optsPi0InvMass.fitMax = 170;
     optsPi0InvMass.addInfoPave = true;
-    optsPi0InvMass.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300, 450, 500] MeV"};
+    optsPi0InvMass.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
     // PrettyPi0MassPlot(hPi0Mass, "Pi0Mass_Clustered.png", 100.0, 170.0);
     Plot1D({hPi0Mass}, {kBlack}, "Pi0InvMass.png", optsPi0InvMass);
 
     // TRUTH-TRUTH
-    hPi0TrueMass->Print("all");
-    hPi0Mass->GetXaxis()->SetRange(0, 0);
     PlotOptions optsPi0InvMassTT;
     optsPi0InvMass.addInfoPave = true;
     optsPi0InvMassTT.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
     optsPi0InvMassTT.legendEntries = {"Truth-level Invariant Mass"};
-    // optsPi0InvMassTT.extraLegendLines = {Form("Mean value: %.3f", hPi0Mass->GetXaxis()->GetBinCenter(hPi0Mass->GetMaximumBin()))};
-    optsPi0InvMassTT.extraLegendLines = {Form("Mean value: %.4f", hPi0Mass->GetMean())};
+    optsPi0InvMassTT.extraLegendLines = {Form("Mean value: %.4f", hPi0Mass->GetXaxis()->GetBinCenter(hPi0Mass->GetMaximumBin() + 1))};
+    // optsPi0InvMassTT.extraLegendLines = {"Mean Value: ~135 MeV"};
     // TruthPi0MassPlot(hPi0TrueMass, "Pi0Mass_Truth.png");
     Plot1D({hPi0TrueMass}, {kBlack}, "Pi0InvMassTT.png", optsPi0InvMassTT);
 
     // Mix Plots
     PlotOptions optsPi0InvMassRecoAngle;
     optsPi0InvMassRecoAngle.doFit = true;
-    optsPi0InvMassRecoAngle.fitMin = 100;
-    optsPi0InvMassRecoAngle.fitMax = 170;
+    optsPi0InvMassRecoAngle.fitMin = 80;
+    optsPi0InvMassRecoAngle.fitMax = 180;
     optsPi0InvMass.addInfoPave = true;
-    optsPi0InvMassRecoAngle.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300, 450, 500] MeV"};
+    optsPi0InvMassRecoAngle.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
     // PrettyPi0MassPlot(h_mass_truthE_recoAngle, "Pi0Mass_truthE_recoAngle.png", 100.0, 170.0);
     Plot1D({h_mass_truthE_recoAngle}, {kBlack}, "Pi0InvMassRecoAngle.png", optsPi0InvMassRecoAngle);
+
     PlotOptions optsPi0InvMassTruthAngle;
-    optsPi0InvMass.addInfoPave = true;
-    optsPi0InvMassRecoAngle.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300, 450, 500] MeV"};
+    optsPi0InvMassTruthAngle.addInfoPave = true;
+    optsPi0InvMassTruthAngle.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
+    optsPi0InvMassTruthAngle.legendEntries = {"Truth-level Invariant Mass"};
+    optsPi0InvMassTruthAngle.extraLegendLines = {Form("Mean value: %.4f", h_mass_recoE_truthAngle->GetXaxis()->GetBinCenter(h_mass_recoE_truthAngle->GetMaximumBin() + 1))};
     // TruthPi0MassPlot(h_mass_recoE_truthAngle, "Pi0Mass_recoE_truthAngle.png");
-    Plot1D({h_mass_recoE_truthAngle}, {kBlack}, "Pi0InvMassTruthAngle.png", optsPi0InvMassRecoAngle);
+    Plot1D({h_mass_recoE_truthAngle}, {kBlack}, "Pi0InvMassTruthAngle.png", optsPi0InvMassTruthAngle);
 
     // CLUSTER NUM &/or DEBUG PLOTS
     PlotOptions optsPi0NumCluster;
