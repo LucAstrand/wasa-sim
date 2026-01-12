@@ -44,7 +44,8 @@ void PlotGraph(TGraph* graph, const std::string& plotname, const PlotOptions& op
 void SetPrettyStyle();
 std::unique_ptr<TCanvas> PlotCreateCanvas(const std::string& name, int width = 800, int height = 600);
 void AddTopLatex(TCanvas* c, const std::string& text);
-std::unique_ptr<TPaveText> PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2);
+// std::unique_ptr<TPaveText> PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2);
+TPaveText* PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2);
 std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entries, const std::vector<std::string>& extraLines, double x1, double y1, double x2, double y2, const std::vector<TObject*>& objects = {});
 void PerformFitAndAddToLegend(TH1* hist, TLegend* leg, const PlotOptions& options);
 void SavePlot(TCanvas* c, const std::string& plotname);

@@ -47,8 +47,11 @@ void AddTopLatex(TCanvas* c, const std::string& text) {
     l.DrawLatex(0.16, 0.93, text.c_str());
 }
 
-std::unique_ptr<TPaveText> PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2) {
-    auto info = std::make_unique<TPaveText>(x1, y1, x2, y2, "NDC");
+// std::unique_ptr<TPaveText> PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2) {
+TPaveText* PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2) {
+    // auto info = std::make_unique<TPaveText>(x1, y1, x2, y2, "NDC");
+    TPaveText *info = new TPaveText(x1, y1, x2, y2, "NDC");
+
     info->SetFillStyle(0);
     info->SetBorderSize(0);
     info->SetTextFont(42);

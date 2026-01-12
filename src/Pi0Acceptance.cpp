@@ -14,8 +14,8 @@ Pi0Acceptance::Pi0Acceptance(double massLow, double massHigh, double pi0Mass, in
     : massLow_(massLow), massHigh_(massHigh), pi0Mass_(pi0Mass),
       nBins_(nBins), eMin_(eMin), eMax_(eMax)
 {
-    h_num_ = new TH1D("h_num", "Reconstructed #pi^{0};True #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
-    h_den_ = new TH1D("h_den", "All #pi^{0};GPS #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
+    h_num_ = new TH1D("h_num", ";True #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
+    h_den_ = new TH1D("h_den", ";GPS #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
     countTot = 0;
 }
 
