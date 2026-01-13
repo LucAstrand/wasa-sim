@@ -16,7 +16,7 @@ enum class PotentialGas { eArCO2_9010, eArCO2_8020, eAir };
 inline double PDGMassMeV(int pdg)
 {
     switch (std::abs(pdg)) {
-        case 11:   return 0.5109989461;   // e+-
+        // case 11:   return 0.5109989461;   // e+-
         case 211:  return 139.57039;      // pi+-
         case 2212: return 938.27208816;   // p
         default:
@@ -36,17 +36,17 @@ inline double LikelihoodFromNSigma(double nSigma);
 struct PIDLikelihoods {
     double Lpi;
     double Lp;
-    double Le;
+    // double Le;
 
     double Ppi;
     double Pp;
-    double Pe;
+    // double Pe;
 };
 
 PIDLikelihoods ComputePIDLikelihoods(
     double nSigmaPi,
-    double nSigmaP,
-    double nSigmaE
+    // double nSigmaE,
+    double nSigmaP
 );
 
 enum class PID { Pion, Proton, Electron, Unknown };
@@ -56,7 +56,7 @@ inline const char* PIDToString(PID pid)
     switch(pid) {
         case PID::Pion:     return "Pion";
         case PID::Proton:   return "Proton";
-        case PID::Electron: return "Electron";
+        // case PID::Electron: return "Electron";
         case PID::Unknown:  return "Unknown";
         default:            return "InvalidPID";
     }
@@ -67,7 +67,7 @@ inline const int PIDToPDG(PID pid)
     switch(pid) {
         case PID::Pion:     return 211;
         case PID::Proton:   return 2212;
-        case PID::Electron: return 11;
+        // case PID::Electron: return 11;
         case PID::Unknown:  return -1; // Unknown
         default:            return -2; // InvalidPID
     }
@@ -77,7 +77,7 @@ inline const PID PDGToPID(int pdg){
     switch(pdg){
         case 211: return PID::Pion;
         case 2212: return PID::Proton;
-        case 11: return PID::Electron;
+        // case 11: return PID::Electron;
         default: return PID::Unknown;
     }
 }

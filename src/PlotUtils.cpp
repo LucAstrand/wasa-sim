@@ -68,7 +68,7 @@ std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entrie
     leg->SetFillStyle(0);
     leg->SetBorderSize(0);
     for (size_t i = 0; i < entries.size(); ++i) {
-        leg->AddEntry(objects.empty() ? nullptr : objects[i], entries[i].c_str(), "l");
+        leg->AddEntry(objects.empty() ? nullptr : objects[i], entries[i].c_str(), "p");
     }
     for (const auto& line : extraLines) {
         leg->AddEntry((TObject*)0, line.c_str(), "");
@@ -227,6 +227,44 @@ void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& options)
     if (options.addTopLatex) AddTopLatex(c.get(), options.topLatex);
     SavePlot(c.get(), plotname);
 }
+
+void Plot2DOverlay(
+    const std::vector<TH2*>& hists,
+    const std::vector<int>& colors,
+    const std::string& plotname,
+    const PlotOptions& options)
+{
+    if (hists.empty() || !hists[0]) return;
+
+    SetPrettyStyle();
+    auto c = PlotCreateCanvas("c2DOverlay_" + plotname);
+
+    for (size_t i = 0; i < hists.size(); ++i) {
+        auto* h = hists[i];
+        h->SetMarkerColor(colors.size() > i ? colors[i] : kBlack);
+        h->SetMarkerStyle(20 + i);
+        h->SetMarkerSize(0.6);
+
+        std::string drawOpt = (i == 0)
+            ? options.drawOption
+            : "SAME " + options.drawOption;
+
+        h->Draw(drawOpt.c_str());
+    }
+
+    std::unique_ptr<TLegend> leg;
+    if (options.addLegend) {
+        std::vector<TObject*> objs(hists.begin(), hists.end());
+        leg = PlotCreateLegend(options.legendEntries, options.extraLegendLines, options.legendX1, options.legendY1, options.legendX2, options.legendY2, objs);
+        leg->Draw();
+    }
+
+    if (options.addTopLatex)
+        AddTopLatex(c.get(), options.topLatex);
+
+    SavePlot(c.get(), plotname);
+}
+
 
 void PlotGraph(TGraph* graph, const std::string& plotname, const PlotOptions& options)
 {

@@ -48,6 +48,7 @@ struct ChargedCluster {
     double totalEnergy = 0.0;
     TVector3 direction;
     double objectTrueKE; // true info from sim for control plots 
+    double objectTruedEdx; // true info from sim for control plots
     int objectTruePDG;
     double clusterdEdx;
     double nSigmaPion;
