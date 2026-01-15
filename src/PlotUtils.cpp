@@ -62,13 +62,27 @@ TPaveText* PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, 
     return info;
 }
 
-std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entries, const std::vector<std::string>& extraLines, double x1, double y1, double x2, double y2, const std::vector<TObject*>& objects) {
+// std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entries, const std::vector<std::string>& extraLines, double x1, double y1, double x2, double y2, const std::vector<TObject*>& objects) {
+//     auto leg = std::make_unique<TLegend>(x1, y1, x2, y2);
+//     leg->SetTextSize(0.03);
+//     leg->SetFillStyle(0);
+//     leg->SetBorderSize(0);
+//     for (size_t i = 0; i < entries.size(); ++i) {
+//         leg->AddEntry(objects.empty() ? nullptr : objects[i], entries[i].c_str(), "l");
+//     }
+//     for (const auto& line : extraLines) {
+//         leg->AddEntry((TObject*)0, line.c_str(), "");
+//     }
+//     return leg;
+// }
+
+std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entries, const std::vector<std::string>& extraLines, double x1, double y1, double x2, double y2, const std::vector<TObject*>& objects, const std::string legendPlotOpts) {
     auto leg = std::make_unique<TLegend>(x1, y1, x2, y2);
     leg->SetTextSize(0.03);
     leg->SetFillStyle(0);
     leg->SetBorderSize(0);
     for (size_t i = 0; i < entries.size(); ++i) {
-        leg->AddEntry(objects.empty() ? nullptr : objects[i], entries[i].c_str(), "p");
+        leg->AddEntry(objects.empty() ? nullptr : objects[i], entries[i].c_str(), legendPlotOpts.c_str());
     }
     for (const auto& line : extraLines) {
         leg->AddEntry((TObject*)0, line.c_str(), "");
@@ -189,7 +203,7 @@ void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, cons
             return;
         }
         std::vector<TObject*> objs(hists.begin(), hists.end());
-        leg = PlotCreateLegend(options.legendEntries, options.extraLegendLines, options.legendX1, options.legendY1, options.legendX2, options.legendY2, objs);
+        leg = PlotCreateLegend(options.legendEntries, options.extraLegendLines, options.legendX1, options.legendY1, options.legendX2, options.legendY2, objs, options.legendDrawOpt);
     }
     if (options.doFit) {
         PerformFitAndAddToLegend(hists[0], leg.get(), options);
@@ -217,7 +231,7 @@ void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& options)
     hist->Draw(options.drawOption.c_str());  // e.g., "COLZ" for color map if you change default
     std::unique_ptr<TLegend> leg;
     if (options.addLegend) {
-        leg = PlotCreateLegend(options.legendEntries, options.extraLegendLines, options.legendX1, options.legendY1, options.legendX2, options.legendY2);
+        leg = PlotCreateLegend(options.legendEntries, options.extraLegendLines, options.legendX1, options.legendY1, options.legendX2, options.legendY2, {} ,options.legendDrawOpt);
         leg->Draw();
     }
     if (options.addInfoPave) {
@@ -255,7 +269,7 @@ void Plot2DOverlay(
     std::unique_ptr<TLegend> leg;
     if (options.addLegend) {
         std::vector<TObject*> objs(hists.begin(), hists.end());
-        leg = PlotCreateLegend(options.legendEntries, options.extraLegendLines, options.legendX1, options.legendY1, options.legendX2, options.legendY2, objs);
+        leg = PlotCreateLegend(options.legendEntries, options.extraLegendLines, options.legendX1, options.legendY1, options.legendX2, options.legendY2, objs, options.legendDrawOpt);
         leg->Draw();
     }
 
@@ -293,7 +307,8 @@ void PlotGraph(TGraph* graph, const std::string& plotname, const PlotOptions& op
             options.legendY1,
             options.legendX2,
             options.legendY2,
-            { graph }
+            { graph },
+            options.legendDrawOpt
         );
         leg->Draw();
     }

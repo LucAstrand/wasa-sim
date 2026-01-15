@@ -28,6 +28,7 @@ struct PlotOptions {
     bool addTopLatex = true;
     bool addInfoPave = true;
     bool addLegend = true;
+    std::string legendDrawOpt = "l";
     std::string drawOption = "HIST";  // e.g., "HIST", "E", "COLZ" for 2D
     bool normalizeHists = false;  // Scale to unit area if true (for overlays)
     double legendX1 = 0.55, legendY1 = 0.7, legendX2 = 0.88, legendY2 = 0.88;  // Customizable position
@@ -52,7 +53,8 @@ std::unique_ptr<TCanvas> PlotCreateCanvas(const std::string& name, int width = 8
 void AddTopLatex(TCanvas* c, const std::string& text);
 // std::unique_ptr<TPaveText> PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2);
 TPaveText* PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2);
-std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entries, const std::vector<std::string>& extraLines, double x1, double y1, double x2, double y2, const std::vector<TObject*>& objects = {});
+// std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entries, const std::vector<std::string>& extraLines, double x1, double y1, double x2, double y2, const std::vector<TObject*>& objects = {});
+std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entries, const std::vector<std::string>& extraLines, double x1, double y1, double x2, double y2, const std::vector<TObject*>& objects = {}, const std::string legendPlotOpts = "l");
 void PerformFitAndAddToLegend(TH1* hist, TLegend* leg, const PlotOptions& options);
 void SavePlot(TCanvas* c, const std::string& plotname);
 

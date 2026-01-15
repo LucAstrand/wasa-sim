@@ -162,6 +162,11 @@ int main(int argc, char **argv) {
 
     TH2F* h2_Eres = new TH2F("h2_Eres", ";True KE [MeV];Energy Residual", 20, 0, 500, 100, -1.0, 1.0);
 
+    TH1F *hdEdxTruePion = new TH1F("hdEdxTruePion", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
+    TH1F *hdEdxSmearPion = new TH1F("hdEdxSmearPion", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
+    TH1F *hdEdxTrueProton = new TH1F("hdEdxTrueProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
+    TH1F *hdEdxSmearProton = new TH1F("hdEdxSmearProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
+
     
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
         t->GetEntry(ievt);
@@ -237,11 +242,15 @@ int main(int argc, char **argv) {
             // hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
             hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.objectTruedEdx); // ORDER: X vs Y 
             hdEdxVsE_true_Pion->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
+            hdEdxTruePion->Fill(cluster.objectTruedEdx);
+            hdEdxSmearPion->Fill(cluster.clusterdEdx);
             }
             if (cluster.objectTruePDG == 2212) {
             // hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
             hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.objectTruedEdx); // ORDER: X vs Y 
             hdEdxVsE_true_Proton->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
+            hdEdxTrueProton->Fill(cluster.objectTruedEdx);
+            hdEdxSmearProton->Fill(cluster.clusterdEdx);            
             }
             // if (cluster.objectTruePDG == 11) {
             // // hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
@@ -500,6 +509,18 @@ int main(int argc, char **argv) {
     // PlotOptions opts_h2_Eres;
     // TProfile* pEres = h2_Eres->ProfileX();
     // Plot1D({pEres}, {kBlack}, "energy_residual.png", opts_h2_Eres);
+
+    PlotOptions opts_dEdxPlots;
+    opts_dEdxPlots.addLegend = true;
+    opts_dEdxPlots.legendEntries = {"True #pi", "Smeared #pi", "True p", "Smeared p"};
+    std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueProton, hdEdxSmearProton};
+    std::vector<int> colors_dEdx = {
+        kBlack,
+        kRed+1,
+        kGreen+2,
+        kBlue+1
+    };
+    Plot1D(plots1D_dEdx, colors_dEdx, "dEdxPlots.png", opts_dEdxPlots);
 
     //Pion + 
     pidEff.FinalizePlot("plots/PIDEfficiency", 211);
