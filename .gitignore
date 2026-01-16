@@ -1,6 +1,9 @@
-# ignore install dir
+# ignore dirs
 
-wasa_full/
+Scripts/
+mcpl_data/
+build/
+.vscode/
 
 # ignore root files
 
