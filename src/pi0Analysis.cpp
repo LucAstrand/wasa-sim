@@ -36,18 +36,21 @@ int main(int argc, char **argv) {
             std::cout << "Usage: " << argv[0] << " <input.root> [options]\n"
                     << "Options:\n"
                     << "  --pi0-analysis        Reconstruct Pi0s and invariant mass analysis\n"
-                    << "  --charged-analysis        Reconstruct Charged objects and do PID studies\n";
+                    << "  --charged-analysis        Reconstruct Charged objects and do PID studies\n"
+                    << "  --truth-analysis        Performs truth level analysis for Pi0s\n";
             return 1;
         }
     
     std::string inputfile = argv[1];
     bool doPi0Analysis = false;
     bool doChargedAnalysis = false;
+    bool doTruthAnalysis = false;
 
     for (int i = 2; i<argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--pi0-analysis") doPi0Analysis = true;
         if (arg == "--charged-analysis") doChargedAnalysis = true;
+        if (arg == "--truth-analysis") doTruthAnalysis = true;
     }
 
     
@@ -150,9 +153,6 @@ int main(int argc, char **argv) {
         hNClusters_midEkin      = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
         hNClusters_highEkin     = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
         hSingleClusterE         = new TH1F("hSingleClusterE",";Cluster E [MeV];Count",100,0,500);
-        hPi0TrueMass            = new TH1F("hPi0TrueMass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
-        h_mass_truthE_recoAngle = new TH1F("h_tE_rA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
-        h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
         hEffvsE                 = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
         // effPlotter              = new Pi0Efficiency(120.0, 150.0, 134.977, 20, 1, 500);
         effPlotter              = new Pi0Efficiency(120.0, 150.0, 134.977, 4, 1, 550);
@@ -160,7 +160,11 @@ int main(int argc, char **argv) {
         pi0AcceptanceVsEta      = new Pi0Acceptance(-10, 10, 100);
         pi0AcceptanceVsTheta    = new Pi0Acceptance(0, TMath::Pi(), 60);
     }
-
+    if (doTruthAnalysis) {
+        hPi0TrueMass            = new TH1F("hPi0TrueMass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
+        h_mass_truthE_recoAngle = new TH1F("h_tE_rA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
+        h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
+    }
     if (doChargedAnalysis) {
         hNSigmaPion             = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
         hNSigmaProton           = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
@@ -217,7 +221,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        if (doPi0Analysis) {
+        if (doTruthAnalysis) {
             trueHits.clear();
             size_t nTrueHits = truthE->size();
             for (size_t k=0; k<nTrueHits; ++k) {
@@ -338,7 +342,7 @@ int main(int argc, char **argv) {
 
         // Truth level + reco level plots 
 
-        if (doPi0Analysis) {
+        if (doTruthAnalysis) {
             std::vector<int> clusterToTrue = matchClustersToTruth(clusters, truePhotons, 10);
 
             // Construct hybrid TLorentzVectors
@@ -424,34 +428,6 @@ int main(int argc, char **argv) {
         // PrettyPi0MassPlot(hPi0Mass, "Pi0Mass_Clustered.png", 100.0, 170.0);
         Plot1D({hPi0Mass}, {kBlack}, "Pi0InvMass.png", optsPi0InvMass);
 
-        // TRUTH-TRUTH
-        PlotOptions optsPi0InvMassTT;
-        optsPi0InvMass.addInfoPave = true;
-        optsPi0InvMassTT.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
-        optsPi0InvMassTT.legendEntries = {"Truth-level Invariant Mass"};
-        optsPi0InvMassTT.extraLegendLines = {Form("Mean value: %.4f", hPi0Mass->GetXaxis()->GetBinCenter(hPi0Mass->GetMaximumBin() + 1))};
-        // optsPi0InvMassTT.extraLegendLines = {"Mean Value: ~135 MeV"};
-        // TruthPi0MassPlot(hPi0TrueMass, "Pi0Mass_Truth.png");
-        Plot1D({hPi0TrueMass}, {kBlack}, "Pi0InvMassTT.png", optsPi0InvMassTT);
-
-        // Mix Plots
-        PlotOptions optsPi0InvMassRecoAngle;
-        optsPi0InvMassRecoAngle.doFit = true;
-        optsPi0InvMassRecoAngle.fitMin = 80;
-        optsPi0InvMassRecoAngle.fitMax = 180;
-        optsPi0InvMass.addInfoPave = true;
-        optsPi0InvMassRecoAngle.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
-        // PrettyPi0MassPlot(h_mass_truthE_recoAngle, "Pi0Mass_truthE_recoAngle.png", 100.0, 170.0);
-        Plot1D({h_mass_truthE_recoAngle}, {kBlack}, "Pi0InvMassRecoAngle.png", optsPi0InvMassRecoAngle);
-
-        PlotOptions optsPi0InvMassTruthAngle;
-        optsPi0InvMassTruthAngle.addInfoPave = true;
-        optsPi0InvMassTruthAngle.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
-        optsPi0InvMassTruthAngle.legendEntries = {"Truth-level Invariant Mass"};
-        optsPi0InvMassTruthAngle.extraLegendLines = {Form("Mean value: %.4f", h_mass_recoE_truthAngle->GetXaxis()->GetBinCenter(h_mass_recoE_truthAngle->GetMaximumBin() + 1))};
-        // TruthPi0MassPlot(h_mass_recoE_truthAngle, "Pi0Mass_recoE_truthAngle.png");
-        Plot1D({h_mass_recoE_truthAngle}, {kBlack}, "Pi0InvMassTruthAngle.png", optsPi0InvMassTruthAngle);
-
         // CLUSTER NUM &/or DEBUG PLOTS
         PlotOptions optsPi0NumCluster;
         optsPi0NumCluster.legendEntries = {"Pi0 n Clusters"};
@@ -478,14 +454,45 @@ int main(int argc, char **argv) {
         delete hNClusters_lowEkin; 
         delete hNClusters_midEkin; 
         delete hNClusters_highEkin; 
-        delete hPi0TrueMass;
-        delete h_mass_truthE_recoAngle; 
-        delete h_mass_recoE_truthAngle; 
         delete hEffvsE;
         delete effPlotter;
         delete accPlotter;
         delete pi0AcceptanceVsEta; 
         delete pi0AcceptanceVsTheta; 
+    }
+
+    if (doTruthAnalysis) {
+        // TRUTH-TRUTH
+        PlotOptions optsPi0InvMassTT;
+        optsPi0InvMassTT.addInfoPave = true;
+        optsPi0InvMassTT.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
+        optsPi0InvMassTT.legendEntries = {"Truth-level Invariant Mass"};
+        optsPi0InvMassTT.extraLegendLines = {Form("Mean value: %.4f", hPi0Mass->GetXaxis()->GetBinCenter(hPi0Mass->GetMaximumBin() + 1))};
+        // optsPi0InvMassTT.extraLegendLines = {"Mean Value: ~135 MeV"};
+        // TruthPi0MassPlot(hPi0TrueMass, "Pi0Mass_Truth.png");
+        Plot1D({hPi0TrueMass}, {kBlack}, "Pi0InvMassTT.png", optsPi0InvMassTT);
+
+        // Mix Plots
+        PlotOptions optsPi0InvMassRecoAngle;
+        optsPi0InvMassRecoAngle.doFit = true;
+        optsPi0InvMassRecoAngle.fitMin = 80;
+        optsPi0InvMassRecoAngle.fitMax = 180;
+        optsPi0InvMassRecoAngle.addInfoPave = true;
+        optsPi0InvMassRecoAngle.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
+        // PrettyPi0MassPlot(h_mass_truthE_recoAngle, "Pi0Mass_truthE_recoAngle.png", 100.0, 170.0);
+        Plot1D({h_mass_truthE_recoAngle}, {kBlack}, "Pi0InvMassRecoAngle.png", optsPi0InvMassRecoAngle);
+
+        PlotOptions optsPi0InvMassTruthAngle;
+        optsPi0InvMassTruthAngle.addInfoPave = true;
+        optsPi0InvMassTruthAngle.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
+        optsPi0InvMassTruthAngle.legendEntries = {"Truth-level Invariant Mass"};
+        optsPi0InvMassTruthAngle.extraLegendLines = {Form("Mean value: %.4f", h_mass_recoE_truthAngle->GetXaxis()->GetBinCenter(h_mass_recoE_truthAngle->GetMaximumBin() + 1))};
+        // TruthPi0MassPlot(h_mass_recoE_truthAngle, "Pi0Mass_recoE_truthAngle.png");
+        Plot1D({h_mass_recoE_truthAngle}, {kBlack}, "Pi0InvMassTruthAngle.png", optsPi0InvMassTruthAngle);
+
+        delete hPi0TrueMass;
+        delete h_mass_truthE_recoAngle; 
+        delete h_mass_recoE_truthAngle; 
     }
 
     // PID Plots 
