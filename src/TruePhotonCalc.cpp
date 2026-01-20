@@ -10,6 +10,8 @@ std::vector<TruePhoton> TruePhotonBuilder(
     if (hits.size() != 2) {
         // std::cerr << "[TruePhotonBuilder] Expected exactly 2 hits, got "
         //           << hits.size() << std::endl;
+        std::cout << "[TruePhotonBuilder] Expected exactly 2 hits, got "
+                  << hits.size() << std::endl;
         return outPhotons;
     }
 
