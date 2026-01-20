@@ -9,17 +9,17 @@
 PIDEfficiency::PIDEfficiency(int nBins, double eMin, double eMax)
     : nBins_(nBins), eMin_(eMin), eMax_(eMax)
 {
-    h_numPion_ = new TH1D("h_numPion", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
-    h_numPion_miss = new TH1D("h_numPion", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
-    h_denPion_ = new TH1D("h_denPion", "All Pions;True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    h_numPion_ = new TH1D("h_numPionPIDEfficiency", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    h_numPion_miss = new TH1D("h_numPion_missPIDEfficiency", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    h_denPion_ = new TH1D("h_denPionPIDEfficiency", "All Pions;True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
 
-    h_numProton_ = new TH1D("h_numProton", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
-    h_numProton_miss = new TH1D("h_numProton", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
-    h_denProton_ = new TH1D("h_denProton", "All Protons;True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    h_numProton_ = new TH1D("h_numProtonPIDEfficiency", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    h_numProton_miss = new TH1D("h_numProton_missPIDEfficiency", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    h_denProton_ = new TH1D("h_denProtonPIDEfficiency", "All Protons;True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
 
-    h_numElectron_ = new TH1D("h_numElectron", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
-    h_numElectron_miss = new TH1D("h_numElectron", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
-    h_denElectron_ = new TH1D("h_denElectron", "All Electrons;True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    // h_numElectron_ = new TH1D("h_numElectron", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    // h_numElectron_miss = new TH1D("h_numElectron", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    // h_denElectron_ = new TH1D("h_denElectron", "All Electrons;True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
 }
 
 void PIDEfficiency::ProcessEvent(const std::vector<ChargedCluster>& clusters)
@@ -29,7 +29,7 @@ void PIDEfficiency::ProcessEvent(const std::vector<ChargedCluster>& clusters)
         switch (c.objectTruePDG) {
             case 211:  h_denPion_->Fill(c.objectTrueKE); break;
             case 2212: h_denProton_->Fill(c.objectTrueKE); break;
-            case 11:   h_denElectron_->Fill(c.objectTrueKE); break;
+            // case 11:   h_denElectron_->Fill(c.objectTrueKE); break;
             default: break;
         }
 
@@ -41,7 +41,7 @@ void PIDEfficiency::ProcessEvent(const std::vector<ChargedCluster>& clusters)
             switch (c.objectTruePDG) {
                 case 211:  h_numPion_->Fill(c.objectTrueKE); break;
                 case 2212: h_numProton_->Fill(c.objectTrueKE); break;
-                case 11:   h_numElectron_->Fill(c.objectTrueKE); break;
+                // case 11:   h_numElectron_->Fill(c.objectTrueKE); break;
             }
         }
         else if ((c.objectTruePDG == 211 && c.pidGuess != PID::Pion) ||
@@ -51,7 +51,7 @@ void PIDEfficiency::ProcessEvent(const std::vector<ChargedCluster>& clusters)
             switch (c.objectTruePDG) {
                 case 211:  h_numPion_miss->Fill(c.objectTrueKE); break;
                 case 2212: h_numProton_miss->Fill(c.objectTrueKE); break;
-                case 11:   h_numElectron_miss->Fill(c.objectTrueKE); break;
+                // case 11:   h_numElectron_miss->Fill(c.objectTrueKE); break;
             }
         }
     }
@@ -82,14 +82,14 @@ void PIDEfficiency::FinalizePlot(const std::string& outFileName, int pdgNumToPlo
             );
             break;
 
-        case 11:
-            gEff = new TGraphAsymmErrors(
-                h_numElectron_, h_denElectron_, "cl=0.683 b(1,1) mode"
-            );
-            gEffmiss = new TGraphAsymmErrors(
-                h_numElectron_miss, h_denElectron_, "cl=0.683 b(1,1) mode"
-            );
-            break;
+        // case 11:
+        //     gEff = new TGraphAsymmErrors(
+        //         h_numElectron_, h_denElectron_, "cl=0.683 b(1,1) mode"
+        //     );
+        //     gEffmiss = new TGraphAsymmErrors(
+        //         h_numElectron_miss, h_denElectron_, "cl=0.683 b(1,1) mode"
+        //     );
+        //     break;
 
         default:
             std::cerr << "[PIDEfficiency] Unknown PDG " << pdgNumToPlot
@@ -158,11 +158,17 @@ void PIDEfficiency::FinalizePlot(const std::string& outFileName, int pdgNumToPlo
     switch (pdgNumToPlot) {
         case 211:  PlotGraph(gEff, "pid_efficiency_pion.png", opts); PlotGraph(gEffmiss, "miss_pid_percentage_pion.png", optsmiss); break;
         case 2212: PlotGraph(gEff, "pid_efficiency_proton.png", opts); PlotGraph(gEffmiss, "miss_pid_percentage_proton.png", optsmiss); break;
-        case 11:   PlotGraph(gEff, "pid_efficiency_electron.png", opts); PlotGraph(gEffmiss, "miss_pid_percentage_electron.png", optsmiss); break;
+        // case 11:   PlotGraph(gEff, "pid_efficiency_electron.png", opts); PlotGraph(gEffmiss, "miss_pid_percentage_electron.png", optsmiss); break;
         default: break;
     }
 
     delete gEff;
     delete gEffmiss;
+    switch (pdgNumToPlot) {
+        case 211:  delete h_numPion_; delete h_denPion_; delete h_numPion_miss; break;
+        case 2212: delete h_numProton_; delete h_denProton_; delete h_numProton_miss; break;
+        // Add electrons if you want :) 
+        default: break;
+    }
 
 }

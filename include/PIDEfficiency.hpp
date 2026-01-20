@@ -27,9 +27,9 @@ private:
     TH1D* h_numProton_miss;
     TH1D* h_denProton_;
 
-    TH1D* h_numElectron_;
-    TH1D* h_numElectron_miss;
-    TH1D* h_denElectron_;
+    // TH1D* h_numElectron_;
+    // TH1D* h_numElectron_miss;
+    // TH1D* h_denElectron_;
 };
 
 #endif

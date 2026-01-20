@@ -10,12 +10,12 @@
 
 #include <iostream>
 
-Pi0Acceptance::Pi0Acceptance(double massLow, double massHigh, double pi0Mass, int nBins, double eMin, double eMax)
+Pi0Acceptance::Pi0Acceptance(const std::string& tag,double massLow, double massHigh, double pi0Mass, int nBins, double eMin, double eMax)
     : massLow_(massLow), massHigh_(massHigh), pi0Mass_(pi0Mass),
       nBins_(nBins), eMin_(eMin), eMax_(eMax)
 {
-    h_num_ = new TH1D("h_num", ";True #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
-    h_den_ = new TH1D("h_den", ";GPS #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
+    h_num_ = new TH1D(Form("h_numPi0Acceptance_%s", tag.c_str()), ";True #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
+    h_den_ = new TH1D(Form("h_denPi0Acceptance_%s", tag.c_str()), ";GPS #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
     countTot = 0;
 }
 
@@ -245,6 +245,8 @@ void Pi0Acceptance::FinalizePlot(const std::string& outFileName) {
 
     // cleanup
     delete gEff;
+    delete h_num_;
+    delete h_den_;
     // delete c;
 }
 

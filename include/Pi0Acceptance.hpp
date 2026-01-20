@@ -16,7 +16,7 @@
 
 class Pi0Acceptance {
 public:
-    Pi0Acceptance(double massLow = 120.0, double massHigh = 150.0, 
+    Pi0Acceptance(const std::string& tag, double massLow = 120.0, double massHigh = 150.0, 
                   double pi0Mass = 134.977, int nBins = 20, double eMin = 0, double eMax = 500);
     
     // Pi0Acceptance(double etaMin, double etaMax, int nBins);

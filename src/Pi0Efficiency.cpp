@@ -14,8 +14,8 @@ Pi0Efficiency::Pi0Efficiency(double massLow, double massHigh, double pi0Mass, in
     : massLow_(massLow), massHigh_(massHigh), pi0Mass_(pi0Mass),
       nBins_(nBins), eMin_(eMin), eMax_(eMax)
 {
-    h_num_ = new TH1D("h_num", ";True #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
-    h_den_ = new TH1D("h_den", ";True #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
+    h_num_ = new TH1D("h_numPi0Efficiency", ";True #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
+    h_den_ = new TH1D("h_denPi0Efficiency", ";True #pi^{0} E_{kin};Events", nBins_, eMin_, eMax_);
 }
 
 double Pi0Efficiency::ComputeTruePi0Ekin(const std::vector<TruePhoton>& truePhotons) {
@@ -106,9 +106,11 @@ void Pi0Efficiency::FinalizePlot(const std::string& outFileName) {
     opts.infoLines = {"GEANT4 #pi^{0} sample"}; // Add others
     opts.addInfoPave = true;
     PlotGraph(gEff, outFileName.c_str(), opts);
-    std::cout << "[Pi0Efficiency] Saved plot to " << outFileName << std::endl;
+    // std::cout << "[Pi0Efficiency] Saved plot to " << outFileName << std::endl;
 
     // cleanup
     delete gEff;
     // delete c;
+    delete h_num_;
+    delete h_den_;
 }

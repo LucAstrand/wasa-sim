@@ -156,9 +156,12 @@ int main(int argc, char **argv) {
         hEffvsE                 = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
         // effPlotter              = new Pi0Efficiency(120.0, 150.0, 134.977, 20, 1, 500);
         effPlotter              = new Pi0Efficiency(120.0, 150.0, 134.977, 4, 1, 550);
-        accPlotter              = new Pi0Acceptance(120.0, 150.0, 134.977, 4, 1, 550);
-        pi0AcceptanceVsEta      = new Pi0Acceptance(-10, 10, 100);
-        pi0AcceptanceVsTheta    = new Pi0Acceptance(0, TMath::Pi(), 60);
+    //     accPlotter              = new Pi0Acceptance(120.0, 150.0, 134.977, 4, 1, 550);
+    //     pi0AcceptanceVsEta      = new Pi0Acceptance(-10, 10, 100);
+    //     pi0AcceptanceVsTheta    = new Pi0Acceptance(0, TMath::Pi(), 60);
+        accPlotter           = new Pi0Acceptance("E", 120, 150, 134.977, 4, 1, 550);
+        pi0AcceptanceVsEta   = new Pi0Acceptance("eta", -10, 10, 100);
+        pi0AcceptanceVsTheta = new Pi0Acceptance("theta", 0, TMath::Pi(), 60);    
     }
     if (doTruthAnalysis) {
         hPi0TrueMass            = new TH1F("hPi0TrueMass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
