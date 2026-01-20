@@ -36,8 +36,8 @@ int main(int argc, char **argv) {
             std::cout << "Usage: " << argv[0] << " <input.root> [options]\n"
                     << "Options:\n"
                     << "  --pi0-analysis        Reconstruct Pi0s and invariant mass analysis\n"
-                    << "  --charged-analysis        Reconstruct Charged objects and do PID studies\n"
-                    << "  --truth-analysis        Performs truth level analysis for Pi0s\n";
+                    << "  --charged-analysis    Reconstruct Charged objects and do PID studies\n"
+                    << "  --truth-analysis      Performs truth level analysis for Pi0s\n";
             return 1;
         }
     
@@ -147,12 +147,12 @@ int main(int argc, char **argv) {
 
     if (doPi0Analysis) {
         hPi0Mass                = new TH1F("hPi0Mass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
-        hClusterE               = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
-        hNClusters              = new TH1F("hNClusters",";N_{clusters};Events",20,0,20);
-        hNClusters_lowEkin      = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
-        hNClusters_midEkin      = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
-        hNClusters_highEkin     = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
-        hSingleClusterE         = new TH1F("hSingleClusterE",";Cluster E [MeV];Count",100,0,500);
+        // hClusterE               = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
+        // hNClusters              = new TH1F("hNClusters",";N_{clusters};Events",20,0,20);
+        // hNClusters_lowEkin      = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
+        // hNClusters_midEkin      = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
+        // hNClusters_highEkin     = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
+        // hSingleClusterE         = new TH1F("hSingleClusterE",";Cluster E [MeV];Count",100,0,500);
         hEffvsE                 = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
         // effPlotter              = new Pi0Efficiency(120.0, 150.0, 134.977, 20, 1, 500);
         effPlotter              = new Pi0Efficiency(120.0, 150.0, 134.977, 4, 1, 550);
@@ -166,12 +166,12 @@ int main(int argc, char **argv) {
         h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     }
     if (doChargedAnalysis) {
-        hNSigmaPion             = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
-        hNSigmaProton           = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
-        hdEdxVsE_cluster_Pion   = new TH2F("hdEdxVsE_cluster",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
-        hdEdxVsE_true_Pion      = new TH2F("hdEdxVsE_true",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
-        hdEdxVsE_cluster_Proton = new TH2F("hdEdxVsE_cluster",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
-        hdEdxVsE_true_Proton    = new TH2F("hdEdxVsE_true",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);   
+        hNSigmaPion             = new TH1F("hNSigmaPion", ";n#sigma;Counts", 100, -5, 5);
+        hNSigmaProton           = new TH1F("hNSigmaProton", ";n#sigma;Counts", 100, -5, 5);
+        hdEdxVsE_cluster_Pion   = new TH2F("hdEdxVsE_cluster_Pion",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
+        hdEdxVsE_true_Pion      = new TH2F("hdEdxVsE_true_Pion",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
+        hdEdxVsE_cluster_Proton = new TH2F("hdEdxVsE_cluster_Proton",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
+        hdEdxVsE_true_Proton    = new TH2F("hdEdxVsE_true_Proton",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);   
         pidEff                  = new PIDEfficiency(20, 0, 500);
         h2_Eres                 = new TH2F("h2_Eres", ";True KE [MeV];Energy Residual", 20, 0, 500, 100, -1.0, 1.0);
         hdEdxTruePion           = new TH1F("hdEdxTruePion", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
@@ -429,10 +429,10 @@ int main(int argc, char **argv) {
         Plot1D({hPi0Mass}, {kBlack}, "Pi0InvMass.png", optsPi0InvMass);
 
         // CLUSTER NUM &/or DEBUG PLOTS
-        PlotOptions optsPi0NumCluster;
-        optsPi0NumCluster.legendEntries = {"Pi0 n Clusters"};
+        // PlotOptions optsPi0NumCluster;
+        // optsPi0NumCluster.legendEntries = {"Pi0 n Clusters"};
         // PrettyPi0NumClusterPlot(hNClusters);
-        Plot1D({hNClusters}, {kBlack}, "Pi0NumClusters.png", optsPi0NumCluster);
+        // Plot1D({hNClusters}, {kBlack}, "Pi0NumClusters.png", optsPi0NumCluster);
         // Pi0ClusterNumPlotEkin(hNClusters_lowEkin, hNClusters_midEkin, hNClusters_highEkin);
         // Pi0ClusterNumPlotEkin(hNClusters_lowEkin, hNClusters_highEkin);
         // BasicHistPlot(hSingleClusterE);
@@ -449,11 +449,11 @@ int main(int argc, char **argv) {
 
         //CLEANUP
         delete hPi0Mass; 
-        delete hClusterE;
-        delete hNClusters; 
-        delete hNClusters_lowEkin; 
-        delete hNClusters_midEkin; 
-        delete hNClusters_highEkin; 
+        // delete hClusterE;
+        // delete hNClusters; 
+        // delete hNClusters_lowEkin; 
+        // delete hNClusters_midEkin; 
+        // delete hNClusters_highEkin; 
         delete hEffvsE;
         delete effPlotter;
         delete accPlotter;
@@ -462,15 +462,15 @@ int main(int argc, char **argv) {
     }
 
     if (doTruthAnalysis) {
-        // TRUTH-TRUTH
+        // // TRUTH-TRUTH
         PlotOptions optsPi0InvMassTT;
         optsPi0InvMassTT.addInfoPave = true;
         optsPi0InvMassTT.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
         optsPi0InvMassTT.legendEntries = {"Truth-level Invariant Mass"};
-        optsPi0InvMassTT.extraLegendLines = {Form("Mean value: %.4f", hPi0Mass->GetXaxis()->GetBinCenter(hPi0Mass->GetMaximumBin() + 1))};
-        // optsPi0InvMassTT.extraLegendLines = {"Mean Value: ~135 MeV"};
+        // optsPi0InvMassTT.extraLegendLines = {Form("Mean value: %.4f", hPi0TrueMass->GetXaxis()->GetBinCenter(hPi0TrueMass->GetMaximumBin() + 1))};
+        optsPi0InvMassTT.extraLegendLines = {"Mean Value: ~135 MeV"};
         // TruthPi0MassPlot(hPi0TrueMass, "Pi0Mass_Truth.png");
-        Plot1D({hPi0TrueMass}, {kBlack}, "Pi0InvMassTT.png", optsPi0InvMassTT);
+        if (hPi0TrueMass) Plot1D({hPi0TrueMass}, {kBlack}, "Pi0InvMassTT.png", optsPi0InvMassTT);
 
         // Mix Plots
         PlotOptions optsPi0InvMassRecoAngle;
@@ -480,7 +480,7 @@ int main(int argc, char **argv) {
         optsPi0InvMassRecoAngle.addInfoPave = true;
         optsPi0InvMassRecoAngle.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
         // PrettyPi0MassPlot(h_mass_truthE_recoAngle, "Pi0Mass_truthE_recoAngle.png", 100.0, 170.0);
-        Plot1D({h_mass_truthE_recoAngle}, {kBlack}, "Pi0InvMassRecoAngle.png", optsPi0InvMassRecoAngle);
+        if (h_mass_truthE_recoAngle) Plot1D({h_mass_truthE_recoAngle}, {kBlack}, "Pi0InvMassRecoAngle.png", optsPi0InvMassRecoAngle);
 
         PlotOptions optsPi0InvMassTruthAngle;
         optsPi0InvMassTruthAngle.addInfoPave = true;
@@ -488,9 +488,9 @@ int main(int argc, char **argv) {
         optsPi0InvMassTruthAngle.legendEntries = {"Truth-level Invariant Mass"};
         optsPi0InvMassTruthAngle.extraLegendLines = {Form("Mean value: %.4f", h_mass_recoE_truthAngle->GetXaxis()->GetBinCenter(h_mass_recoE_truthAngle->GetMaximumBin() + 1))};
         // TruthPi0MassPlot(h_mass_recoE_truthAngle, "Pi0Mass_recoE_truthAngle.png");
-        Plot1D({h_mass_recoE_truthAngle}, {kBlack}, "Pi0InvMassTruthAngle.png", optsPi0InvMassTruthAngle);
+        if (h_mass_recoE_truthAngle) Plot1D({h_mass_recoE_truthAngle}, {kBlack}, "Pi0InvMassTruthAngle.png", optsPi0InvMassTruthAngle);
 
-        delete hPi0TrueMass;
+        // delete hPi0TrueMass;
         delete h_mass_truthE_recoAngle; 
         delete h_mass_recoE_truthAngle; 
     }
@@ -502,10 +502,14 @@ int main(int argc, char **argv) {
         PlotOptions opts_nSigma;
         opts_nSigma.doFit = true;
         opts_nSigma.addLegend = true;
+        // opts_nSigma.legendEntries = {
+        // "#pi hypothesis",
+        // "p hypothesis",
+        // "e hypothesis"
+        // };
         opts_nSigma.legendEntries = {
         "#pi hypothesis",
-        "p hypothesis",
-        "e hypothesis"
+        "p hypothesis"
         };
         // std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaProton, hNSigmaElectron};
         std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaProton};

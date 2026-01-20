@@ -160,7 +160,7 @@ void Pi0Acceptance::ProcessEventTwoHist(const std::vector<Cluster>& clusters,
 
 void Pi0Acceptance::FinalizePlot(const std::string& outFileName) {
 
-    std::cout << "[FinilizePlot] Total RECO count: " << countTot << std::endl;
+    // std::cout << "[FinilizePlot] Total RECO count: " << countTot << std::endl;
 
     // TCanvas* c = new TCanvas("cEff", "Pi0 Acceptance", 900, 650);
 

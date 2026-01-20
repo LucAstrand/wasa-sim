@@ -8,8 +8,8 @@ std::vector<TruePhoton> TruePhotonBuilder(
 
     // Sanity check
     if (hits.size() != 2) {
-        std::cerr << "[TruePhotonBuilder] Expected exactly 2 hits, got "
-                  << hits.size() << std::endl;
+        // std::cerr << "[TruePhotonBuilder] Expected exactly 2 hits, got "
+        //           << hits.size() << std::endl;
         return outPhotons;
     }
 
