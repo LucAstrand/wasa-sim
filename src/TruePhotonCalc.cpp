@@ -7,13 +7,13 @@ std::vector<TruePhoton> TruePhotonBuilder(
     std::vector<TruePhoton> outPhotons;
 
     // Sanity check
-    if (hits.size() != 2) {
-        // std::cerr << "[TruePhotonBuilder] Expected exactly 2 hits, got "
-        //           << hits.size() << std::endl;
-        std::cout << "[TruePhotonBuilder] Expected exactly 2 hits, got "
-                  << hits.size() << std::endl;
-        return outPhotons;
-    }
+    // if (hits.size() != 2) {
+    //     // std::cerr << "[TruePhotonBuilder] Expected exactly 2 hits, got "
+    //     //           << hits.size() << std::endl;
+    //     std::cout << "[TruePhotonBuilder] Expected exactly 2 hits, got "
+    //               << hits.size() << std::endl;
+    //     return outPhotons;
+    // }
 
     for (const auto &hit : hits) {
         // Direction from vertex to hit position
