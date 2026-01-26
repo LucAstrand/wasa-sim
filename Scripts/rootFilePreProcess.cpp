@@ -107,14 +107,19 @@ int main(int argc, char** argv) {
     std::vector<double>* TruePhotonEndY = nullptr;
     std::vector<double>* TruePhotonEndZ = nullptr;
 
-    std::vector<double>* TPC_PosX = nullptr;
-    std::vector<double>* TPC_PosY = nullptr;
-    std::vector<double>* TPC_PosZ = nullptr;
+    std::vector<double>* TPC_firstPosX = nullptr;
+    std::vector<double>* TPC_firstPosY = nullptr;
+    std::vector<double>* TPC_firstPosZ = nullptr;
+    std::vector<double>* TPC_lastPosX = nullptr;
+    std::vector<double>* TPC_lastPosY = nullptr;
+    std::vector<double>* TPC_lastPosZ = nullptr;
+
     std::vector<double>* TPC_Edep = nullptr;
-    std::vector<double>* TPC_dEdx_rho = nullptr;
+    std::vector<double>* TPC_smearedEdep = nullptr;
+    std::vector<double>* TPC_dEdx = nullptr;
     std::vector<double>* TPC_PathLength = nullptr;
 
-    std::vector<double>* TPC_Psm = nullptr;
+    // std::vector<double>* TPC_Psm = nullptr;
     std::vector<double>* TPC_TrueKE = nullptr;
     // std::vector<double>* TPC_res = nullptr;
     // std::vector<double>* TPC_eff = nullptr;
@@ -144,15 +149,20 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("TruePhotonEndY", &TruePhotonEndY);
     inTree->SetBranchAddress("TruePhotonEndZ", &TruePhotonEndZ);
 
-    inTree->SetBranchAddress("TPC_PosX", &TPC_PosX);
-    inTree->SetBranchAddress("TPC_PosY", &TPC_PosY);
-    inTree->SetBranchAddress("TPC_PosZ", &TPC_PosZ);
+    inTree->SetBranchAddress("TPC_firstPosX", &TPC_firstPosX);
+    inTree->SetBranchAddress("TPC_firstPosY", &TPC_firstPosY);
+    inTree->SetBranchAddress("TPC_firstPosZ", &TPC_firstPosZ);
+    inTree->SetBranchAddress("TPC_lastPosX", &TPC_lastPosX);
+    inTree->SetBranchAddress("TPC_lastPosY", &TPC_lastPosY);
+    inTree->SetBranchAddress("TPC_lastPosZ", &TPC_lastPosZ);
+
 
     inTree->SetBranchAddress("TPC_EDep", &TPC_Edep);
-    inTree->SetBranchAddress("TPC_dEdx", &TPC_dEdx_rho);
+    inTree->SetBranchAddress("TPC_smearedEDep", &TPC_smearedEdep);
+    inTree->SetBranchAddress("TPC_dEdx", &TPC_dEdx);
     inTree->SetBranchAddress("TPC_PathLength", &TPC_PathLength);
 
-    inTree->SetBranchAddress("TPC_Psm", &TPC_Psm);
+    // inTree->SetBranchAddress("TPC_Psm", &TPC_Psm);
     inTree->SetBranchAddress("TPC_TrueKE", &TPC_TrueKE);
     // inTree->SetBranchAddress("TPC_res", &TPC_res);
     // inTree->SetBranchAddress("TPC_eff", &TPC_eff);
@@ -200,8 +210,9 @@ int main(int argc, char** argv) {
     std::vector<double> outTruePhotonX, outTruePhotonY, outTruePhotonZ, outTruePhotonE;
     std::vector<double> outTruePhotonCreationX, outTruePhotonCreationY, outTruePhotonCreationZ;
     std::vector<double> outTruePhotonEndX, outTruePhotonEndY, outTruePhotonEndZ;
-    std::vector<double> outTPC_PosX, outTPC_PosY, outTPC_PosZ;
-    std::vector<double> outTPC_Edep, outTPC_dEdx_rho, outTPC_PathLength, outTPC_Psm, outTPC_TrueKE, outTPC_pdg;
+    std::vector<double> outTPC_firstPosX, outTPC_firstPosY, outTPC_firstPosZ;
+    std::vector<double> outTPC_lastPosX, outTPC_lastPosY, outTPC_lastPosZ;
+    std::vector<double> outTPC_Edep, outTPC_smearedEdep, outTPC_dEdx, outTPC_PathLength, outTPC_TrueKE, outTPC_pdg; // outTPC_Psm,
     
     outTree->Branch("centerX", &centerXs);
     outTree->Branch("centerY", &centerYs);
@@ -228,14 +239,18 @@ int main(int argc, char** argv) {
     outTree->Branch("TruePhotonEndY", &outTruePhotonEndY);
     outTree->Branch("TruePhotonEndZ", &outTruePhotonEndZ);
 
-    outTree->Branch("TPC_PosX", &outTPC_PosX);
-    outTree->Branch("TPC_PosY", &outTPC_PosY);
-    outTree->Branch("TPC_PosZ", &outTPC_PosZ);
+    outTree->Branch("TPC_firstPosX", &outTPC_firstPosX);
+    outTree->Branch("TPC_firstPosY", &outTPC_firstPosY);
+    outTree->Branch("TPC_firstPosZ", &outTPC_firstPosZ);
+    outTree->Branch("TPC_lastPosX", &outTPC_lastPosX);
+    outTree->Branch("TPC_lastPosY", &outTPC_lastPosY);
+    outTree->Branch("TPC_lastPosZ", &outTPC_lastPosZ);
 
     outTree->Branch("TPC_Edep", &outTPC_Edep);
-    outTree->Branch("TPC_dEdx_rho", &outTPC_dEdx_rho);
+    outTree->Branch("TPC_smearedEdep", &outTPC_smearedEdep);
+    outTree->Branch("TPC_dEdx", &outTPC_dEdx);
     outTree->Branch("TPC_PathLength", &outTPC_PathLength);
-    outTree->Branch("TPC_Psm", &outTPC_Psm);
+    // outTree->Branch("TPC_Psm", &outTPC_Psm);
     outTree->Branch("TPC_TrueKE", &outTPC_TrueKE);
     outTree->Branch("TPC_pdg", &outTPC_pdg);
 
@@ -269,14 +284,18 @@ int main(int argc, char** argv) {
         outTruePhotonEndY = TruePhotonEndY ? *TruePhotonEndY : std::vector<double>();
         outTruePhotonEndZ = TruePhotonEndZ ? *TruePhotonEndZ : std::vector<double>();
         
-        outTPC_PosX = TPC_PosX ? *TPC_PosX : std::vector<double>();
-        outTPC_PosY = TPC_PosY ? *TPC_PosY : std::vector<double>();
-        outTPC_PosZ = TPC_PosZ ? *TPC_PosZ : std::vector<double>();
+        outTPC_firstPosX = TPC_firstPosX ? *TPC_firstPosX : std::vector<double>();
+        outTPC_firstPosY = TPC_firstPosY ? *TPC_firstPosY : std::vector<double>();
+        outTPC_firstPosZ = TPC_firstPosZ ? *TPC_firstPosZ : std::vector<double>();
+        outTPC_lastPosX = TPC_lastPosX ? *TPC_lastPosX : std::vector<double>();
+        outTPC_lastPosY = TPC_lastPosY ? *TPC_lastPosY : std::vector<double>();
+        outTPC_lastPosZ = TPC_lastPosZ ? *TPC_lastPosZ : std::vector<double>();
 
         outTPC_Edep = TPC_Edep ? *TPC_Edep : std::vector<double>();
-        outTPC_dEdx_rho = TPC_dEdx_rho ? *TPC_dEdx_rho : std::vector<double>();
+        outTPC_smearedEdep = TPC_smearedEdep ? *TPC_smearedEdep : std::vector<double>();
+        outTPC_dEdx = TPC_dEdx ? *TPC_dEdx : std::vector<double>();
         outTPC_PathLength = TPC_PathLength ? *TPC_PathLength : std::vector<double>();
-        outTPC_Psm = TPC_Psm ? *TPC_Psm : std::vector<double>();
+        // outTPC_Psm = TPC_Psm ? *TPC_Psm : std::vector<double>();
         outTPC_TrueKE = TPC_TrueKE ? *TPC_TrueKE : std::vector<double>();
         outTPC_pdg = TPC_pdg ? *TPC_pdg : std::vector<double>();
 

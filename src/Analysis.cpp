@@ -88,15 +88,21 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "truthE", truthE);
 
     // TPC info
-    std::vector<double> *TPC_Edep = nullptr, *TPC_PosX = nullptr, *TPC_PosY = nullptr, *TPC_PosZ = nullptr;
-    std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_Psm = nullptr, *TPC_TrueKE = nullptr, *TPC_pdg = nullptr;
+    std::vector<double> *TPC_Edep = nullptr, *TPC_smearedEdep = nullptr;
+    std::vector<double> *TPC_firstPosX = nullptr, *TPC_firstPosY = nullptr, *TPC_firstPosZ = nullptr;
+    std::vector<double> *TPC_lastPosX = nullptr, *TPC_lastPosY = nullptr, *TPC_lastPosZ = nullptr;
+    std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_TrueKE = nullptr, *TPC_pdg = nullptr; // *TPC_Psm = nullptr,
     SafeSetBranch(t, "TPC_Edep", TPC_Edep);
-    SafeSetBranch(t, "TPC_PosX", TPC_PosX);
-    SafeSetBranch(t, "TPC_PosY", TPC_PosY);
-    SafeSetBranch(t, "TPC_PosZ", TPC_PosZ);
+    SafeSetBranch(t, "TPC_smearedEdep", TPC_smearedEdep);
+    SafeSetBranch(t, "TPC_firstPosX", TPC_firstPosX);
+    SafeSetBranch(t, "TPC_firstPosY", TPC_firstPosY);
+    SafeSetBranch(t, "TPC_firstPosZ", TPC_firstPosZ);
+    SafeSetBranch(t, "TPC_lastPosX", TPC_lastPosX);
+    SafeSetBranch(t, "TPC_lastPosY", TPC_lastPosY);
+    SafeSetBranch(t, "TPC_lastPosZ", TPC_lastPosZ);
     SafeSetBranch(t, "TPC_PathLength", TPC_PathLength);
     SafeSetBranch(t, "TPC_dEdx_rho", TPC_dEdx);
-    SafeSetBranch(t, "TPC_Psm", TPC_Psm);
+    // SafeSetBranch(t, "TPC_Psm", TPC_Psm);
     SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
     SafeSetBranch(t, "TPC_pdg", TPC_pdg);
 
@@ -217,10 +223,10 @@ int main(int argc, char **argv) {
                 ChargedTracks.push_back(
                     {k, 
                     vertex, 
-                    TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]), 
-                    TVector3((*TPC_PosX)[k], (*TPC_PosY)[k], (*TPC_PosZ)[k]) - vertex,
+                    TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]), 
+                    TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]) - TVector3((*TPC_firstPosX)[k], (*TPC_firstPosY)[k], (*TPC_firstPosZ)[k]),
                     // (*TPC_Edep)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
-                    (*TPC_TrueKE)[k], (*TPC_pdg)[k], (*TPC_Psm)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
+                    (*TPC_TrueKE)[k], (*TPC_pdg)[k], (*TPC_smearedEdep)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
             }
         }
 

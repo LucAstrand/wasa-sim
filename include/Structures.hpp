@@ -33,7 +33,7 @@ struct ChargedTrack {
     size_t id;              // track ID // I might just build this dynamically not sure yet If I want to use GEANT4's TrackID --> Avoid Truth level stuff?
     TVector3 vertex;
     TVector3 exitPoint;     // TPC exit
-    TVector3 direction;     // cached (exit - vertex).Unit()
+    TVector3 direction;     // cached (exit - entry).Unit()
     double TrueKE;
     double TruePDG;
     double EdepSmeared;
