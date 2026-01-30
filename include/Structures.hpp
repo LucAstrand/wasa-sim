@@ -29,6 +29,14 @@ struct Cluster {
     TLorentzVector p4;
 };
 
+struct Pi0Candidate {
+    size_t i;
+    size_t j;
+    double mgg;
+    double theta;
+    TLorentzVector p4;
+};
+
 struct ChargedTrack {
     size_t id;              // track ID // I might just build this dynamically not sure yet If I want to use GEANT4's TrackID --> Avoid Truth level stuff?
     TVector3 vertex;
@@ -36,6 +44,7 @@ struct ChargedTrack {
     TVector3 direction;     // cached (exit - entry).Unit()
     double TrueKE;
     double TruePDG;
+    double clusterdEdx;
     double EdepSmeared;
     double pathLength;
     double dEdxTheory;

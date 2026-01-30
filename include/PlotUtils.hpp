@@ -28,7 +28,7 @@ struct PlotOptions {
     bool addTopLatex = true;
     bool addInfoPave = true;
     bool addLegend = true;
-    std::string legendDrawOpt = "l";
+    std::string legendDrawOpt = "l"; // "l" - Line , "p"
     std::string drawOption = "HIST";  // e.g., "HIST", "E", "COLZ" for 2D
     bool normalizeHists = false;  // Scale to unit area if true (for overlays)
     double legendX1 = 0.55, legendY1 = 0.7, legendX2 = 0.88, legendY2 = 0.88;  // Customizable position

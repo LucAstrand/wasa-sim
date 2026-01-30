@@ -247,6 +247,14 @@ int main(int argc, char **argv) {
     std::vector<double>* TruePhotonEndX = nullptr;
     std::vector<double>* TruePhotonEndY = nullptr;
     std::vector<double>* TruePhotonEndZ = nullptr;
+    std::vector<double>* TPC_firstPosX = nullptr;
+    std::vector<double>* TPC_firstPosY = nullptr;
+    std::vector<double>* TPC_firstPosZ = nullptr;
+    std::vector<double>* TPC_lastPosX = nullptr;
+    std::vector<double>* TPC_lastPosY = nullptr;
+    std::vector<double>* TPC_lastPosZ = nullptr;
+
+
 
     t->SetBranchAddress("PrimaryEkin",    &PrimaryEkin);
     t->SetBranchAddress("PrimaryTime",    &PrimaryTime);
@@ -269,6 +277,13 @@ int main(int argc, char **argv) {
     t->SetBranchAddress("TruePhotonEndX",    &TruePhotonEndX);
     t->SetBranchAddress("TruePhotonEndY",    &TruePhotonEndY);
     t->SetBranchAddress("TruePhotonEndZ",    &TruePhotonEndZ);
+
+    t->SetBranchAddress( "TPC_firstPosX", &TPC_firstPosX);
+    t->SetBranchAddress( "TPC_firstPosY", &TPC_firstPosY);
+    t->SetBranchAddress( "TPC_firstPosZ", &TPC_firstPosZ);
+    t->SetBranchAddress( "TPC_lastPosX", &TPC_lastPosX);
+    t->SetBranchAddress( "TPC_lastPosY", &TPC_lastPosY);
+    t->SetBranchAddress( "TPC_lastPosZ", &TPC_lastPosZ);
 
     // --------------------------------------------------------
     // 4. Detector subsystems 
@@ -305,7 +320,7 @@ int main(int argc, char **argv) {
         t->SetBranchAddress((D+"_EDep").c_str(),        &HitE[D]);
     }
 
-    Long64_t nEvents = t->GetEntries();
+    Long64_t nEvents = 10;//t->GetEntries();
 
     for (Long64_t ev = 0; ev < nEvents; ev++) {
         t->GetEntry(ev);
@@ -371,6 +386,25 @@ int main(int argc, char **argv) {
                 (*TruePhotonEndZ)[i]);
 
             eventList->AddElement(photon);
+        }
+
+        // ============ 3. Draw charged particles =======================
+        for (size_t i = 0; i < TPC_firstPosX->size(); i++) {
+            auto charged = new TEveLine(Form("charged_%zu", i));
+            charged->SetLineWidth(3);
+            charged->SetMainColor(eventColor);
+
+            charged->SetPoint(0,
+                (*TPC_firstPosX)[i],
+                (*TPC_firstPosY)[i],
+                (*TPC_firstPosZ)[i]);
+
+            charged->SetPoint(1,
+                (*TPC_lastPosX)[i],
+                (*TPC_lastPosY)[i],
+                (*TPC_lastPosZ)[i]);
+
+            eventList->AddElement(charged);
         }
 
         // ============ 4. Build clusters ======================

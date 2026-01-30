@@ -14,17 +14,11 @@
 #include "Utils.hpp"
 #include "ParticleID.hpp"
 
-// std::vector<Cluster> SplitMergedClusterEM(
-//     const Cluster &merged,
-//     const std::vector<Hit> &hits,
-//     const TVector3 &vertex,
-//     double dEta,
-//     double dPhi,
-//     int maxIter = 50,
-//     double tol = 1e-4,
-//     double minFrac = 0.02,
-//     double initSigma = -1
-// );
+
+void finalizeNeutralCluster(Cluster& cl, const TVector3 &vtx);
+
+std::vector<Cluster> clusterNeutralHits(std::vector<Hit>& hits, const TVector3& vtx, double theta_max);
+
 
 std::vector<Cluster> SlidingWindowClusterHits(
     std::vector<Hit> &hits, // Not const anymore -> We can assign ownership!

@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
 
 
     inTree->SetBranchAddress("TPC_EDep", &TPC_Edep);
-    inTree->SetBranchAddress("TPC_smearedEDep", &TPC_smearedEdep);
+    inTree->SetBranchAddress("TPC_smearedEdep", &TPC_smearedEdep);
     inTree->SetBranchAddress("TPC_dEdx", &TPC_dEdx);
     inTree->SetBranchAddress("TPC_PathLength", &TPC_PathLength);
 

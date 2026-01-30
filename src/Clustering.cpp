@@ -1,234 +1,64 @@
 #include "Clustering.hpp"
 
-// std::vector<Cluster> SplitMergedClusterEM(
-//     const Cluster &merged,
-//     const std::vector<Hit> &hits,
-//     const TVector3 &vertex,
-//     double dEta,           // tower size in eta
-//     double dPhi,           // tower size in phi
-//     int maxIter,
-//     double tol,     // relative change tolerance on log-likelihood
-//     double minFrac, // minimum fractional energy for a component to be considered real
-//     double initSigma  // initial Gaussian sigma in eta-phi units; if <0 use ~1.0 * max(dEta,dPhi)
-// )
-// {
-//     // 1) build per-hit eta/phi list and total energy
-//     struct HInfo { int idx; double eta, phi, E; };
-//     std::vector<HInfo> local;
-//     double totalE = 0;
-//     for (auto hitIdx : merged.hitIndices) {
-//         const auto &h = hits[hitIdx];
-//         double eta = calcEta(h.x, h.y, h.z);
-//         double phi = calcPhi(h.x, h.y, h.z);
-//         local.push_back({hitIdx, eta, phi, h.e});
-//         totalE += h.e;
-//     }
-//     if (totalE <= 0 || local.size() < 2) return { merged };
+void finalizeNeutralCluster(Cluster& cl, const TVector3& vtx) {
+    double E_sum = 0.0;
+    TVector3 centroid(0,0,0);
 
-//     // 2) initial seeds: use two highest-energy towers inside merged cluster
-//     // Build tower map (fine grid using dEta,dPhi)
-//     std::map<EtaPhiTowerKey, double> towers;
-//     for (auto &hi : local) {
-//         int iEta = int(std::floor(hi.eta / dEta));
-//         int iPhi = int(std::floor(hi.phi / dPhi));
-//         towers[{iEta, iPhi}] += hi.E;
-//     }
-//     // sort towers by energy
-//     std::vector<std::pair<EtaPhiTowerKey,double>> sorted;
-//     for (auto &kv : towers) sorted.push_back(kv);
-//     std::sort(sorted.begin(), sorted.end(),
-//               [](auto &a, auto &b){ return a.second > b.second; });
-//     if (sorted.empty()) return { merged };
-//     // pick seed1 = highest tower center, seed2 = best next tower > 1 cell away if possible
-//     auto towerKeyToEtaPhi = [&](const EtaPhiTowerKey &k){
-//         return std::pair<double,double>( (k.iEta + 0.5)*dEta, (k.iPhi + 0.5)*dPhi );
-//     };
-//     auto [eta1, phi1] = towerKeyToEtaPhi(sorted[0].first);
-//     double eta2=eta1, phi2=phi1;
-//     bool found2 = false;
-//     for (size_t i=1; i<sorted.size(); ++i) {
-//         double dEtaCells = std::abs(sorted[i].first.iEta - sorted[0].first.iEta);
-//         double dPhiCells = std::abs(sorted[i].first.iPhi - sorted[0].first.iPhi);
-//         if (dEtaCells + dPhiCells > 1) { // not immediate neighbor
-//             auto p = towerKeyToEtaPhi(sorted[i].first);
-//             eta2 = p.first; phi2 = p.second;
-//             found2 = true;
-//             break;
-//         }
-//     }
-//     if (!found2) {
-//         // fallback: pick the next-highest tower regardless
-//         if (sorted.size() >= 2) {
-//             auto p = towerKeyToEtaPhi(sorted[1].first);
-//             eta2 = p.first; phi2 = p.second;
-//         } else {
-//             // can't find a second seed
-//             return { merged };
-//         }
-//     }
+    for (auto* h : cl.hits) {
+        centroid += h->e * TVector3(h->x, h->y, h->z);
+        E_sum += h->e;
+    }
 
-//     // 3) EM initialization
-//     double sigma = (initSigma > 0) ? initSigma : std::max(dEta, dPhi) * 1.0; // tuneable
-//     double alpha1 = 0.5, alpha2 = 0.5; // mixture weights (by energy fraction)
-//     // optionally seed alpha by tower energies if available
-//     double seedE1 = sorted[0].second;
-//     double seedE2 = (sorted.size() >= 2) ? sorted[1].second : (totalE - seedE1);
-//     if (seedE1 + seedE2 > 0) {
-//         alpha1 = seedE1 / (seedE1 + seedE2);
-//         alpha2 = seedE2 / (seedE1 + seedE2);
-//     }
+    if (E_sum > 0) centroid *= (1.0 / E_sum);
+    cl.centroid = centroid;
 
-//     std::vector<double> w1(local.size(), 0.0), w2(local.size(), 0.0);
-//     double prevLL = -std::numeric_limits<double>::infinity();
+    TVector3 dir = (centroid - vtx).Unit();
 
-//     const double eps = 1e-12;
+    cl.p4.SetPxPyPzE(E_sum * dir.X(), E_sum * dir.Y(), E_sum * dir.Z(), E_sum);
+}
 
-//     for (int iter=0; iter<maxIter; ++iter) {
-//         // E-step: compute responsibilities (energy-weighted)
-//         double ll = 0.0; // log-likelihood (energy-weighted)
-//         for (size_t i=0; i<local.size(); ++i) {
-//             double eta = local[i].eta, phi = local[i].phi, E = local[i].E;
-//             double d1_eta = (eta - eta1);
-//             double d1_phi = dphi_wrap(phi, phi1);
-//             double d2_eta = (eta - eta2);
-//             double d2_phi = dphi_wrap(phi, phi2);
-//             double r1 = std::exp(-0.5 * (d1_eta*d1_eta + d1_phi*d1_phi) / (sigma*sigma));
-//             double r2 = std::exp(-0.5 * (d2_eta*d2_eta + d2_phi*d2_phi) / (sigma*sigma));
-//             double p1 = alpha1 * r1;
-//             double p2 = alpha2 * r2;
-//             double norm = p1 + p2 + eps;
-//             w1[i] = (p1 / norm);
-//             w2[i] = (p2 / norm);
-//             // accumulate energy-weighted log-likelihood for monitoring convergence
-//             ll += E * std::log(norm);
-//         }
+std::vector<Cluster> clusterNeutralHits(std::vector<Hit>& hits, const TVector3& vtx, double theta_max) {
+    // Sort hits by descending energy
+    std::sort(hits.begin(), hits.end(), 
+              [](const Hit& a, const Hit& b){ return a.e > b.e; });
 
-//         // M-step: update centroids and alphas (energy-weighted)
-//         double sumW1 = eps, sumW2 = eps; // energy-weighted sums
-//         double eta1_num = 0, phi1_num_x = 0, phi1_num_y = 0; // we'll avoid circular phi averaging by vector method
-//         double eta2_num = 0, phi2_num_x = 0, phi2_num_y = 0;
-//         for (size_t i=0; i<local.size(); ++i) {
-//             double E = local[i].E;
-//             sumW1 += w1[i] * E;
-//             sumW2 += w2[i] * E;
-//             eta1_num += w1[i] * E * local[i].eta;
-//             eta2_num += w2[i] * E * local[i].eta;
-//             // phi average using unit vectors to handle wrap
-//             phi1_num_x += w1[i] * E * std::cos(local[i].phi);
-//             phi1_num_y += w1[i] * E * std::sin(local[i].phi);
-//             phi2_num_x += w2[i] * E * std::cos(local[i].phi);
-//             phi2_num_y += w2[i] * E * std::sin(local[i].phi);
-//         }
+    std::vector<Cluster> clusters;
+    std::vector<bool> used(hits.size(), false);
 
-//         // update mixture weights
-//         alpha1 = sumW1 / (sumW1 + sumW2);
-//         alpha2 = sumW2 / (sumW1 + sumW2);
+    for (size_t i = 0; i < hits.size(); ++i) {
+        if (used[i]) continue;
 
-//         // update centroids
-//         double new_eta1 = eta1_num / sumW1;
-//         double new_eta2 = eta2_num / sumW2;
-//         double new_phi1 = std::atan2(phi1_num_y, phi1_num_x);
-//         double new_phi2 = std::atan2(phi2_num_y, phi2_num_x);
+        // --- Seed cluster ---
+        Cluster cl;
+        Hit& seed = hits[i];
+        used[i] = true;
+        cl.hits.push_back(&seed);
 
-//         // small safeguard: if centroids collapse too close, we may abort
-//         double dEta_cent = new_eta1 - new_eta2;
-//         double dPhi_cent = dphi_wrap(new_phi1, new_phi2);
-//         double centDist2 = dEta_cent*dEta_cent + dPhi_cent*dPhi_cent;
+        TVector3 seedDir = hitDirection(seed, vtx).Unit();
 
-//         // update
-//         eta1 = new_eta1; phi1 = new_phi1;
-//         eta2 = new_eta2; phi2 = new_phi2;
+        // --- Grow cluster ---
+        for (size_t j = i + 1; j < hits.size(); ++j) {
+            if (used[j]) continue;
 
-//         // optional: update sigma from weighted variance (or keep fixed)
-//         // compute weighted squared distances to update sigma (could help convergence)
-//         double var_num = 0, var_den = eps;
-//         for (size_t i=0; i<local.size(); ++i) {
-//             double E = local[i].E;
-//             double de1 = local[i].eta - eta1, dp1 = dphi_wrap(local[i].phi, phi1);
-//             double de2 = local[i].eta - eta2, dp2 = dphi_wrap(local[i].phi, phi2);
-//             double r1sq = (de1*de1 + dp1*dp1);
-//             double r2sq = (de2*de2 + dp2*dp2);
-//             // weight by responsibility
-//             var_num += E * (w1[i]*r1sq + w2[i]*r2sq);
-//             var_den += E;
-//         }
-//         double new_sigma = std::sqrt(std::max(var_num / var_den, 1e-6));
-//         // limit sigma updates to reasonable bounds:
-//         if (new_sigma > 5*std::max(dEta,dPhi)) new_sigma = 5*std::max(dEta,dPhi);
-//         if (new_sigma < 0.1*std::max(dEta,dPhi)) new_sigma = 0.1*std::max(dEta,dPhi);
-//         sigma = new_sigma;
+            Hit& h = hits[j];
+            if (h.owner != HitOwner::None) continue;
+            TVector3 hDir = hitDirection(h, vtx).Unit();
 
-//         // check convergence in log-likelihood
-//         if (iter > 0) {
-//             double rel = std::abs((ll - prevLL) / (std::abs(prevLL) + 1e-12));
-//             if (rel < tol) break;
-//         }
-//         prevLL = ll;
+            double angle = seedDir.Angle(hDir);
+            if (angle < theta_max) {
+                cl.hits.push_back(&h);
+                used[j] = true;
+                h.owner = HitOwner::Neutral;
+            }
+        }
 
-//         // If one component becomes too small in energy fraction -> break early
-//         if (alpha1 < minFrac || alpha2 < minFrac) break;
+        // --- Finalize cluster ---
+        finalizeNeutralCluster(cl, vtx);
+        clusters.push_back(cl);
+    }
 
-//         // If centroids get extremely close compared to cell size, splitting unlikely
-//         if (centDist2 < 1e-6) break;
-//     } // end EM loop
-
-//     // Post-fit decisions: accept split only if both components have reasonable energy
-//     if (alpha1 < minFrac || alpha2 < minFrac) {
-//         // one component too small -> no reliable split
-//         return { merged };
-//     }
-
-//     // Build two clusters: compute energy share and momentum etc. using fractional weights
-//     std::vector<Cluster> out;
-//     // accumulate
-//     double Esum1 = 0, Esum2 = 0;
-//     double cx1=0, cy1=0, cz1=0, cx2=0, cy2=0, cz2=0;
-//     TVector3 mom1(0,0,0), mom2(0,0,0);
-//     std::vector<int> indices1, indices2;
-
-//     for (size_t i=0; i<local.size(); ++i) {
-//         const auto &hi = local[i];
-//         double frac1 = w1[i];
-//         double frac2 = w2[i];
-//         double e1 = hi.E * frac1;
-//         double e2 = hi.E * frac2;
-//         Esum1 += e1; Esum2 += e2;
-//         const auto &h = hits[hi.idx];
-//         cx1 += h.x * e1; cy1 += h.y * e1; cz1 += h.z * e1;
-//         cx2 += h.x * e2; cy2 += h.y * e2; cz2 += h.z * e2;
-//         TVector3 v1(h.x - vertex.X(), h.y - vertex.Y(), h.z - vertex.Z());
-//         TVector3 v2 = v1;
-//         if (v1.Mag2() > 1e-12) {
-//             mom1 += e1 * v1.Unit();
-//             mom2 += e2 * v2.Unit();
-//         }
-//         // assign hit index to the dominant fraction for bookkeeping
-//         if (frac1 >= frac2) indices1.push_back(hi.idx);
-//         if (frac2 >= frac1) indices2.push_back(hi.idx);
-//     }
-
-//     double tot = Esum1 + Esum2;
-//     if (tot <= 0) return { merged };
-
-//     // apply a final quality cut: both must have at least minFrac fraction of the merged energy
-//     if ( (Esum1 / tot) < minFrac || (Esum2 / tot) < minFrac ) {
-//         return { merged };
-//     }
-
-//     // create output clusters
-//     Cluster c1, c2;
-//     c1.centroid = TVector3(cx1 / Esum1, cy1 / Esum1, cz1 / Esum1);
-//     c1.p4.SetPxPyPzE(mom1.X(), mom1.Y(), mom1.Z(), Esum1);
-//     c1.hitIndices = indices1;
-
-//     c2.centroid = TVector3(cx2 / Esum2, cy2 / Esum2, cz2 / Esum2);
-//     c2.p4.SetPxPyPzE(mom2.X(), mom2.Y(), mom2.Z(), Esum2);
-//     c2.hitIndices = indices2;
-
-//     return { c1, c2 };
-// }
-
-
+    return clusters;
+}
 
 
 // =========================================================
@@ -345,65 +175,221 @@ std::vector<Cluster> SlidingWindowClusterHits(
 //   CHARGED OBJECT CLUSTERING (Angular acceptance based)
 // =========================================================
 
+// std::vector<ChargedCluster> MatchHitsToTracks(
+//     const std::vector<ChargedTrack>& tracks,
+//     std::vector<Hit>& hits, // Not const anymore -> We can assign ownership!
+//     double thetaMax
+// ) {
+//     std::vector<ChargedCluster> clusters;
+//     PotentialGas tpcGas = PotentialGas::eArCO2_8020;
+
+//     // Initialize one cluster per track
+//     for (const auto& trk : tracks) {
+//         ChargedCluster c;
+//         c.trackID = trk.id;
+//         c.direction = trk.direction;
+//         c.objectTrueKE = trk.TrueKE;
+//         c.objectTruePDG = trk.TruePDG; // Keep this for efficiency plots
+//         c.objectTruedEdx = BetheBloch(trk.TruePDG, trk.TrueKE, tpcGas);//trk.dEdxTheory; 
+//         c.clusterdEdx = trk.EdepSmeared / trk.pathLength; // trk.clusterdEdx;
+//         // one nSigma per assumption
+//         c.nSigmaPion = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(211, trk.TrueKE, tpcGas), trk.resolution);
+//         c.nSigmaProton = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(2212, trk.TrueKE, tpcGas), trk.resolution);
+//         // c.nSigmaElectron = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(11, trk.TrueKE, tpcGas), trk.resolution);
+
+//         c.pidL = ComputePIDLikelihoods(
+//             c.nSigmaPion,
+//             // c.nSigmaElectron,
+//             c.nSigmaProton
+//         );
+//         c.pidGuess = AssignPIDFromLikelihood(c.pidL, 0.7);
+
+//         clusters.push_back(c);
+//     }
+
+//     for (auto& hit : hits) {
+//         // Skip already-used hits
+//         if (hit.owner != HitOwner::None)
+//             continue;
+//         TVector3 hitPos(hit.x, hit.y, hit.z);
+
+//         double bestAngle = std::numeric_limits<double>::max();
+//         int bestTrack = -1;
+
+//         for (size_t i = 0; i < tracks.size(); ++i) {
+//             TVector3 hitDir = (hitPos - tracks[i].vertex).Unit();
+//             double cosTheta = tracks[i].direction.Dot(hitDir);
+//             cosTheta = std::clamp(cosTheta, -1.0, 1.0);
+//             double theta = std::acos(cosTheta);
+
+//             if (theta < bestAngle) {
+//                 bestAngle = theta;
+//                 bestTrack = i;
+//             }
+//         }
+
+//         if (bestTrack >= 0 && bestAngle < thetaMax) {
+//             clusters[bestTrack].hits.push_back(&hit); // Do I really care about keeping hits in there? 
+//             clusters[bestTrack].totalEnergy += hit.e;
+//             hit.owner = HitOwner::Charged; // Mark used
+//         }
+//     }
+
+//     return clusters;
+// }
+
 std::vector<ChargedCluster> MatchHitsToTracks(
     const std::vector<ChargedTrack>& tracks,
-    std::vector<Hit>& hits, // Not const anymore -> We can assign ownership!
+    std::vector<Hit>& hits,
     double thetaMax
 ) {
     std::vector<ChargedCluster> clusters;
+    PotentialGas tpcGas = PotentialGas::eArCO2_8020;
 
-    // Initialize one cluster per track
-    for (const auto& trk : tracks) {
+    std::cout << "\n[CLUSTER] ===== NEW EVENT =====\n";
+    std::cout << "[CLUSTER] tracks = " << tracks.size()
+              << ", hits = " << hits.size()
+              << ", thetaMax = " << thetaMax
+              << " rad (" << thetaMax * 180.0 / M_PI << " deg)\n";
+
+    /* -------------------------------
+       Initialize one cluster per track
+       ------------------------------- */
+    for (size_t i = 0; i < tracks.size(); ++i) {
+        const auto& trk = tracks[i];
+
         ChargedCluster c;
         c.trackID = trk.id;
-        c.direction = trk.direction;
+        c.direction = trk.direction.Unit();
         c.objectTrueKE = trk.TrueKE;
-        c.objectTruePDG = trk.TruePDG; // Keep this for efficiency plots
-        c.objectTruedEdx = trk.dEdxTheory; 
-        c.clusterdEdx = trk.EdepSmeared / trk.pathLength;
-        // one nSigma per assumption
-        PotentialGas tpcGas = PotentialGas::eArCO2_8020;
-        c.nSigmaPion = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(211, trk.TrueKE, tpcGas), trk.resolution);
-        c.nSigmaProton = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(2212, trk.TrueKE, tpcGas), trk.resolution);
-        // c.nSigmaElectron = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(11, trk.TrueKE, tpcGas), trk.resolution);
+        c.objectTruePDG = trk.TruePDG;
+        c.objectTruedEdx = BetheBloch(trk.TruePDG, trk.TrueKE, tpcGas);
+        // c.clusterdEdx = (trk.pathLength > 0)
+        //                 ? trk.EdepSmeared / trk.pathLength
+        //                 : 0.0;
+        c.clusterdEdx = trk.clusterdEdx;
+        c.totalEnergy = 0.0;
 
-        c.pidL = ComputePIDLikelihoods(
-            c.nSigmaPion,
-            // c.nSigmaElectron,
-            c.nSigmaProton
-        );
-        c.pidGuess = AssignPIDFromLikelihood(c.pidL, 0.7);
+        double dirMag = trk.direction.Mag();
+
+        std::cout << "  [TRACK " << i << "] ID=" << trk.id
+                  << " PDG=" << trk.TruePDG
+                  << " KE=" << trk.TrueKE
+                  << "\n      vertex=("
+                  << trk.vertex.X() << ", "
+                  << trk.vertex.Y() << ", "
+                  << trk.vertex.Z() << ")"
+                  << "\n      direction=("
+                  << trk.direction.X() << ", "
+                  << trk.direction.Y() << ", "
+                  << trk.direction.Z() << ")"
+                  << " |dir|=" << dirMag
+                  << "\n";
+
+        if (std::abs(dirMag - 1.0) > 1e-3) {
+            std::cout << "      ⚠ WARNING: track direction NOT normalized\n";
+        }
 
         clusters.push_back(c);
     }
 
-    for (auto& hit : hits) {
-        // Skip already-used hits
+    /* -------------------------------
+       Loop over calorimeter hits
+       ------------------------------- */
+    int nMatchedHits = 0;
+
+    for (size_t h = 0; h < hits.size(); ++h) {
+        auto& hit = hits[h];
+
         if (hit.owner != HitOwner::None)
             continue;
+
         TVector3 hitPos(hit.x, hit.y, hit.z);
 
+        // Print first few hits for unit checks
+        if (h < 5) {
+            std::cout << "    [HIT " << h << "] pos=("
+                      << hit.x << ", "
+                      << hit.y << ", "
+                      << hit.z << ")"
+                      << " |pos|=" << hitPos.Mag()
+                      << " E=" << hit.e << "\n";
+        }
+
         double bestAngle = std::numeric_limits<double>::max();
-        int bestTrack = -1;
+        double bestDot   = -999.0;
+        int bestTrack    = -1;
 
         for (size_t i = 0; i < tracks.size(); ++i) {
-            TVector3 hitDir = (hitPos - tracks[i].vertex).Unit();
-            double cosTheta = tracks[i].direction.Dot(hitDir);
-            cosTheta = std::clamp(cosTheta, -1.0, 1.0);
-            double theta = std::acos(cosTheta);
+            TVector3 delta = hitPos - tracks[i].vertex;
+            double deltaMag = delta.Mag();
+
+            // Catch reference-point / unit issues
+            if (h < 3 && i == 0) {
+                std::cout << "        delta(hit - vertex)=("
+                          << delta.X() << ", "
+                          << delta.Y() << ", "
+                          << delta.Z() << ")"
+                          << " |delta|=" << deltaMag << "\n";
+            }
+
+            TVector3 hitDir = delta.Unit();
+            double dot = tracks[i].direction.Unit().Dot(hitDir);
+            dot = std::clamp(dot, -1.0, 1.0);
+            double theta = std::acos(dot);
 
             if (theta < bestAngle) {
                 bestAngle = theta;
-                bestTrack = i;
+                bestTrack = static_cast<int>(i);
+                bestDot   = dot;
+            }
+
+            // Print angle diagnostics for first few hits
+            if (h < 3) {
+                std::cout << "        track " << i
+                          << ": dot=" << dot
+                          << " theta=" << theta
+                          << " rad (" << theta * 180.0 / M_PI << " deg)\n";
             }
         }
 
+        // --- Matching decision ---
         if (bestTrack >= 0 && bestAngle < thetaMax) {
-            clusters[bestTrack].hits.push_back(&hit); // Do I really care about keeping hits in there? 
+        // if (bestTrack >= 0) {
+            clusters[bestTrack].hits.push_back(&hit);
             clusters[bestTrack].totalEnergy += hit.e;
-            hit.owner = HitOwner::Charged; // Mark used
+            hit.owner = HitOwner::Charged;
+            ++nMatchedHits;
+
+            std::cout << "    ✔ HIT " << h
+                      << " matched to track " << bestTrack
+                      << " theta=" << bestAngle
+                      << " E=" << hit.e << "\n";
+        } else {
+            if (h < 10) {
+                std::cout << "    ✘ HIT " << h
+                          << " NOT matched"
+                          << " (bestTrack=" << bestTrack
+                          << ", bestAngle=" << bestAngle
+                          << ", dot=" << bestDot << ")\n";
+            }
         }
     }
+
+    /* -------------------------------
+       Final cluster summary
+       ------------------------------- */
+    std::cout << "[CLUSTER] matched hits = " << nMatchedHits << "\n";
+
+    for (size_t i = 0; i < clusters.size(); ++i) {
+        std::cout << "  [CLUSTER " << i << "]"
+                  << " trackID=" << clusters[i].trackID
+                  << " nHits=" << clusters[i].hits.size()
+                  << " totalEnergy=" << clusters[i].totalEnergy
+                  << "\n";
+    }
+
+    std::cout << "[CLUSTER] =====================\n\n";
 
     return clusters;
 }
