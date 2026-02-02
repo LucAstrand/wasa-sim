@@ -120,7 +120,7 @@ void Pi0Acceptance::ProcessEvent(const std::vector<Cluster>& clusters,
                                  const std::vector<TruePhoton>& truePhotons,
                                  double primaryEta)
 {
-    h_den_->Fill(primaryEta);
+    h_den_->Fill(primaryEta); // This assumes one pi0 per event --> Not real in the Signal data... HAVETOFIX
 
 //     // Reconstructed candidates                           
     // int Nreco = CountRecoPi0s(clusters);
@@ -241,7 +241,7 @@ void Pi0Acceptance::FinalizePlot(const std::string& outFileName) {
     opts.infoLines = {"GEANT4 #pi^{0} sample"}; // Add others
     opts.addInfoPave = true;
     PlotGraph(gEff, outFileName.c_str(), opts);
-    std::cout << "[Pi0Efficiency] Saved plot to " << outFileName << std::endl;
+    // std::cout << "[Pi0Efficiency] Saved plot to " << outFileName << std::endl;
 
     // cleanup
     delete gEff;

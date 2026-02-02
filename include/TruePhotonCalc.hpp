@@ -12,7 +12,11 @@
 #include "Utils.hpp"
 
 std::vector<TruePhoton> TruePhotonBuilder(
-    const std::vector<Hit> &hits,
+    const std::vector<TruePhotonHit> &hits,
     const TVector3 &vertex);
+
+std::vector<TruePi0> TruePi0Builder(
+    const std::vector<TruePhoton>& photons
+);
 
 #endif

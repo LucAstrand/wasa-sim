@@ -57,6 +57,7 @@ std::vector<Cluster> clusterNeutralHits(std::vector<Hit>& hits, const TVector3& 
         clusters.push_back(cl);
     }
 
+    // std::cout << "[Neutral Clustering]: DONE" << std::endl;
     return clusters;
 }
 
@@ -168,6 +169,7 @@ std::vector<Cluster> SlidingWindowClusterHits(
             clusters.push_back(c);
         }
     }
+    // std::cout << "[Neutral Clustering]: DONE" << std::endl;
     return clusters;
 }
 
@@ -246,11 +248,11 @@ std::vector<ChargedCluster> MatchHitsToTracks(
     std::vector<ChargedCluster> clusters;
     PotentialGas tpcGas = PotentialGas::eArCO2_8020;
 
-    std::cout << "\n[CLUSTER] ===== NEW EVENT =====\n";
-    std::cout << "[CLUSTER] tracks = " << tracks.size()
-              << ", hits = " << hits.size()
-              << ", thetaMax = " << thetaMax
-              << " rad (" << thetaMax * 180.0 / M_PI << " deg)\n";
+    // std::cout << "\n[CLUSTER] ===== NEW EVENT =====\n";
+    // std::cout << "[CLUSTER] tracks = " << tracks.size()
+    //           << ", hits = " << hits.size()
+    //           << ", thetaMax = " << thetaMax
+    //           << " rad (" << thetaMax * 180.0 / M_PI << " deg)\n";
 
     /* -------------------------------
        Initialize one cluster per track
@@ -264,31 +266,39 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         c.objectTrueKE = trk.TrueKE;
         c.objectTruePDG = trk.TruePDG;
         c.objectTruedEdx = BetheBloch(trk.TruePDG, trk.TrueKE, tpcGas);
+        c.totalEnergy = 0.0;
         // c.clusterdEdx = (trk.pathLength > 0)
         //                 ? trk.EdepSmeared / trk.pathLength
         //                 : 0.0;
         c.clusterdEdx = trk.clusterdEdx;
-        c.totalEnergy = 0.0;
+        c.nSigmaPion = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(211, trk.TrueKE, tpcGas), trk.resolution);
+        c.nSigmaProton = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(2212, trk.TrueKE, tpcGas), trk.resolution);
+        c.pidL = ComputePIDLikelihoods(
+            c.nSigmaPion,
+            // c.nSigmaElectron,
+            c.nSigmaProton
+        );
+        c.pidGuess = AssignPIDFromLikelihood(c.pidL, 0.7);
 
         double dirMag = trk.direction.Mag();
 
-        std::cout << "  [TRACK " << i << "] ID=" << trk.id
-                  << " PDG=" << trk.TruePDG
-                  << " KE=" << trk.TrueKE
-                  << "\n      vertex=("
-                  << trk.vertex.X() << ", "
-                  << trk.vertex.Y() << ", "
-                  << trk.vertex.Z() << ")"
-                  << "\n      direction=("
-                  << trk.direction.X() << ", "
-                  << trk.direction.Y() << ", "
-                  << trk.direction.Z() << ")"
-                  << " |dir|=" << dirMag
-                  << "\n";
+        // std::cout << "  [TRACK " << i << "] ID=" << trk.id
+        //           << " PDG=" << trk.TruePDG
+        //           << " KE=" << trk.TrueKE
+        //           << "\n      vertex=("
+        //           << trk.vertex.X() << ", "
+        //           << trk.vertex.Y() << ", "
+        //           << trk.vertex.Z() << ")"
+        //           << "\n      direction=("
+        //           << trk.direction.X() << ", "
+        //           << trk.direction.Y() << ", "
+        //           << trk.direction.Z() << ")"
+        //           << " |dir|=" << dirMag
+        //           << "\n";
 
-        if (std::abs(dirMag - 1.0) > 1e-3) {
-            std::cout << "      ⚠ WARNING: track direction NOT normalized\n";
-        }
+        // if (std::abs(dirMag - 1.0) > 1e-3) {
+        //     std::cout << "WARNING: track direction NOT normalized\n";
+        // }
 
         clusters.push_back(c);
     }
@@ -306,15 +316,15 @@ std::vector<ChargedCluster> MatchHitsToTracks(
 
         TVector3 hitPos(hit.x, hit.y, hit.z);
 
-        // Print first few hits for unit checks
-        if (h < 5) {
-            std::cout << "    [HIT " << h << "] pos=("
-                      << hit.x << ", "
-                      << hit.y << ", "
-                      << hit.z << ")"
-                      << " |pos|=" << hitPos.Mag()
-                      << " E=" << hit.e << "\n";
-        }
+        // // Print first few hits for unit checks
+        // if (h < 5) {
+        //     std::cout << "    [HIT " << h << "] pos=("
+        //               << hit.x << ", "
+        //               << hit.y << ", "
+        //               << hit.z << ")"
+        //               << " |pos|=" << hitPos.Mag()
+        //               << " E=" << hit.e << "\n";
+        // }
 
         double bestAngle = std::numeric_limits<double>::max();
         double bestDot   = -999.0;
@@ -325,13 +335,13 @@ std::vector<ChargedCluster> MatchHitsToTracks(
             double deltaMag = delta.Mag();
 
             // Catch reference-point / unit issues
-            if (h < 3 && i == 0) {
-                std::cout << "        delta(hit - vertex)=("
-                          << delta.X() << ", "
-                          << delta.Y() << ", "
-                          << delta.Z() << ")"
-                          << " |delta|=" << deltaMag << "\n";
-            }
+            // if (h < 3 && i == 0) {
+            //     std::cout << "        delta(hit - vertex)=("
+            //               << delta.X() << ", "
+            //               << delta.Y() << ", "
+            //               << delta.Z() << ")"
+            //               << " |delta|=" << deltaMag << "\n";
+            // }
 
             TVector3 hitDir = delta.Unit();
             double dot = tracks[i].direction.Unit().Dot(hitDir);
@@ -345,12 +355,12 @@ std::vector<ChargedCluster> MatchHitsToTracks(
             }
 
             // Print angle diagnostics for first few hits
-            if (h < 3) {
-                std::cout << "        track " << i
-                          << ": dot=" << dot
-                          << " theta=" << theta
-                          << " rad (" << theta * 180.0 / M_PI << " deg)\n";
-            }
+            // if (h < 3) {
+            //     std::cout << "        track " << i
+            //               << ": dot=" << dot
+            //               << " theta=" << theta
+            //               << " rad (" << theta * 180.0 / M_PI << " deg)\n";
+            // }
         }
 
         // --- Matching decision ---
@@ -361,35 +371,34 @@ std::vector<ChargedCluster> MatchHitsToTracks(
             hit.owner = HitOwner::Charged;
             ++nMatchedHits;
 
-            std::cout << "    ✔ HIT " << h
-                      << " matched to track " << bestTrack
-                      << " theta=" << bestAngle
-                      << " E=" << hit.e << "\n";
-        } else {
-            if (h < 10) {
-                std::cout << "    ✘ HIT " << h
-                          << " NOT matched"
-                          << " (bestTrack=" << bestTrack
-                          << ", bestAngle=" << bestAngle
-                          << ", dot=" << bestDot << ")\n";
-            }
+        //     std::cout << " HIT " << h
+        //               << " matched to track " << bestTrack
+        //               << " theta=" << bestAngle
+        //               << " E=" << hit.e << "\n";
+        // } else {
+        //     if (h < 10) {
+        //         std::cout << " HIT " << h
+        //                   << " NOT matched"
+        //                   << " (bestTrack=" << bestTrack
+        //                   << ", bestAngle=" << bestAngle
+        //                   << ", dot=" << bestDot << ")\n";
+        //     }
         }
     }
 
-    /* -------------------------------
-       Final cluster summary
-       ------------------------------- */
-    std::cout << "[CLUSTER] matched hits = " << nMatchedHits << "\n";
+    // std::cout << "[CLUSTER] matched hits = " << nMatchedHits << "\n";
 
-    for (size_t i = 0; i < clusters.size(); ++i) {
-        std::cout << "  [CLUSTER " << i << "]"
-                  << " trackID=" << clusters[i].trackID
-                  << " nHits=" << clusters[i].hits.size()
-                  << " totalEnergy=" << clusters[i].totalEnergy
-                  << "\n";
-    }
+    // for (size_t i = 0; i < clusters.size(); ++i) {
+    //     std::cout << "  [CLUSTER " << i << "]"
+    //               << " trackID=" << clusters[i].trackID
+    //               << " nHits=" << clusters[i].hits.size()
+    //               << " totalEnergy=" << clusters[i].totalEnergy
+    //               << "\n";
+    // }
 
-    std::cout << "[CLUSTER] =====================\n\n";
+    // std::cout << "[CLUSTER] =====================\n\n";
+
+    // std::cout << "[Charged Clustering]: DONE" << std::endl;
 
     return clusters;
 }

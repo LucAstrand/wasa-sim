@@ -156,8 +156,8 @@ void PIDEfficiency::FinalizePlot(const std::string& outFileName, int pdgNumToPlo
     // PlotGraph(gEffmiss, "miss_pid_percentage_pion.png", optsmiss);
 
     switch (pdgNumToPlot) {
-        case 211:  PlotGraph(gEff, "pid_efficiency_pion.png", opts); PlotGraph(gEffmiss, "miss_pid_percentage_pion.png", optsmiss); break;
-        case 2212: PlotGraph(gEff, "pid_efficiency_proton.png", opts); PlotGraph(gEffmiss, "miss_pid_percentage_proton.png", optsmiss); break;
+        case 211:  PlotGraph(gEff, "Charged/pid_efficiency_pion.png", opts); PlotGraph(gEffmiss, "Charged/miss_pid_percentage_pion.png", optsmiss); break;
+        case 2212: PlotGraph(gEff, "Charged/pid_efficiency_proton.png", opts); PlotGraph(gEffmiss, "Charged/miss_pid_percentage_proton.png", optsmiss); break;
         // case 11:   PlotGraph(gEff, "pid_efficiency_electron.png", opts); PlotGraph(gEffmiss, "miss_pid_percentage_electron.png", optsmiss); break;
         default: break;
     }

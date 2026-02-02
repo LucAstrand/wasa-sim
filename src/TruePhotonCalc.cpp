@@ -1,7 +1,7 @@
 #include "TruePhotonCalc.hpp"
 
 std::vector<TruePhoton> TruePhotonBuilder(
-    const std::vector<Hit> &hits,
+    const std::vector<TruePhotonHit> &hits,
     const TVector3 &vertex)
 {
     std::vector<TruePhoton> outPhotons;
@@ -31,4 +31,25 @@ std::vector<TruePhoton> TruePhotonBuilder(
     }
 
     return outPhotons;
+}
+
+std::vector<TruePi0> TruePi0Builder(const std::vector<TruePhoton>& photons)
+{
+    std::unordered_map<int, TruePi0> pi0map;
+
+    for (const auto& g : photons) {
+        // if (g.parentPdg != 111) continue; // by construction the photons are from pi0s (from GEANT4)
+
+        auto& pi0 = pi0map[g.parentID];
+        pi0.trackID = g.parentID;
+        pi0.photons.push_back(&g);
+        pi0.p4 += g.p4;
+    }
+    std::vector<TruePi0> out;
+    for (auto& [id, pi0] : pi0map) {
+        if (pi0.photons.size() == 2) { 
+            out.push_back(std::move(pi0));
+        }
+    }
+    return out;
 }

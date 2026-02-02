@@ -99,6 +99,8 @@ int main(int argc, char** argv) {
     std::vector<double>* TruePhotonY = nullptr;
     std::vector<double>* TruePhotonZ = nullptr;
     std::vector<double>* TruePhotonE = nullptr;
+    std::vector<double>* TruePhotonTrackID = nullptr;
+    std::vector<double>* TruePhotonParentID = nullptr;
 
     std::vector<double>* TruePhotonCreationX = nullptr;
     std::vector<double>* TruePhotonCreationY = nullptr;
@@ -148,6 +150,8 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("TruePhotonEndX", &TruePhotonEndX);
     inTree->SetBranchAddress("TruePhotonEndY", &TruePhotonEndY);
     inTree->SetBranchAddress("TruePhotonEndZ", &TruePhotonEndZ);
+    inTree->SetBranchAddress("TruePhotonTrackID", &TruePhotonTrackID);
+    inTree->SetBranchAddress("TruePhotonParentID", &TruePhotonParentID);
 
     inTree->SetBranchAddress("TPC_firstPosX", &TPC_firstPosX);
     inTree->SetBranchAddress("TPC_firstPosY", &TPC_firstPosY);
@@ -207,7 +211,7 @@ int main(int argc, char** argv) {
     std::vector<double> centerXs, centerYs, centerZs, energies;
     std::vector<int> ringNos, copyNos;
     std::vector<double> outPrimaryPosX, outPrimaryPosY, outPrimaryPosZ, outPrimaryEkin, outPrimaryMomX, outPrimaryMomY, outPrimaryMomZ;
-    std::vector<double> outTruePhotonX, outTruePhotonY, outTruePhotonZ, outTruePhotonE;
+    std::vector<double> outTruePhotonX, outTruePhotonY, outTruePhotonZ, outTruePhotonE, outTruePhotonTrackID, outTruePhotonParentID;
     std::vector<double> outTruePhotonCreationX, outTruePhotonCreationY, outTruePhotonCreationZ;
     std::vector<double> outTruePhotonEndX, outTruePhotonEndY, outTruePhotonEndZ;
     std::vector<double> outTPC_firstPosX, outTPC_firstPosY, outTPC_firstPosZ;
@@ -232,12 +236,15 @@ int main(int argc, char** argv) {
     outTree->Branch("truthPosY", &outTruePhotonY);
     outTree->Branch("truthPosZ", &outTruePhotonZ);
     outTree->Branch("truthE", &outTruePhotonE);
+    outTree->Branch("TruePhotonTrackID", &outTruePhotonTrackID);
+    outTree->Branch("TruePhotonParentID", &outTruePhotonParentID);
     outTree->Branch("TruePhotonCreationX", &outTruePhotonCreationX);
     outTree->Branch("TruePhotonCreationY", &outTruePhotonCreationY);
     outTree->Branch("TruePhotonCreationZ", &outTruePhotonCreationZ);
     outTree->Branch("TruePhotonEndX", &outTruePhotonEndX);
     outTree->Branch("TruePhotonEndY", &outTruePhotonEndY);
     outTree->Branch("TruePhotonEndZ", &outTruePhotonEndZ);
+
 
     outTree->Branch("TPC_firstPosX", &outTPC_firstPosX);
     outTree->Branch("TPC_firstPosY", &outTPC_firstPosY);
@@ -275,6 +282,8 @@ int main(int argc, char** argv) {
         outTruePhotonY = TruePhotonY ? *TruePhotonY : std::vector<double>();
         outTruePhotonZ = TruePhotonZ ? *TruePhotonZ : std::vector<double>();
         outTruePhotonE = TruePhotonE ? *TruePhotonE : std::vector<double>();
+        outTruePhotonTrackID = TruePhotonTrackID ? *TruePhotonTrackID : std::vector<double>();
+        outTruePhotonParentID = TruePhotonParentID ? *TruePhotonParentID : std::vector<double>();
 
         outTruePhotonCreationX = TruePhotonCreationX ? *TruePhotonCreationX : std::vector<double>();
         outTruePhotonCreationY = TruePhotonCreationY ? *TruePhotonCreationY : std::vector<double>();
