@@ -6,6 +6,7 @@
 #include "TH2F.h"
 #include "TGraph.h"
 
+#include <mcpl.h>
 #include "CLI11.hpp"
 #include "Structures.hpp"
 #include "Clustering.hpp"
@@ -32,8 +33,8 @@ bool SafeSetBranch(TTree* tree, const char* branchName, T*& ptr) {
 // ----------------------------------------------------
 
 int main(int argc, char **argv) {
-    if (argc < 2) {
-            std::cout << "Usage: " << argv[0] << " <input.root> [options]\n"
+    if (argc < 3) {
+            std::cout << "Usage: " << argv[0] << " <input.root> <mcpl_data.mcpl> [options]\n"
                     << "Options:\n"
                     << "  --full-analysis       Performs everything\n"
                     << "  --pi0-analysis        Reconstruct Pi0s and invariant mass analysis\n"
@@ -42,12 +43,13 @@ int main(int argc, char **argv) {
             return 1;
         }
     
-    std::string inputfile = argv[1];
+    std::string root_inputfile = argv[1];
+    std::string mcpl_inputfile = argv[2];
     bool doPi0Analysis = false;
     bool doChargedAnalysis = false;
     bool doTruthAnalysis = false;
 
-    for (int i = 2; i<argc; ++i) {
+    for (int i = 3; i<argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--full-analysis") {
             doPi0Analysis = true;
@@ -62,7 +64,7 @@ int main(int argc, char **argv) {
     
     SetPrettyStyle();
 
-    TFile *f = TFile::Open(inputfile.c_str());
+    TFile *f = TFile::Open(root_inputfile.c_str());
     if (!f || f->IsZombie()) return 1;
 
     TTree *t = (TTree *)f->Get("digitizedHits");
@@ -118,6 +120,35 @@ int main(int argc, char **argv) {
     Long64_t nentries = t->GetEntries();
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+    // mcpl pre-processing to get the #Pi0s per event:
+
+    std::vector<int> pi0_per_event;
+    // std::vector<double> pi0_EKin_per_event; // what if there are more than one?!!!?!!
+    mcpl_file_t mcplFile = mcpl_open_file(mcpl_inputfile.c_str());
+    int current_event = -1;
+    const mcpl_particle_t* p;
+    while ((p = mcpl_read(mcplFile))) {
+        if (p->userflags == 1) {
+            ++current_event;
+            pi0_per_event.push_back(0);
+            // pi0_EKin_per_event.push_back(0);
+        }
+        //guard
+        if (current_event < 0) continue;
+
+        if (p->pdgcode == 111) {
+            pi0_per_event[current_event]++;
+            // pi0_EKin_per_event[current_event] = p->ekin;
+        }
+    }
+
+    mcpl_close_file(mcplFile);
+
+    // Reminder: This gives us pi0_per_event[ievt] --> # Pi0s in MCPL ievt & corresponding EKin in other vector with same indexing.
+
+    //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+    
+    //Containers used throughout the analysis 
     std::vector<Hit> hits;
     std::vector<TruePhotonHit> trueHits;
     std::vector<Cluster> clusters;
@@ -131,20 +162,13 @@ int main(int argc, char **argv) {
     TH2F *hPi0ppM_pre               = nullptr;
     TH2F *hPi0ppM_post              = nullptr;
     TH1F *hClusterE                 = nullptr;
-    // TH1F *hNClusters                = nullptr;
-    // TH1F *hNClusters_lowEkin        = nullptr;
-    // TH1F *hNClusters_midEkin        = nullptr;
-    // TH1F *hNClusters_highEkin       = nullptr;
-    // TH1F *hSingleClusterE           = nullptr;
     TH1F *hPi0TrueMass              = nullptr;
     TH1F *h_mass_truthE_recoAngle   = nullptr;
     TH1F *h_mass_recoE_truthAngle   = nullptr;
     TH1F *hEffvsE                   = nullptr;
-
     // Charged analysis objects
     TH1F  *hNSigmaPion              = nullptr;
     TH1F  *hNSigmaProton            = nullptr;
-    // TH1F  *hNSigmaElectron       = nullptr;
     TH2F  *hdEdxVsE_cluster_Pion    = nullptr;
     TH2F  *hdEdxVsE_true_Pion       = nullptr;
     TH2F  *hdEdxVsE_cluster_Proton  = nullptr;
@@ -154,9 +178,6 @@ int main(int argc, char **argv) {
     TH1F  *hdEdxSmearPion           = nullptr;
     TH1F  *hdEdxTrueProton          = nullptr;
     TH1F  *hdEdxSmearProton         = nullptr;
-    //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-
-
     // Analysis helper classes (also pointers)
     Pi0Efficiency  *effPlotter           = nullptr;
     Pi0Acceptance  *accPlotter           = nullptr;
@@ -164,23 +185,16 @@ int main(int argc, char **argv) {
     Pi0Acceptance  *pi0AcceptanceVsTheta = nullptr;
     PIDEfficiency  *pidEff               = nullptr;
 
+    //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+
     if (doPi0Analysis) {
         hPi0Mass                = new TH1F("hPi0Mass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
         hPi0ppM_pre             = new TH2F("hPi0ppM_pre",";M_{#gamma #gamma} [MeV];#theta (#gamma #gamma)",200, 0, 250,200, 0, 4);
         hPi0ppM_post            = new TH2F("hPi0ppM_post",";M_{#gamma #gamma} [MeV];#theta (#gamma #gamma)",200, 0, 250,200, 0, 4);
-        // hClusterE               = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
-        // hNClusters              = new TH1F("hNClusters",";N_{clusters};Events",20,0,20);
-        // hNClusters_lowEkin      = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
-        // hNClusters_midEkin      = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
-        // hNClusters_highEkin     = new TH1F("hNClusters",";N_{clusters};Events",10,0,10);
-        // hSingleClusterE         = new TH1F("hSingleClusterE",";Cluster E [MeV];Count",100,0,500);
         hEffvsE                 = new TH1F("hEffvsE", ";#pi^0 E_{kin}; Efficiency", 100, 1, 500);
-        // effPlotter              = new Pi0Efficiency(120.0, 150.0, 134.977, 20, 1, 500);
-        effPlotter              = new Pi0Efficiency(120.0, 150.0, 134.977, 4, 1, 500);
-    //     accPlotter              = new Pi0Acceptance(120.0, 150.0, 134.977, 4, 1, 550);
-    //     pi0AcceptanceVsEta      = new Pi0Acceptance(-10, 10, 100);
-    //     pi0AcceptanceVsTheta    = new Pi0Acceptance(0, TMath::Pi(), 60);
-        accPlotter              = new Pi0Acceptance("E", 120, 150, 134.977, 4, 1, 550);
+        effPlotter              = new Pi0Efficiency(4, 1, 500);
+        accPlotter              = new Pi0Acceptance("E", 4, 1, 550);
         pi0AcceptanceVsEta      = new Pi0Acceptance("eta", -10, 10, 100);
         pi0AcceptanceVsTheta    = new Pi0Acceptance("theta", 0, TMath::Pi(), 60);    
     }
@@ -203,15 +217,16 @@ int main(int argc, char **argv) {
         hdEdxTrueProton         = new TH1F("hdEdxTrueProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
         hdEdxSmearProton        = new TH1F("hdEdxSmearProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
         hClusterE               = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
-        // TH1F *hNSigmaElectron = new TH1F("hNSigma", ";n#sigma;Counts", 100, -5, 5);
-        // TH2F *hdEdxVsE = new TH2F("hdEdxVsE", ";E [MeV];dEdx", 200, 0, 1000);
-        // TH2F* hdEdxVsE_cluster_Electron = new TH2F("hdEdxVsE_cluster",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
-        // TH2F* hdEdxVsE_true_Electron = new TH2F("hdEdxVsE_true",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
     }
 
 
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
         t->GetEntry(ievt);
+        
+        int nPi0 = 0;
+        if (ievt < (Long64_t)pi0_per_event.size()) {
+            nPi0 = pi0_per_event[ievt];
+        }
 
         // Get the event's vertex
         if (!primaryX||primaryX->empty()) continue;
@@ -235,14 +250,12 @@ int main(int argc, char **argv) {
             ChargedTracks.clear();
             size_t nChargedTracks = TPC_Edep->size();
             for (size_t k=0; k<nChargedTracks; ++k) {
-                // for noe the resolution is hardcoded to be 0.15
+                // for now the resolution is hardcoded to be 0.15
                 ChargedTracks.push_back(
                     {k, 
                     vertex, 
                     TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]), 
                     TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]) - TVector3((*TPC_firstPosX)[k], (*TPC_firstPosY)[k], (*TPC_firstPosZ)[k]),
-                    // TVector3((*TPC_firstPosX)[k], (*TPC_firstPosY)[k], (*TPC_firstPosZ)[k]) - vertex, 
-                    // (*TPC_Edep)[k], (*TPC_PathLength)[k], (*TPC_dEdx)[k], 0.15});
                     (*TPC_TrueKE)[k], (*TPC_pdg)[k], (*TPC_dEdx)[k], (*TPC_smearedEdep)[k], (*TPC_PathLength)[k], 0 /* Placeholder */, 0.15});
             }
         }
@@ -251,11 +264,14 @@ int main(int argc, char **argv) {
             trueHits.clear();
             size_t nTrueHits = truePhotonE->size();
             for (size_t k=0; k<nTrueHits; ++k) {
+                std::cout << "Photon parentID when fill hits: " << (*truePhotonParentID)[k] << std::endl;
                 trueHits.push_back({(*truePhotonPosX)[k], (*truePhotonPosY)[k], (*truePhotonPosZ)[k], (*truePhotonE)[k], (*truePhotonTrackID)[k], (*truePhotonParentID)[k]});
             }
             
             truePhotons = TruePhotonBuilder(trueHits, vertex);
+            std::cout << "Number of Truth level photons (from Pi0s): " << truePhotons.size() << std::endl;
             truePi0s = TruePi0Builder(truePhotons);
+            std::cout << "Number of Truth level Pi0s: " << truePi0s.size() << std::endl;
 
             for (TruePi0 tpi0 : truePi0s) {
                 if (hPi0TrueMass) hPi0TrueMass->Fill(tpi0.p4.M());
@@ -273,9 +289,6 @@ int main(int argc, char **argv) {
             double thetaMax = 25.0 * TMath::DegToRad();
             chargedClusters = MatchHitsToTracks(ChargedTracks, hits, thetaMax);
             for (ChargedCluster cluster : chargedClusters) {
-                // std::cout << "PID Guess: " << PIDToString(cluster.pidGuess) << std::endl;
-                // std::cout << "Charged Cluster Energy: " << cluster.totalEnergy << std::endl;
-                // std::cout << "Charged Cluster nSigma: " << cluster.nSigma << std::endl;
                 if (hNSigmaPion) hNSigmaPion->Fill(cluster.nSigmaPion);
                 if (hNSigmaProton) hNSigmaProton->Fill(cluster.nSigmaProton);
                 // hNSigmaElectron->Fill(cluster.nSigmaElectron);
@@ -294,11 +307,6 @@ int main(int argc, char **argv) {
                 if (hdEdxTrueProton) hdEdxTrueProton->Fill(cluster.objectTruedEdx);
                 if (hdEdxSmearProton) hdEdxSmearProton->Fill(cluster.clusterdEdx);            
                 }
-                // if (cluster.objectTruePDG == 11) {
-                // // hdEdxVsE_cluster_Electron->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
-                // hdEdxVsE_cluster_Electron->Fill(cluster.totalEnergy, cluster.objectTruedEdx); // ORDER: X vs Y 
-                // hdEdxVsE_true_Electron->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
-                // }
                 double Eres = (cluster.totalEnergy - cluster.objectTrueKE) / cluster.objectTrueKE;
                 if (h2_Eres) h2_Eres->Fill(cluster.objectTrueKE, Eres);
             }            
@@ -406,19 +414,6 @@ int main(int argc, char **argv) {
             std::sort(candidates.begin(), candidates.end(), [](const Pi0Candidate& a, const Pi0Candidate& b) {
                 return a.score < b.score;
             });
-
-
-            // Greedy selection (no photon reuse)
-            // std::vector<bool> used(clusters.size(), false);
-            // std::vector<Pi0Candidate> selected;
-            
-            // for (const auto& cand : candidates) {
-                //     if (used[cand.i] || used[cand.j]) continue;
-                
-                //     used[cand.i] = true;
-                //     used[cand.j] = true;
-                //     selected.push_back(cand);
-                // }
                 
             std::unordered_set<const Cluster*> used;
             for (const auto& cand : candidates) {
@@ -442,6 +437,8 @@ int main(int argc, char **argv) {
 
         // Truth level + reco level plots 
 
+        // should introduce the selection procedure here too! Right now this is WRONG
+
         if (doTruthAnalysis) {
             std::vector<int> clusterToTrue = matchClustersToTruth(clusters, truePhotons, 10);
 
@@ -463,7 +460,6 @@ int main(int argc, char **argv) {
                 photons_rE_tA.push_back(makePhotonFromEnergyAndDir(c.p4.E(), t.dir));
             }
 
-            // Compute all pairwise invariant masses
             auto fillPairs = [](const std::vector<TLorentzVector>& phs, TH1F* hist) {
                 for (size_t i=0; i<phs.size(); ++i) {
                     for (size_t j=i+1; j<phs.size(); ++j) {
@@ -481,7 +477,11 @@ int main(int argc, char **argv) {
 
         if (doPi0Analysis) {
             if (effPlotter) effPlotter->ProcessEvent(truePi0s, selected, clusters);
-            if (accPlotter) accPlotter->ProcessEvent(clusters, truePhotons, genEkin);
+
+
+            // if (accPlotter) accPlotter->ProcessEvent(clusters, truePhotons, genEkin);
+            if (accPlotter) accPlotter->ProcessSignalEvent(truePi0s, genEkin, nPi0);
+
 
             // double px = primaryPx->at(0);
             // double py = primaryPy->at(0);
@@ -496,14 +496,6 @@ int main(int argc, char **argv) {
 
             // pi0AcceptanceVsTheta.ProcessEventTwoHist(clusters, truePhotons, genEkin, theta);
 
-            // double targetTheta = TMath::Pi() / 2;
-            // double deltaTheta = 0.1;
-
-            // if (genEkin == 50 && std::abs(theta - targetTheta) < deltaTheta) {
-            //     // std::cout << "[Theta] " << theta << std::endl;
-            //     hNClusters_lowEkin->Fill(clusters.size());
-            // }
-            // else if (genEkin == 500 && std::abs(theta - targetTheta) < deltaTheta) hNClusters_highEkin->Fill(clusters.size());
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -533,19 +525,7 @@ int main(int argc, char **argv) {
         Plot2D(hPi0ppM_post, "Neutral/Pi0ppM_post.png", optsPi0ppM);
 
 
-
-        // CLUSTER NUM &/or DEBUG PLOTS
-        // PlotOptions optsPi0NumCluster;
-        // optsPi0NumCluster.legendEntries = {"Pi0 n Clusters"};
-        // PrettyPi0NumClusterPlot(hNClusters);
-        // Plot1D({hNClusters}, {kBlack}, "Pi0NumClusters.png", optsPi0NumCluster);
-        // Pi0ClusterNumPlotEkin(hNClusters_lowEkin, hNClusters_midEkin, hNClusters_highEkin);
-        // Pi0ClusterNumPlotEkin(hNClusters_lowEkin, hNClusters_highEkin);
-        // BasicHistPlot(hSingleClusterE);
-
-        // GOTTA CHECK IF POINTER/CLASS INTERPLAY IS WORKING HERE...
         // Efficiency Plot
-        // EffPlot(hEff, "Pi0_eff.png"); // OLD
         effPlotter->FinalizePlot("Neutral/Pi0_efficiency_vs_Ekin.png");
 
         // // Acceptance Plot
@@ -555,11 +535,6 @@ int main(int argc, char **argv) {
 
         //CLEANUP
         delete hPi0Mass; 
-        // delete hClusterE;
-        // delete hNClusters; 
-        // delete hNClusters_lowEkin; 
-        // delete hNClusters_midEkin; 
-        // delete hNClusters_highEkin; 
         delete hEffvsE;
         delete effPlotter;
         delete accPlotter;
@@ -608,44 +583,16 @@ int main(int argc, char **argv) {
         PlotOptions opts_nSigma;
         opts_nSigma.doFit = true;
         opts_nSigma.addLegend = true;
-        // opts_nSigma.legendEntries = {
-        // "#pi hypothesis",
-        // "p hypothesis",
-        // "e hypothesis"
-        // };
         opts_nSigma.legendEntries = {
         "#pi hypothesis",
         "p hypothesis"
         };
-        // std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaProton, hNSigmaElectron};
         std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaProton};
         std::vector<int> colors = {
             kRed+1,
-            // kGreen+2
             kBlue+1
         };
         Plot1D(plots1D, colors, "Charged/nSigmaPlots.png", opts_nSigma);
-
-        // PlotOptions opts_hdEdxVsE_cluster;
-        // opts_hdEdxVsE_cluster.addLegend = false;
-        // opts_hdEdxVsE_cluster.addInfoPave = false;
-        // // opts.drawOption = "COLZ";  // If you want color instead of HIST
-        // Plot2D(hdEdxVsE_cluster, "dEdxVsE_clusterE.png", opts_hdEdxVsE_cluster);
-
-        // PlotOptions opts_hdEdxVsE_true;
-        // opts_hdEdxVsE_true.addLegend = false;
-        // opts_hdEdxVsE_true.addInfoPave = false;
-        // // opts.drawOption = "COLZ";  // If you want color instead of HIST
-        // Plot2D(hdEdxVsE_true, "dEdxVsE_trueKE.png", opts_hdEdxVsE_true);
-
-        // PlotOptions opts_hdEdxVsE_true;
-        // opts_hdEdxVsE_true.addLegend = true;
-        // opts_hdEdxVsE_true.legendEntries = {"$\frac{dE}{dx}$ Pions", "$\frac{dE}{dx}$ Protons"};
-        // opts_hdEdxVsE_true.addInfoPave = false;
-        // std::vector<int> colors_dEdx = {kBlack+1, kRed+1};
-        // // opts.drawOption = "COLZ";
-        // opts_hdEdxVsE_true.drawOption = "E";
-        // Plot1D({hdEdxVsE_true_Pion->ProfileX(), hdEdxVsE_true_Proton->ProfileX()}, colors_dEdx, "dEdxVsE_trueKE.png", opts_hdEdxVsE_true); 
 
         PlotOptions opts_hdEdxVsE_true;
         opts_hdEdxVsE_true.drawOption = "SCAT";
@@ -657,7 +604,6 @@ int main(int argc, char **argv) {
         opts_hdEdxVsE_cluster.drawOption = "SCAT";
         opts_hdEdxVsE_cluster.legendEntries = {"#pi^{+}","p"};
         opts_hdEdxVsE_cluster.legendDrawOpt = "P";
-        // Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton, hdEdxVsE_cluster_Electron}, {kBlack, kRed, kGreen},"dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
         Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
 
         PlotOptions opts_h2_Eres;
@@ -687,7 +633,6 @@ int main(int argc, char **argv) {
         //CLEANUP
         delete hNSigmaPion;
         delete hNSigmaProton;
-        // delete hNSigmaElectron;
         delete hdEdxVsE_cluster_Pion;
         delete hdEdxVsE_true_Pion; 
         delete hdEdxVsE_cluster_Proton;

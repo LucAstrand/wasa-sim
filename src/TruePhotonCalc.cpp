@@ -27,7 +27,7 @@ std::vector<TruePhoton> TruePhotonBuilder(
         p4.SetVect(dir * hit.e);
         p4.SetE(hit.e);
 
-        outPhotons.push_back({dir, p4});
+        outPhotons.push_back({dir, p4, hit.truePhotonParentID});
     }
 
     return outPhotons;
@@ -39,6 +39,8 @@ std::vector<TruePi0> TruePi0Builder(const std::vector<TruePhoton>& photons)
 
     for (const auto& g : photons) {
         // if (g.parentPdg != 111) continue; // by construction the photons are from pi0s (from GEANT4)
+
+        std::cout << "[TruePi0Builder] photon parentID: " << g.parentID << std::endl;
 
         auto& pi0 = pi0map[g.parentID];
         pi0.trackID = g.parentID;

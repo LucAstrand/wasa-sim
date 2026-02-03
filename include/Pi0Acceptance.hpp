@@ -16,19 +16,21 @@
 
 class Pi0Acceptance {
 public:
-    Pi0Acceptance(const std::string& tag, double massLow = 120.0, double massHigh = 150.0, 
-                  double pi0Mass = 134.977, int nBins = 20, double eMin = 0, double eMax = 500);
+    Pi0Acceptance(const std::string& tag, int nBins = 20, double xMin = 0, double xMax = 500);
     
-    // Pi0Acceptance(double etaMin, double etaMax, int nBins);
+    void ProcessGPSEvent(const std::vector<TruePi0>& truePi0s, 
+                        const double xVar, // whatever vairable one chooses Eg Ekin, theta, eta...
+                        int nPi0s = 1 // For the GPS generally we shoot one particle per event. 
+                        );
 
-    void ProcessEvent(const std::vector<Cluster>& clusters, 
-                      const std::vector<TruePhoton>& truePhotons, 
-                      const double primaryEkin);
+    void ProcessSignalEvent(const std::vector<TruePi0>& truePi0s, 
+                      const double xVar, // whatever vairable one chooses Eg Ekin, theta, eta...
+                      int nPi0s);
     
-    void ProcessEventTwoHist(const std::vector<Cluster>& clusters,
-                             const std::vector<TruePhoton>& TruePhotons,
-                             const double primaryEkin,
-                             const double primaryTheta);
+    // void ProcessEventTwoHist(const std::vector<Cluster>& clusters,
+    //                          const std::vector<TruePhoton>& TruePhotons,
+    //                          const double primaryEkin,
+    //                          const double primaryTheta);
 
     void FinalizePlot(const std::string& outFileName = "Pi0Efficiency.png");
 
@@ -42,11 +44,7 @@ private:
     TH1D* h_num_2;
     TH1D* h_den_2;
     int nBins_;
-    double eMin_, eMax_;
+    double xMin_, xMax_;
     int countTot;
-
-    double ComputeTruePi0Ekin(const std::vector<TruePhoton>& truePhotons);
-    int CountRecoPi0s(const std::vector<Cluster>& clusters);
-    int CountTruePi0s(const std::vector<TruePhoton>& truePhotons);
 
 };
