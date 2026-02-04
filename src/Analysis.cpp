@@ -5,6 +5,9 @@
 #include "TProfile.h"
 #include "TH2F.h"
 #include "TGraph.h"
+#include "TMatrixDSym.h"
+#include "TMatrixD.h"
+#include "TVectorD.h"
 
 #include <mcpl.h>
 #include "CLI11.hpp"
@@ -39,7 +42,8 @@ int main(int argc, char **argv) {
                     << "  --full-analysis       Performs everything\n"
                     << "  --pi0-analysis        Reconstruct Pi0s and invariant mass analysis\n"
                     << "  --charged-analysis    Reconstruct Charged objects and do PID studies\n"
-                    << "  --truth-analysis      Performs truth level analysis for Pi0s\n";
+                    << "  --truth-analysis      Performs truth level analysis for Pi0s\n"
+                    << "  --event-variables     Computes the event level variables\n";
             return 1;
         }
     
@@ -48,6 +52,7 @@ int main(int argc, char **argv) {
     bool doPi0Analysis = false;
     bool doChargedAnalysis = false;
     bool doTruthAnalysis = false;
+    bool doEventVariables = false;
 
     for (int i = 3; i<argc; ++i) {
         std::string arg = argv[i];
@@ -55,13 +60,14 @@ int main(int argc, char **argv) {
             doPi0Analysis = true;
             doChargedAnalysis = true;
             doTruthAnalysis = true;
+            doEventVariables = true;
         }
         if (arg == "--pi0-analysis") doPi0Analysis = true;
         if (arg == "--charged-analysis") doChargedAnalysis = true;
         if (arg == "--truth-analysis") doTruthAnalysis = true;
+        if (arg == "--event-variables") doEventVariables = true;
     }
 
-    
     SetPrettyStyle();
 
     TFile *f = TFile::Open(root_inputfile.c_str());
@@ -155,8 +161,11 @@ int main(int argc, char **argv) {
     std::vector<TruePhoton> truePhotons;
     std::vector<TruePi0> truePi0s;
     std::vector<Pi0Candidate> selected;
-    std::vector<ChargedTrack> ChargedTracks;
+    std::vector<ChargedTrack> chargedTracks;
     std::vector<ChargedCluster> chargedClusters;
+    std::vector<ChargedObject> chargedObjects;
+    std::vector<TVector3> momenta;
+    std::vector<double> weights;
     //Pi0 analysis objects
     TH1F *hPi0Mass                  = nullptr;
     TH2F *hPi0ppM_pre               = nullptr;
@@ -184,6 +193,9 @@ int main(int argc, char **argv) {
     Pi0Acceptance  *pi0AcceptanceVsEta   = nullptr;
     Pi0Acceptance  *pi0AcceptanceVsTheta = nullptr;
     PIDEfficiency  *pidEff               = nullptr;
+    // Event level variables
+    TH1F  *hEventInvariantMass      = nullptr; 
+    TH1F  *hEventSphericity         = nullptr; 
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -218,6 +230,10 @@ int main(int argc, char **argv) {
         hdEdxSmearProton        = new TH1F("hdEdxSmearProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
         hClusterE               = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
     }
+    if (doEventVariables) {
+        hEventInvariantMass     = new TH1F("hEventInvariantMass",";Invariant Mass [MeV];Events",100,0,3000);
+        hEventSphericity        = new TH1F("hEventSphericity",";Sphericity;Events",100,0,1);
+    }
 
 
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
@@ -247,11 +263,13 @@ int main(int argc, char **argv) {
         }
 
         if (doChargedAnalysis) {
-            ChargedTracks.clear();
+            chargedTracks.clear();
             size_t nChargedTracks = TPC_Edep->size();
+            // std::cout << "[CHARGED] Number of charged tracks: " << nChargedTracks << std::endl;
             for (size_t k=0; k<nChargedTracks; ++k) {
+                if (!TPC_Edep || !TPC_firstPosX || !TPC_lastPosX) continue; // safety
                 // for now the resolution is hardcoded to be 0.15
-                ChargedTracks.push_back(
+                chargedTracks.push_back(
                     {k, 
                     vertex, 
                     TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]), 
@@ -262,37 +280,50 @@ int main(int argc, char **argv) {
 
         if (doTruthAnalysis) {
             trueHits.clear();
+            // truePhotons.clear();
+            truePi0s.clear();
             size_t nTrueHits = truePhotonE->size();
             for (size_t k=0; k<nTrueHits; ++k) {
-                std::cout << "Photon parentID when fill hits: " << (*truePhotonParentID)[k] << std::endl;
+                // std::cout << "Photon parentID when fill hits: " << (*truePhotonParentID)[k] << std::endl;
                 trueHits.push_back({(*truePhotonPosX)[k], (*truePhotonPosY)[k], (*truePhotonPosZ)[k], (*truePhotonE)[k], (*truePhotonTrackID)[k], (*truePhotonParentID)[k]});
             }
             
             truePhotons = TruePhotonBuilder(trueHits, vertex);
-            std::cout << "Number of Truth level photons (from Pi0s): " << truePhotons.size() << std::endl;
+            // std::cout << "Number of Truth level photons (from Pi0s): " << truePhotons.size() << std::endl;
             truePi0s = TruePi0Builder(truePhotons);
-            std::cout << "Number of Truth level Pi0s: " << truePi0s.size() << std::endl;
+            // std::cout << "Number of Truth level Pi0s: " << truePi0s.size() << std::endl;
 
             for (TruePi0 tpi0 : truePi0s) {
                 if (hPi0TrueMass) hPi0TrueMass->Fill(tpi0.p4.M());
             }
-            
-            // if (truePhotons.size() == 2) {
-            //         TLorentzVector diphoton = truePhotons[0].p4 + truePhotons[1].p4;
-            //         if (hPi0TrueMass) hPi0TrueMass->Fill(diphoton.M());
-            //     }
         }
 
         // // Charged Object Clustering 
 
         if (doChargedAnalysis) {
             double thetaMax = 25.0 * TMath::DegToRad();
-            chargedClusters = MatchHitsToTracks(ChargedTracks, hits, thetaMax);
-            for (ChargedCluster cluster : chargedClusters) {
+            // chargedClusters.clear();
+            chargedObjects.clear();
+            chargedClusters = MatchHitsToTracks(chargedTracks, hits, thetaMax);
+
+            // std::cout << "[CHARGED] Number of charged clusters: " << chargedClusters.size() << std::endl;
+
+            for (const ChargedCluster& cluster : chargedClusters) {
+                
+                //Build charged objects
+                TLorentzVector charged_p4;
+                charged_p4.SetPxPyPzE(
+                    cluster.totalEnergy * cluster.direction.X(),
+                    cluster.totalEnergy * cluster.direction.Y(),
+                    cluster.totalEnergy * cluster.direction.Z(),
+                    cluster.totalEnergy
+                );
+
+                chargedObjects.push_back({cluster.trackID, charged_p4, &cluster});
                 if (hNSigmaPion) hNSigmaPion->Fill(cluster.nSigmaPion);
                 if (hNSigmaProton) hNSigmaProton->Fill(cluster.nSigmaProton);
                 // hNSigmaElectron->Fill(cluster.nSigmaElectron);
-                if (cluster.objectTruePDG == 211) {
+                if (cluster.objectTruePDG == 211 || cluster.objectTruePDG == -211) {
                 if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
                 if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
                 // if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y 
@@ -372,6 +403,7 @@ int main(int argc, char **argv) {
         // // Invariant mass plot (neutral pion / double photon)
 
         if (doPi0Analysis) {
+            selected.clear();
 
             double param_h = 135;
             double param_k = 1.6;
@@ -502,6 +534,68 @@ int main(int argc, char **argv) {
 
         if (doChargedAnalysis) {
             pidEff->ProcessEvent(chargedClusters);
+        }
+
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+        if (doEventVariables) {
+            
+            momenta.clear();
+            weights.clear();
+
+            TLorentzVector p4_event;
+            p4_event.SetPxPyPzE(0,0,0,0);
+
+            for (const auto& cl : clusters) {
+                p4_event += cl.p4;
+                TVector3 p = cl.p4.Vect();
+                momenta.push_back(p);
+                weights.push_back(p.Mag());
+            }
+
+            for (const auto& ch : chargedObjects) {
+                p4_event += ch.p4;
+                TVector3 p = ch.p4.Vect();
+                momenta.push_back(p);
+                weights.push_back(p.Mag());
+            }
+
+            if (hEventInvariantMass) hEventInvariantMass->Fill(p4_event.M());
+
+            TMatrixDSym S(3);
+            double norm = 0.0;
+
+            for (size_t i = 0; i < momenta.size(); ++i) {
+                const TVector3& p = momenta[i];
+                double w = weights[i];
+
+                S(0,0) += w * p.X() * p.X();
+                S(0,1) += w * p.X() * p.Y();
+                S(0,2) += w * p.X() * p.Z();
+                S(1,1) += w * p.Y() * p.Y();
+                S(1,2) += w * p.Y() * p.Z();
+                S(2,2) += w * p.Z() * p.Z();
+                
+                norm += w * p.Mag2();
+            }
+
+            S(1,0) = S(0,1);
+            S(2,0) = S(0,2);
+            S(2,1) = S(1,2);
+
+            if (norm > 0) S *= (1/norm);
+
+            TVectorD eigenVals(3);
+            TMatrixD eigenVecs = S.EigenVectors(eigenVals);
+
+            std::vector<double> lambdas = {eigenVals[0], eigenVals[1], eigenVals[2]};
+            std::sort(lambdas.begin(), lambdas.end(), std::greater<>());
+
+            double sphericity = 1.5 * (lambdas[1] + lambdas[2]);
+
+            if (hEventSphericity) hEventSphericity->Fill(sphericity);
+
+
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -638,6 +732,21 @@ int main(int argc, char **argv) {
         delete hdEdxVsE_cluster_Proton;
         delete hdEdxVsE_true_Proton;
         delete hClusterE;
+    }
+
+    if (doEventVariables) {
+        PlotOptions opts_hEventInvariantMass;
+        opts_hEventInvariantMass.addLegend = true;
+        opts_hEventInvariantMass.legendEntries = {"Event invariant mass"};
+        opts_hEventInvariantMass.addInfoPave = true;
+        Plot1D({hEventInvariantMass}, {kBlack}, "EventVar/eventInvariantMass.png", opts_hEventInvariantMass);
+
+        PlotOptions opts_hEventSphericity;
+        opts_hEventSphericity.addLegend = true;
+        opts_hEventSphericity.legendEntries = {"Event sphericity"};
+        opts_hEventSphericity.addInfoPave = true;
+        Plot1D({hEventSphericity}, {kBlack}, "EventVar/eventSphericity.png", opts_hEventSphericity);
+
     }
 
     f->Close(); delete f;

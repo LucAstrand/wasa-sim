@@ -17,6 +17,7 @@ void SetPrettyStyle() {
     std::filesystem::create_directories("plots/Neutral");
     std::filesystem::create_directories("plots/Charged");
     std::filesystem::create_directories("plots/Truth");
+    std::filesystem::create_directories("plots/EventVar");
     gROOT->SetStyle("Plain");
     gStyle->SetOptStat(0);
     gStyle->SetCanvasColor(0);

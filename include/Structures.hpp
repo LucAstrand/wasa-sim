@@ -31,20 +31,23 @@ struct TruePhotonHit {
     HitOwner owner = HitOwner::None;
 };
 
+struct TruePhoton {
+    TVector3 dir;
+    TLorentzVector p4;
+    int parentID;
+};
+
+struct TruePi0 {
+    int trackID;
+    TLorentzVector p4;
+    std::vector<const TruePhoton*> photons;
+};
+
 struct Cluster {
     std::vector<Hit*> hits; // Pointer now! use -> to access the quantities!
     TVector3 centroid;
     TLorentzVector p4;
 };
-
-// struct Pi0Candidate {
-//     size_t i;
-//     size_t j;
-//     double mgg;
-//     double theta;
-//     double score;
-//     TLorentzVector p4;
-// };
 
 struct Pi0Candidate {
     const Cluster* c1;
@@ -93,17 +96,10 @@ struct ChargedCluster {
     PID pidGuess;
 };
 
-struct TruePhoton {
-    TVector3 dir;
-    TLorentzVector p4;
-    // int parentPDG;
-    int parentID;
-};
-
-struct TruePi0 {
+struct ChargedObject {
     int trackID;
-    TLorentzVector p4;
-    std::vector<const TruePhoton*> photons;
+    TLorentzVector p4; 
+    const ChargedCluster* c; // For any reconstruction detail
 };
 
 struct EtaPhiTowerKey {
