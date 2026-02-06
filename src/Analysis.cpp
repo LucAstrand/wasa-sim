@@ -21,6 +21,8 @@
 #include "Pi0Efficiency.hpp"
 #include "Pi0Acceptance.hpp"
 #include "PIDEfficiency.hpp"
+#include "RecoEvent.hpp"
+#include "Calibration.hpp"
 
 // ---------------------- Helper ----------------------
 template <typename T>
@@ -39,6 +41,7 @@ int main(int argc, char **argv) {
     if (argc < 3) {
             std::cout << "Usage: " << argv[0] << " <input.root> <mcpl_data.mcpl> [options]\n"
                     << "Options:\n"
+                    << "  --calibration         Performs calibration procedure\n"
                     << "  --full-analysis       Performs everything\n"
                     << "  --pi0-analysis        Reconstruct Pi0s and invariant mass analysis\n"
                     << "  --charged-analysis    Reconstruct Charged objects and do PID studies\n"
@@ -49,6 +52,7 @@ int main(int argc, char **argv) {
     
     std::string root_inputfile = argv[1];
     std::string mcpl_inputfile = argv[2];
+    bool doCalibration = false;
     bool doPi0Analysis = false;
     bool doChargedAnalysis = false;
     bool doTruthAnalysis = false;
@@ -56,7 +60,12 @@ int main(int argc, char **argv) {
 
     for (int i = 3; i<argc; ++i) {
         std::string arg = argv[i];
+        if (arg == "--calibration") doCalibration = true;
         if (arg == "--full-analysis") {
+            if (!std::filesystem::exists("chargedKE.root")) {
+                std::cerr << "No calibration root file detected, please run './Analysis <input.root> <mcpl_data.mcpl> --calibration' first" << std::endl;
+                return 1;
+            }
             doPi0Analysis = true;
             doChargedAnalysis = true;
             doTruthAnalysis = true;
@@ -157,36 +166,36 @@ int main(int argc, char **argv) {
     //Containers used throughout the analysis 
     std::vector<Hit> hits;
     std::vector<TruePhotonHit> trueHits;
-    std::vector<Cluster> clusters;
+    // std::vector<Cluster> clusters;
     std::vector<TruePhoton> truePhotons;
     std::vector<TruePi0> truePi0s;
     std::vector<Pi0Candidate> selected;
     std::vector<ChargedTrack> chargedTracks;
-    std::vector<ChargedCluster> chargedClusters;
-    std::vector<ChargedObject> chargedObjects;
+    // std::vector<ChargedCluster> chargedClusters;
+    // std::vector<ChargedObject> chargedObjects;
     std::vector<TVector3> momenta;
     std::vector<double> weights;
     //Pi0 analysis objects
-    TH1F *hPi0Mass                  = nullptr;
-    TH2F *hPi0ppM_pre               = nullptr;
-    TH2F *hPi0ppM_post              = nullptr;
-    TH1F *hClusterE                 = nullptr;
-    TH1F *hPi0TrueMass              = nullptr;
-    TH1F *h_mass_truthE_recoAngle   = nullptr;
-    TH1F *h_mass_recoE_truthAngle   = nullptr;
-    TH1F *hEffvsE                   = nullptr;
+    TH1F *hPi0Mass                       = nullptr;
+    TH2F *hPi0ppM_pre                    = nullptr;
+    TH2F *hPi0ppM_post                   = nullptr;
+    TH1F *hClusterE                      = nullptr;
+    TH1F *hPi0TrueMass                   = nullptr;
+    TH1F *h_mass_truthE_recoAngle        = nullptr;
+    TH1F *h_mass_recoE_truthAngle        = nullptr;
+    TH1F *hEffvsE                        = nullptr;
     // Charged analysis objects
-    TH1F  *hNSigmaPion              = nullptr;
-    TH1F  *hNSigmaProton            = nullptr;
-    TH2F  *hdEdxVsE_cluster_Pion    = nullptr;
-    TH2F  *hdEdxVsE_true_Pion       = nullptr;
-    TH2F  *hdEdxVsE_cluster_Proton  = nullptr;
-    TH2F  *hdEdxVsE_true_Proton     = nullptr;
-    TH2F  *h2_Eres                  = nullptr;
-    TH1F  *hdEdxTruePion            = nullptr;
-    TH1F  *hdEdxSmearPion           = nullptr;
-    TH1F  *hdEdxTrueProton          = nullptr;
-    TH1F  *hdEdxSmearProton         = nullptr;
+    TH1F  *hNSigmaPion                   = nullptr;
+    TH1F  *hNSigmaProton                 = nullptr;
+    TH2F  *hdEdxVsE_cluster_Pion         = nullptr;
+    TH2F  *hdEdxVsE_true_Pion            = nullptr;
+    TH2F  *hdEdxVsE_cluster_Proton       = nullptr;
+    TH2F  *hdEdxVsE_true_Proton          = nullptr;
+    TH2F  *h2_Eres                       = nullptr;
+    TH1F  *hdEdxTruePion                 = nullptr;
+    TH1F  *hdEdxSmearPion                = nullptr;
+    TH1F  *hdEdxTrueProton               = nullptr;
+    TH1F  *hdEdxSmearProton              = nullptr;
     // Analysis helper classes (also pointers)
     Pi0Efficiency  *effPlotter           = nullptr;
     Pi0Acceptance  *accPlotter           = nullptr;
@@ -194,8 +203,28 @@ int main(int argc, char **argv) {
     Pi0Acceptance  *pi0AcceptanceVsTheta = nullptr;
     PIDEfficiency  *pidEff               = nullptr;
     // Event level variables
-    TH1F  *hEventInvariantMass      = nullptr; 
-    TH1F  *hEventSphericity         = nullptr; 
+    TH1F  *hEventInvariantMass           = nullptr; 
+    TH1F  *hEventSphericity              = nullptr; 
+
+    //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+    //Calibration procedure
+    if (doCalibration) {
+
+        DoCalibration(
+            t,
+            nentries,
+            pi0_per_event,
+            centerXs, centerYs, centerZs, energies,
+            primaryX, primaryY, primaryZ, primaryEkin,
+            TPC_firstPosX, TPC_firstPosY, TPC_firstPosZ,
+            TPC_lastPosX,  TPC_lastPosY,  TPC_lastPosZ,
+            TPC_TrueKE, TPC_pdg, TPC_dEdx,
+            TPC_smearedEdep, TPC_PathLength,
+            "chargedKE.root"
+        );
+
+    }
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -231,10 +260,11 @@ int main(int argc, char **argv) {
         hClusterE               = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
     }
     if (doEventVariables) {
-        hEventInvariantMass     = new TH1F("hEventInvariantMass",";Invariant Mass [MeV];Events",100,0,3000);
+        hEventInvariantMass     = new TH1F("hEventInvariantMass",";Invariant Mass [MeV];Events",100,0,5000);
         hEventSphericity        = new TH1F("hEventSphericity",";Sphericity;Events",100,0,1);
     }
 
+    ChargedKECalibration calibration("chargedKE.root");
 
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
         t->GetEntry(ievt);
@@ -284,45 +314,59 @@ int main(int argc, char **argv) {
             truePi0s.clear();
             size_t nTrueHits = truePhotonE->size();
             for (size_t k=0; k<nTrueHits; ++k) {
-                // std::cout << "Photon parentID when fill hits: " << (*truePhotonParentID)[k] << std::endl;
                 trueHits.push_back({(*truePhotonPosX)[k], (*truePhotonPosY)[k], (*truePhotonPosZ)[k], (*truePhotonE)[k], (*truePhotonTrackID)[k], (*truePhotonParentID)[k]});
             }
             
             truePhotons = TruePhotonBuilder(trueHits, vertex);
-            // std::cout << "Number of Truth level photons (from Pi0s): " << truePhotons.size() << std::endl;
             truePi0s = TruePi0Builder(truePhotons);
-            // std::cout << "Number of Truth level Pi0s: " << truePi0s.size() << std::endl;
 
             for (TruePi0 tpi0 : truePi0s) {
                 if (hPi0TrueMass) hPi0TrueMass->Fill(tpi0.p4.M());
             }
         }
 
-        // // Charged Object Clustering 
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+        // Reconstruct Event
+
+        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex);
+
+
+
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+
+
+        // // Charged Object Clustering
 
         if (doChargedAnalysis) {
-            double thetaMax = 25.0 * TMath::DegToRad();
-            // chargedClusters.clear();
-            chargedObjects.clear();
-            chargedClusters = MatchHitsToTracks(chargedTracks, hits, thetaMax);
+            // double thetaMax = 25.0 * TMath::DegToRad();
+            // // chargedClusters.clear();
+            // chargedObjects.clear();
+            // chargedClusters = MatchHitsToTracks(chargedTracks, hits, thetaMax);
 
-            // std::cout << "[CHARGED] Number of charged clusters: " << chargedClusters.size() << std::endl;
-
-            for (const ChargedCluster& cluster : chargedClusters) {
+            for (const ChargedCluster& cluster : reco.chargedClusters) {
                 
+                double calibratedKE = calibration.GetMeanKE(reco.chargedClusters.size(), reco.EM_energy);
+                double mass = PDGMassMeV(PIDToPDG(cluster.pidGuess));
+                double p_mag = std::sqrt(calibratedKE * (calibratedKE + 2 * mass));
+                TVector3 dir = cluster.direction.Unit();
                 //Build charged objects
                 TLorentzVector charged_p4;
                 charged_p4.SetPxPyPzE(
-                    cluster.totalEnergy * cluster.direction.X(),
-                    cluster.totalEnergy * cluster.direction.Y(),
-                    cluster.totalEnergy * cluster.direction.Z(),
-                    cluster.totalEnergy
+                    dir.X() * p_mag,
+                    dir.Y() * p_mag,
+                    dir.Z() * p_mag,
+                    calibratedKE + mass
                 );
 
-                chargedObjects.push_back({cluster.trackID, charged_p4, &cluster});
+                reco.chargedObjects.push_back({cluster.trackID, charged_p4, &cluster});
+
+
+
+
                 if (hNSigmaPion) hNSigmaPion->Fill(cluster.nSigmaPion);
                 if (hNSigmaProton) hNSigmaProton->Fill(cluster.nSigmaProton);
-                // hNSigmaElectron->Fill(cluster.nSigmaElectron);
                 if (cluster.objectTruePDG == 211 || cluster.objectTruePDG == -211) {
                 if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
                 if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
@@ -344,59 +388,26 @@ int main(int argc, char **argv) {
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-        
-        //DEBUG
 
-        // Double check to see if ownership logic is working! 
-        // Only uncomment if you want to check!
-        // for (const auto& h : hits) {
-        //     if (h.owner == HitOwner::Charged) {
-        //         std::cout << "Charged reco claimed this hit" << std::endl;
-        //     }
-        //     if (h.owner == HitOwner::Neutral) {
-        //         std::cout << "Neutral reco claimed this hit" << std::endl;
-        //     }
-        //     if (h.owner == HitOwner::None) {
-        //         std::cout << "No one claimed this hit" << std::endl;
-        //     }
-        // }
-        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+        // Neutral Object Clustering
 
-        // Neutral Object Clustering --> To be done after the Charged Object Clustering 
+        // if (doPi0Analysis) {
+        //     // double totalE_Evt = 0;
+        //     clusters.clear();
 
-        if (doPi0Analysis) {
-            // double totalE_Evt = 0;
-            clusters.clear();
-
-            // double dEta = 0.10/2;
-            // double dPhi = 0.10/2;
-            // double E_seed = 15.00;
-            // double E_neighbor = 0.03;
-            // int winSize = 7;
-            // clusters = SlidingWindowClusterHits(hits, vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
+        //     // double dEta = 0.10/2;
+        //     // double dPhi = 0.10/2;
+        //     // double E_seed = 15.00;
+        //     // double E_neighbor = 0.03;
+        //     // int winSize = 7;
+        //     // clusters = SlidingWindowClusterHits(hits, vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
             
-            clusters = clusterNeutralHits(hits, vertex, 25 * TMath::DegToRad()); // Have to optimise the angle a bit! 
-            // Apply cluster energy threshold
-            clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
-                                        [](const Cluster &c){ return c.p4.E() < 50.0; }),
-                        clusters.end());
-        }
-
-
-        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-
-        // DOUBLE CHECK WHAT I WANT TO DO WITH THIS STUFF
-        //Cluster num plots
-
-        // for (size_t ci=0; ci<clusters.size(); ++ci) {
-        //     hClusterE->Fill(clusters[ci].p4.E());
+        //     clusters = clusterNeutralHits(hits, vertex, 25 * TMath::DegToRad()); // Have to optimise the angle a bit! 
+        //     // Apply cluster energy threshold
+        //     clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
+        //                                 [](const Cluster &c){ return c.p4.E() < 50.0; }),
+        //                 clusters.end());
         // }
-        // hNClusters->Fill(clusters.size());
-
-        // // Fill cluster num plots based on primary Ekin
-        // if (genEkin < 200) hNClusters_lowEkin->Fill(clusters.size());
-        // else if (genEkin >= 200 && genEkin < 400) hNClusters_midEkin->Fill(clusters.size());
-        // else hNClusters_highEkin->Fill(clusters.size());
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
        
@@ -413,11 +424,11 @@ int main(int argc, char **argv) {
 
             std::vector<Pi0Candidate> candidates;
 
-            for (size_t a = 0; a < clusters.size(); ++a) {
-                for (size_t b = a + 1; b < clusters.size(); ++b) {
+            for (size_t a = 0; a < reco.clusters.size(); ++a) {
+                for (size_t b = a + 1; b < reco.clusters.size(); ++b) {
 
-                    const auto& g1 = clusters[a].p4;
-                    const auto& g2 = clusters[b].p4;
+                    const auto& g1 = reco.clusters[a].p4;
+                    const auto& g2 = reco.clusters[b].p4;
 
                     double E1 = g1.E();
                     double E2 = g2.E();
@@ -433,8 +444,8 @@ int main(int argc, char **argv) {
                     Pi0Candidate cand;
                     // cand.i = a;
                     // cand.j = b;
-                    cand.c1 = &clusters[a];
-                    cand.c2 = &clusters[b];
+                    cand.c1 = &reco.clusters[a];
+                    cand.c2 = &reco.clusters[b];
                     cand.mgg = mgg;
                     cand.theta = theta;
                     cand.p4 = g1 + g2;
@@ -472,17 +483,17 @@ int main(int argc, char **argv) {
         // should introduce the selection procedure here too! Right now this is WRONG
 
         if (doTruthAnalysis) {
-            std::vector<int> clusterToTrue = matchClustersToTruth(clusters, truePhotons, 10);
+            std::vector<int> clusterToTrue = matchClustersToTruth(reco.clusters, truePhotons, 10);
 
             // Construct hybrid TLorentzVectors
             std::vector<TLorentzVector> photons_tE_rA; // truth E + reco angle
             std::vector<TLorentzVector> photons_rE_tA; // reco E + truth angle
 
-            for (size_t ic=0; ic<clusters.size(); ++ic) {
+            for (size_t ic=0; ic<reco.clusters.size(); ++ic) {
                 int it = clusterToTrue[ic];
                 if (it < 0) continue; // skip unmatched
 
-                const Cluster &c = clusters[ic];
+                const Cluster &c = reco.clusters[ic];
                 const TruePhoton &t = truePhotons[it];
 
                 // truth energy + reco angle
@@ -508,7 +519,7 @@ int main(int argc, char **argv) {
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
         if (doPi0Analysis) {
-            if (effPlotter) effPlotter->ProcessEvent(truePi0s, selected, clusters);
+            if (effPlotter) effPlotter->ProcessEvent(truePi0s, selected, reco.clusters);
 
 
             // if (accPlotter) accPlotter->ProcessEvent(clusters, truePhotons, genEkin);
@@ -533,7 +544,7 @@ int main(int argc, char **argv) {
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
         if (doChargedAnalysis) {
-            pidEff->ProcessEvent(chargedClusters);
+            pidEff->ProcessEvent(reco.chargedClusters);
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -546,14 +557,14 @@ int main(int argc, char **argv) {
             TLorentzVector p4_event;
             p4_event.SetPxPyPzE(0,0,0,0);
 
-            for (const auto& cl : clusters) {
+            for (const auto& cl : reco.clusters) {
                 p4_event += cl.p4;
                 TVector3 p = cl.p4.Vect();
                 momenta.push_back(p);
                 weights.push_back(p.Mag());
             }
 
-            for (const auto& ch : chargedObjects) {
+            for (const auto& ch : reco.chargedObjects) {
                 p4_event += ch.p4;
                 TVector3 p = ch.p4.Vect();
                 momenta.push_back(p);
