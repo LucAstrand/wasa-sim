@@ -7,6 +7,8 @@
 #include "TColor.h"
 #include "TPaveText.h"
 #include "TCanvas.h"
+#include "TProfile.h"
+
 #include <filesystem>
 #include <algorithm> 
 #include <iostream>   
@@ -18,6 +20,7 @@ void SetPrettyStyle() {
     std::filesystem::create_directories("plots/Charged");
     std::filesystem::create_directories("plots/Truth");
     std::filesystem::create_directories("plots/EventVar");
+    std::filesystem::create_directories("plots/EventVar/ClosureTest");
     gROOT->SetStyle("Plain");
     gStyle->SetOptStat(0);
     gStyle->SetCanvasColor(0);
@@ -94,28 +97,8 @@ std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entrie
     return leg;
 }
 
-// void PerformFitAndAddToLegend(TH1* hist, TLegend* leg, const PlotOptions& options) {
-//     double fitMin = (options.fitMin == -999) ? hist->GetXaxis()->GetXmin() : options.fitMin;
-//     double fitMax = (options.fitMax == -999) ? hist->GetXaxis()->GetXmax() : options.fitMax;
-//     auto f = std::make_unique<TF1>("fit", options.fitFunction.c_str(), fitMin, fitMax);
-//     f->SetLineColor(kRed + 1);
-//     f->SetLineWidth(2);
-//     double maxBin = hist->GetMaximum();
-//     double meanGuess = hist->GetBinCenter(hist->GetMaximumBin());
-//     double sigmaGuess = hist->GetRMS();
-//     f->SetParameters(maxBin, meanGuess, sigmaGuess);
-//     hist->Fit(f.get(), "RQ");  // Quiet, range
-//     double mean = f->GetParameter(1);
-//     double sigma = f->GetParameter(2);
-//     double errMu = f->GetParError(1);
-//     double errSi = f->GetParError(2);
-//     f->Draw("SAME");  // Draw fit on current canvas
-//     if (leg) {
-//         leg->AddEntry(f.get(), "Gaussian Fit:", "l");
-//         leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f", mean, errMu), "");
-//         leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f", sigma, errSi), "");
-//     }
-// }
+
+
 
 void PerformFitAndAddToLegend(TH1* hist, TLegend* leg, const PlotOptions& options)
 {
@@ -233,6 +216,19 @@ void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& options)
     hist->SetLineColor(kBlack);
     hist->SetLineWidth(2);
     hist->Draw(options.drawOption.c_str());  // e.g., "COLZ" for color map if you change default
+
+    std::unique_ptr<TProfile> profX;
+    if (options.overlayProfileX) {
+        profX.reset(hist->ProfileX(
+            (plotname + "_profX").c_str()
+        ));
+        profX->SetLineColor(options.profileColor);
+        profX->SetLineWidth(options.profileLineWidth);
+        profX->SetMarkerColor(options.profileColor);
+        profX->SetMarkerStyle(20);
+        profX->Draw(options.profileDrawOpt.c_str());
+    }
+
     std::unique_ptr<TLegend> leg;
     if (options.addLegend) {
         leg = PlotCreateLegend(options.legendEntries, options.extraLegendLines, options.legendX1, options.legendY1, options.legendX2, options.legendY2, {} ,options.legendDrawOpt);

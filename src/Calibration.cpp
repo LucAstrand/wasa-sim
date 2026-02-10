@@ -5,7 +5,7 @@ ChargedKECalibration::ChargedKECalibration() {
     h_ke = new TH3D(
         "h_ke",
         "Charged KE template;N_{ch};E_{EM} [MeV];KE_{ch} [MeV]",
-        10, 0, 10,
+        10, -0.5, 9.5,
         50, 0, 2000,
         100, 0, 2000
     );
@@ -37,7 +37,8 @@ double ChargedKECalibration::GetMeanKE(int Nch, double Eem) const {
     int by = h_ke->GetYaxis()->FindBin(Eem);
     std::unique_ptr<TH1D> proj(
         h_ke->ProjectionZ("_pz", bx, bx, by, by)
-    );
+    ); // may want some protection against proj->GetEntries() < 10 or something 
+    if (proj->GetEntries() < 10) return NAN; 
     return proj->GetMean();
 }
 
@@ -46,7 +47,8 @@ double ChargedKECalibration::GetRMSKE(int Nch, double Eem) const {
     int by = h_ke->GetYaxis()->FindBin(Eem);
     std::unique_ptr<TH1D> proj(
         h_ke->ProjectionZ("_pz", bx, bx, by, by)
-    );
+    ); // may want some protection against proj->GetEntries() < 10 or something 
+    if (proj->GetEntries() < 10) return NAN; 
     return proj->GetRMS();
 }
 
@@ -147,10 +149,16 @@ void DoCalibration(
         double KEtrue = 0.0;
         int Nch = reco.chargedClusters.size();
 
-        for (size_t i = 0; i < TPC_pdg->size(); ++i) {
-            if ((*TPC_pdg)[i] == 211)
-                KEtrue += (*TPC_TrueKE)[i]; // this is a global thing, like multiple pions!!!! 
+        // for (size_t i = 0; i < TPC_pdg->size(); ++i) {
+        //     if ((*TPC_pdg)[i] == 211)
+        //         KEtrue += (*TPC_TrueKE)[i]; // this is a global thing, like multiple pions!!!! 
+        // }
+
+        for (ChargedCluster& cluster : reco.chargedClusters) {
+            if (abs(cluster.objectTruePDG) == 211) // only charged pions
+                KEtrue += cluster.objectTrueKE;
         }
+
 
         calibration.FillCalibration(
             Nch,

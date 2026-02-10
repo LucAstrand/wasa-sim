@@ -33,6 +33,11 @@ struct PlotOptions {
     bool normalizeHists = false;  // Scale to unit area if true (for overlays)
     double legendX1 = 0.55, legendY1 = 0.7, legendX2 = 0.88, legendY2 = 0.88;  // Customizable position
     double infoX1 = 0.17, infoY1 = 0.70, infoX2 = 0.50, infoY2 = 0.90;
+
+    bool overlayProfileX = false;
+    int profileColor = kBlack;
+    int profileLineWidth = 2;
+    std::string profileDrawOpt = "SAME";
 };
 
 // Core functions

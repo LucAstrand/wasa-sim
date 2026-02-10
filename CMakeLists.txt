@@ -32,6 +32,8 @@ add_executable(Analysis
     src/PlotUtils.cpp
     src/TruePhotonCalc.cpp
     src/PIDEfficiency.cpp
+    src/RecoEvent.cpp 
+    src/Calibration.cpp 
 )
 
 target_include_directories(Analysis PRIVATE include)

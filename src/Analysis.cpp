@@ -10,7 +10,10 @@
 #include "TVectorD.h"
 
 #include <mcpl.h>
+
 #include "CLI11.hpp"
+#include "progressbar.hpp"
+
 #include "Structures.hpp"
 #include "Clustering.hpp"
 #include "PlotUtils.hpp"
@@ -205,6 +208,9 @@ int main(int argc, char **argv) {
     // Event level variables
     TH1F  *hEventInvariantMass           = nullptr; 
     TH1F  *hEventSphericity              = nullptr; 
+    TH1F  *hEventCorrectedTotE           = nullptr; 
+    // TH2F  *hEventClosureTest             = nullptr;
+    std::map<int, TH2F*> hClosureTestByNchs;
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -213,7 +219,7 @@ int main(int argc, char **argv) {
 
         DoCalibration(
             t,
-            nentries,
+            static_cast<int>(nentries * 0.7),
             pi0_per_event,
             centerXs, centerYs, centerZs, energies,
             primaryX, primaryY, primaryZ, primaryEkin,
@@ -262,11 +268,20 @@ int main(int argc, char **argv) {
     if (doEventVariables) {
         hEventInvariantMass     = new TH1F("hEventInvariantMass",";Invariant Mass [MeV];Events",100,0,5000);
         hEventSphericity        = new TH1F("hEventSphericity",";Sphericity;Events",100,0,1);
+        hEventCorrectedTotE     = new TH1F("hEventCorrectedTotE",";Total Corrected Energy[MeV];Events",100,0,5000);
+        // hEventClosureTest       = new TH2F("hEventClosureTest",";E_{EM} [MeV];E_{ch}^{true} [MeV]",100, 0, 2000,100, 0, 2000);
+        hClosureTestByNchs[1]   = new TH2F("h2_Nch1", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
+        hClosureTestByNchs[2]   = new TH2F("h2_Nch2", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
+        hClosureTestByNchs[3]   = new TH2F("h2_Nch3", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
+        hClosureTestByNchs[4]   = new TH2F("h2_Nch4p", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
     }
 
     ChargedKECalibration calibration("chargedKE.root");
 
+    progressbar bar(nentries); 
+
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
+        bar.update(); // just to get some visual feedback on loop progress. 
         t->GetEntry(ievt);
         
         int nPi0 = 0;
@@ -347,20 +362,20 @@ int main(int argc, char **argv) {
 
             for (const ChargedCluster& cluster : reco.chargedClusters) {
                 
-                double calibratedKE = calibration.GetMeanKE(reco.chargedClusters.size(), reco.EM_energy);
-                double mass = PDGMassMeV(PIDToPDG(cluster.pidGuess));
-                double p_mag = std::sqrt(calibratedKE * (calibratedKE + 2 * mass));
-                TVector3 dir = cluster.direction.Unit();
-                //Build charged objects
-                TLorentzVector charged_p4;
-                charged_p4.SetPxPyPzE(
-                    dir.X() * p_mag,
-                    dir.Y() * p_mag,
-                    dir.Z() * p_mag,
-                    calibratedKE + mass
-                );
+                // double calibratedKE = calibration.GetMeanKE(reco.chargedClusters.size(), reco.EM_energy);
+                // double mass = PDGMassMeV(PIDToPDG(cluster.pidGuess));
+                // double p_mag = std::sqrt(calibratedKE * (calibratedKE + 2 * mass));
+                // TVector3 dir = cluster.direction.Unit();
+                // //Build charged objects
+                // TLorentzVector charged_p4;
+                // charged_p4.SetPxPyPzE(
+                //     dir.X() * p_mag,
+                //     dir.Y() * p_mag,
+                //     dir.Z() * p_mag,
+                //     calibratedKE + mass
+                // );
 
-                reco.chargedObjects.push_back({cluster.trackID, charged_p4, &cluster});
+                // reco.chargedObjects.push_back({cluster.trackID, charged_p4, &cluster});
 
 
 
@@ -551,60 +566,81 @@ int main(int argc, char **argv) {
 
         if (doEventVariables) {
             
-            momenta.clear();
-            weights.clear();
-
-            TLorentzVector p4_event;
-            p4_event.SetPxPyPzE(0,0,0,0);
+            // Corrected total energy
+            double totCorrectedE = 0.0;
+            double totTrueKE = 0.0;
 
             for (const auto& cl : reco.clusters) {
-                p4_event += cl.p4;
-                TVector3 p = cl.p4.Vect();
-                momenta.push_back(p);
-                weights.push_back(p.Mag());
+                totCorrectedE += cl.p4.Energy();
+            }
+            for (const auto& ch : reco.chargedClusters) {
+                totCorrectedE += ch.totalEnergy;
+                totTrueKE += ch.objectTrueKE;
             }
 
-            for (const auto& ch : reco.chargedObjects) {
-                p4_event += ch.p4;
-                TVector3 p = ch.p4.Vect();
-                momenta.push_back(p);
-                weights.push_back(p.Mag());
-            }
+            double calibratedKE = calibration.GetMeanKE(reco.chargedClusters.size(), reco.EM_energy);
 
-            if (hEventInvariantMass) hEventInvariantMass->Fill(p4_event.M());
+            if (hEventCorrectedTotE) hEventCorrectedTotE->Fill(totCorrectedE + calibratedKE);
+            // if (hEventClosureTest) hEventClosureTest->Fill(reco.EM_energy, totTrueKE);
 
-            TMatrixDSym S(3);
-            double norm = 0.0;
+            int Nch = reco.chargedClusters.size();
+            int key = (Nch >= 4) ? 4 : Nch;
+            if (hClosureTestByNchs.count(key)) hClosureTestByNchs[key]->Fill(reco.EM_energy, totTrueKE);
 
-            for (size_t i = 0; i < momenta.size(); ++i) {
-                const TVector3& p = momenta[i];
-                double w = weights[i];
+            // momenta.clear();
+            // weights.clear();
 
-                S(0,0) += w * p.X() * p.X();
-                S(0,1) += w * p.X() * p.Y();
-                S(0,2) += w * p.X() * p.Z();
-                S(1,1) += w * p.Y() * p.Y();
-                S(1,2) += w * p.Y() * p.Z();
-                S(2,2) += w * p.Z() * p.Z();
+            // TLorentzVector p4_event;
+            // p4_event.SetPxPyPzE(0,0,0,0);
+
+            // for (const auto& cl : reco.clusters) {
+            //     p4_event += cl.p4;
+            //     TVector3 p = cl.p4.Vect();
+            //     momenta.push_back(p);
+            //     weights.push_back(p.Mag());
+            // }
+
+            // for (const auto& ch : reco.chargedObjects) {
+            //     p4_event += ch.p4;
+            //     TVector3 p = ch.p4.Vect();
+            //     momenta.push_back(p);
+            //     weights.push_back(p.Mag());
+            // }
+
+            // if (hEventInvariantMass) hEventInvariantMass->Fill(p4_event.M());
+
+            // TMatrixDSym S(3);
+            // double norm = 0.0;
+
+            // for (size_t i = 0; i < momenta.size(); ++i) {
+            //     const TVector3& p = momenta[i];
+            //     double w = weights[i];
+
+            //     S(0,0) += w * p.X() * p.X();
+            //     S(0,1) += w * p.X() * p.Y();
+            //     S(0,2) += w * p.X() * p.Z();
+            //     S(1,1) += w * p.Y() * p.Y();
+            //     S(1,2) += w * p.Y() * p.Z();
+            //     S(2,2) += w * p.Z() * p.Z();
                 
-                norm += w * p.Mag2();
-            }
+            //     norm += w * p.Mag2();
+            // }
 
-            S(1,0) = S(0,1);
-            S(2,0) = S(0,2);
-            S(2,1) = S(1,2);
+            // S(1,0) = S(0,1);
+            // S(2,0) = S(0,2);
+            // S(2,1) = S(1,2);
 
-            if (norm > 0) S *= (1/norm);
+            // if (norm > 0) S *= (1/norm);
 
-            TVectorD eigenVals(3);
-            TMatrixD eigenVecs = S.EigenVectors(eigenVals);
+            // TVectorD eigenVals(3);
+            // TMatrixD eigenVecs = S.EigenVectors(eigenVals);
 
-            std::vector<double> lambdas = {eigenVals[0], eigenVals[1], eigenVals[2]};
-            std::sort(lambdas.begin(), lambdas.end(), std::greater<>());
+            // std::vector<double> lambdas = {eigenVals[0], eigenVals[1], eigenVals[2]};
+            // std::sort(lambdas.begin(), lambdas.end(), std::greater<>());
 
-            double sphericity = 1.5 * (lambdas[1] + lambdas[2]);
+            // double sphericity = 1.5 * (lambdas[1] + lambdas[2]);
 
-            if (hEventSphericity) hEventSphericity->Fill(sphericity);
+            // if (hEventSphericity) hEventSphericity->Fill(sphericity);
 
 
         }
@@ -746,18 +782,54 @@ int main(int argc, char **argv) {
     }
 
     if (doEventVariables) {
-        PlotOptions opts_hEventInvariantMass;
-        opts_hEventInvariantMass.addLegend = true;
-        opts_hEventInvariantMass.legendEntries = {"Event invariant mass"};
-        opts_hEventInvariantMass.addInfoPave = true;
-        Plot1D({hEventInvariantMass}, {kBlack}, "EventVar/eventInvariantMass.png", opts_hEventInvariantMass);
+        // PlotOptions opts_hEventInvariantMass;
+        // opts_hEventInvariantMass.addLegend = true;
+        // opts_hEventInvariantMass.legendEntries = {"Event invariant mass"};
+        // opts_hEventInvariantMass.addInfoPave = true;
+        // Plot1D({hEventInvariantMass}, {kBlack}, "EventVar/eventInvariantMass.png", opts_hEventInvariantMass);
 
-        PlotOptions opts_hEventSphericity;
-        opts_hEventSphericity.addLegend = true;
-        opts_hEventSphericity.legendEntries = {"Event sphericity"};
-        opts_hEventSphericity.addInfoPave = true;
-        Plot1D({hEventSphericity}, {kBlack}, "EventVar/eventSphericity.png", opts_hEventSphericity);
+        // PlotOptions opts_hEventSphericity;
+        // opts_hEventSphericity.addLegend = true;
+        // opts_hEventSphericity.legendEntries = {"Event sphericity"};
+        // opts_hEventSphericity.addInfoPave = true;
+        // Plot1D({hEventSphericity}, {kBlack}, "EventVar/eventSphericity.png", opts_hEventSphericity);
 
+        PlotOptions opts_hEventCorrectedTotE;
+        opts_hEventCorrectedTotE.addLegend = true;
+        opts_hEventCorrectedTotE.legendEntries = {"Total corrected event energy"};
+        opts_hEventCorrectedTotE.addInfoPave = true;
+        Plot1D({hEventCorrectedTotE}, {kBlack}, "EventVar/EventCorrectedTotE.png", opts_hEventCorrectedTotE);
+
+        // PlotOptions opts_hEventClosureTest;
+        // opts_hEventClosureTest.drawOption = "COLZ";
+        // opts_hEventClosureTest.overlayProfileX = true;
+        // opts_hEventClosureTest.profileColor = kRed;
+        // opts_hEventClosureTest.addTopLatex = true;
+        // // opts_hEventClosureTest.addLegend = true;
+        // // opts_hEventClosureTest.legendEntries = {"E_{EM} vs KE^{true}"};
+        // Plot2D({hEventClosureTest}, "EventVar/EventClosureTest.png", opts_hEventClosureTest);
+
+        for (auto const& [nCh, hist] : hClosureTestByNchs) {
+            if (!hist) continue;
+            PlotOptions opts_hEventClosureTest;
+            opts_hEventClosureTest.drawOption = "COLZ";
+            opts_hEventClosureTest.overlayProfileX = true;
+            opts_hEventClosureTest.profileColor = kRed;
+            opts_hEventClosureTest.addTopLatex = true;
+            std::string nchlabel;
+            if (nCh < 4) nchlabel = Form("N_{ch} = %d", nCh);
+            else nchlabel = "N_{ch} #geq 4";
+            opts_hEventClosureTest.addLegend = true;
+            opts_hEventClosureTest.legendEntries = {nchlabel};
+            std::string outname = Form("EventVar/ClosureTest/EventClosureTest_%d.png", nCh);
+            Plot2D({hist}, outname, opts_hEventClosureTest); 
+        }
+
+        // delete hEventInvariantMass;
+        // delete hEventSphericity;
+        delete hEventCorrectedTotE;
+        // delete hEventClosureTest;
+        for (auto const& [nCh, hist] : hClosureTestByNchs) delete hClosureTestByNchs[nCh];
     }
 
     f->Close(); delete f;
