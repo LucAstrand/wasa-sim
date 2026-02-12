@@ -2,6 +2,7 @@
 #include "TTree.h"
 #include "TH1F.h"
 #include "TH1.h"
+#include "TF1.h"
 #include "TProfile.h"
 #include "TH2F.h"
 #include "TGraph.h"
@@ -10,6 +11,8 @@
 #include "TVectorD.h"
 
 #include <mcpl.h>
+
+#include <algorithm>
 
 #include "CLI11.hpp"
 #include "progressbar.hpp"
@@ -98,6 +101,7 @@ int main(int argc, char **argv) {
     // Primary vertex
     std::vector<double> *primaryX = nullptr, *primaryY = nullptr, *primaryZ = nullptr, *primaryEkin = nullptr;
     std::vector<double> *primaryPx = nullptr, *primaryPy = nullptr, *primaryPz = nullptr;
+    std::vector<int> *primaryPDG = nullptr;
     SafeSetBranch(t, "PrimaryPosX", primaryX);
     SafeSetBranch(t, "PrimaryPosY", primaryY);
     SafeSetBranch(t, "PrimaryPosZ", primaryZ);
@@ -105,6 +109,7 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "PrimaryMomX", primaryPx);
     SafeSetBranch(t, "PrimaryMomY", primaryPy);
     SafeSetBranch(t, "PrimaryMomZ", primaryPz);
+    SafeSetBranch(t, "PrimaryPDG", primaryPDG);
 
     // Truth info
     std::vector<double> *truePhotonPosX = nullptr, *truePhotonPosY = nullptr, *truePhotonPosZ = nullptr, *truePhotonE = nullptr;
@@ -141,18 +146,24 @@ int main(int argc, char **argv) {
     // mcpl pre-processing to get the #Pi0s per event:
 
     std::vector<int> pi0_per_event;
-    // std::vector<double> pi0_EKin_per_event; // what if there are more than one?!!!?!!
+    std::map<int, double> Ekin_per_event;
     mcpl_file_t mcplFile = mcpl_open_file(mcpl_inputfile.c_str());
     int current_event = -1;
     const mcpl_particle_t* p;
     while ((p = mcpl_read(mcplFile))) {
+
         if (p->userflags == 1) {
             ++current_event;
             pi0_per_event.push_back(0);
             // pi0_EKin_per_event.push_back(0);
         }
+        
         //guard
         if (current_event < 0) continue;
+        
+        if (abs(p->pdgcode) == 211 || p->pdgcode == 111 || p->pdgcode == 22) {
+            Ekin_per_event[current_event] += p->ekin; // Only primary mesons and photons (pi0, pi+- and gammas)
+        }
 
         if (p->pdgcode == 111) {
             pi0_per_event[current_event]++;
@@ -209,8 +220,17 @@ int main(int argc, char **argv) {
     TH1F  *hEventInvariantMass           = nullptr; 
     TH1F  *hEventSphericity              = nullptr; 
     TH1F  *hEventCorrectedTotE           = nullptr; 
+
+    TH2F  *hTrueVsVis                    = nullptr;
+    TH2F  *hEventClosureTest             = nullptr;
+    TH1F  *hDiffERecoVsETrue             = nullptr;
+
+    // std::map<int, TH2F*> hClosureTestByNchs;
     // TH2F  *hEventClosureTest             = nullptr;
-    std::map<int, TH2F*> hClosureTestByNchs;
+    // TH1F  *hDiffERecoVsETrue             = nullptr;
+    // TH1F  *hDiffEVisVsETrue              = nullptr;
+    // TH2F  *hDiffERecoETrueVsETRUE        = nullptr;
+
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -269,11 +289,23 @@ int main(int argc, char **argv) {
         hEventInvariantMass     = new TH1F("hEventInvariantMass",";Invariant Mass [MeV];Events",100,0,5000);
         hEventSphericity        = new TH1F("hEventSphericity",";Sphericity;Events",100,0,1);
         hEventCorrectedTotE     = new TH1F("hEventCorrectedTotE",";Total Corrected Energy[MeV];Events",100,0,5000);
-        // hEventClosureTest       = new TH2F("hEventClosureTest",";E_{EM} [MeV];E_{ch}^{true} [MeV]",100, 0, 2000,100, 0, 2000);
-        hClosureTestByNchs[1]   = new TH2F("h2_Nch1", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
-        hClosureTestByNchs[2]   = new TH2F("h2_Nch2", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
-        hClosureTestByNchs[3]   = new TH2F("h2_Nch3", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
-        hClosureTestByNchs[4]   = new TH2F("h2_Nch4p", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
+        // hTrueVsVis              = new TH2F("hTrueVsVis", "; E_{vis} [MeV]; E_{true} [MeV]", 120, 0, 2000, 120, -1000, 1500);
+        hTrueVsVis              = new TH2F("hTrueVsVis", "; E_{vis} [MeV]; E_{true} [MeV]", 100, 0, 2000, 100, 0, 3000);
+        hEventClosureTest       = new TH2F("hEventClosureTest","; E_{true} [MeV];E_{vis} + linear correction [MeV]",100, 0, 3000, 100, 0, 3000);
+        hDiffERecoVsETrue       = new TH1F("hERecoVsETrue", "; E_{reco} - E_{true} [MEV]; Counts", 100,-1000, 1000);
+
+
+        // hEventClosureTest       = new TH2F("hEventClosureTest",";Truth primary EKin [MeV];E_{EM} + template correction [MeV]",100, 0, 3000,100, 0, 3000);
+        // hEventClosureTest       = new TH2F("hEventClosureTest",";Truth primary EKin [MeV];E_{VIS} [MeV]",100, 0, 3000,100, 0, 3000);
+        // hDiffERecoVsETrue       = new TH1F("hERecoVsETrue", "; E_{RECO} - E_{TRUE} [MEV]; Counts", 100,-1000, 1000);
+        // hDiffEVisVsETrue        = new TH1F("hEVisVsETrue", "; E_{VIS} - E_{TRUE} [MEV]; Counts", 100,-1000, 1000);
+        // hDiffERecoETrueVsETRUE  = new TH2F("hDiffERecoETrueVsETRUE",";Truth primary EKin [MeV];E_{RECO} - E_{TRUE} [MeV]",100, 0, 3000,100, -1000, 1000);
+        // hDiffERecoETrueVsETRUE  = new TH2F("hDiffERecoETrueVsETRUE",";E_{VIS} [MeV];E_{TRUE} - E_{VIS}  [MeV]",100, 0, 3000,100, -1000, 1000);
+
+        // hClosureTestByNchs[1]   = new TH2F("h2_Nch1", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
+        // hClosureTestByNchs[2]   = new TH2F("h2_Nch2", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
+        // hClosureTestByNchs[3]   = new TH2F("h2_Nch3", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
+        // hClosureTestByNchs[4]   = new TH2F("h2_Nch4p", ";E_{EM} [MEV];True Ch KE [MeV]", 50,0,2000, 50,0,2000);
     }
 
     ChargedKECalibration calibration("chargedKE.root");
@@ -567,25 +599,91 @@ int main(int argc, char **argv) {
         if (doEventVariables) {
             
             // Corrected total energy
-            double totCorrectedE = 0.0;
-            double totTrueKE = 0.0;
+            // double totCorrectedE = 0.0; // confusing name and also possibly somethig wrong here!
+            // double totTrueKE = 0.0;
+            double totTpcDeposit = 0.0;
 
-            for (const auto& cl : reco.clusters) {
-                totCorrectedE += cl.p4.Energy();
-            }
+            // for (const auto& cl : reco.clusters) {
+            //     totCorrectedE += cl.p4.Energy();
+            // }
             for (const auto& ch : reco.chargedClusters) {
-                totCorrectedE += ch.totalEnergy;
-                totTrueKE += ch.objectTrueKE;
+                // totCorrectedE += ch.totalEnergy;
+                // totTrueKE += ch.objectTrueKE;
+                totTpcDeposit += ch.EdepSmeared;
+            }
+            double eVis = reco.EM_energy + totTpcDeposit;
+            // double calibratedKE = calibration.GetMeanKE(reco.chargedClusters.size(), eVis);
+            // double eReco = eVis + calibratedKE;
+
+            double eTrue = 0.0;
+            size_t n = std::min(primaryEkin->size(), primaryPDG->size());
+            // // for (size_t i = 0; i < n; ++i) {
+            // //     double px = (*primaryPx)[i];
+            // //     double py = (*primaryPy)[i];
+            // //     double pz = (*primaryPz)[i];
+            // //     double p  = std::sqrt(px*px + py*py + pz*pz);
+            // //     double m  = PDGMassMeV((*primaryPDG)[i]);
+            // //     double E  = std::sqrt(p*p + m*m);
+            // //     eTrue += E;
+            // // }
+            for (size_t i = 0; i < n; ++i) {
+                eTrue += (*primaryEkin)[i];
             }
 
-            double calibratedKE = calibration.GetMeanKE(reco.chargedClusters.size(), reco.EM_energy);
+            // if (hTrueVsVis) hTrueVsVis->Fill(eVis, eTrue - eVis); // bad name and axes titles! 
+            if (hTrueVsVis) hTrueVsVis->Fill(eVis, eTrue);  
+            // TProfile* p = hTrueVsVis->ProfileX("pTrueVsVis");
+            // TF1* f = new TF1("f_lin", "[0] + [1]*x", 0, 2000);
 
-            if (hEventCorrectedTotE) hEventCorrectedTotE->Fill(totCorrectedE + calibratedKE);
+            // p->Fit(f, "Q");
+            // double A = f->GetParameter(0);
+            // double B = f->GetParameter(1);
+            // double Aerr = f->GetParError(0);
+            // double Berr = f->GetParError(1);
+            // std::cout << "Params A, B : " << A << ", " << B << std::endl;
+
+            // Apply the fit 
+            double A = 1346.54;
+            double B = -1.06458;
+            double correction = A + B * eVis;
+            double eReco = eVis + correction;
+
+            // // double eDiff = eReco - Ekin_per_event[ievt];
+            // // if (hEventClosureTest) hEventClosureTest->Fill(Ekin_per_event[ievt], eReco);
+            double eDiffReco = eReco - eTrue;
+            // double eDiffVis = eVis - eTrue;
+            if (hEventClosureTest) hEventClosureTest->Fill(eTrue, eReco);
+            if (hDiffERecoVsETrue) hDiffERecoVsETrue->Fill(eDiffReco);
+            // if (hDiffEVisVsETrue) hDiffEVisVsETrue->Fill(eDiffVis);
+
+            // // if (hDiffERecoETrueVsETRUE) hDiffERecoETrueVsETRUE->Fill(eTrue, eReco - eTrue);
+            // if (hDiffERecoETrueVsETRUE) hDiffERecoETrueVsETRUE->Fill(eVis, eTrue - eVis);
+
+
+
+            // if (ievt < 10) {
+
+            //     std::cout << "Event " << ievt << "\n";
+            //     std::cout << "Truth mcpl: " << Ekin_per_event[ievt] << "\n";
+            //     std::cout << "Truth primary: " << Etrue << "\n";
+            //     std::cout << "EM:    " << reco.EM_energy << "\n";
+            //     std::cout << "TPC:   " << totTpcDeposit << "\n";
+            //     std::cout << "Template KE: " << calibratedKE << "\n";
+            //     std::cout << "Reco:  " << eReco << "\n";
+            //     std::cout << "Diff:  " << eDiff << "\n\n";
+            // }
+
+            // if (hEventCorrectedTotE) hEventCorrectedTotE->Fill(totCorrectedE + calibratedKE);
+
             // if (hEventClosureTest) hEventClosureTest->Fill(reco.EM_energy, totTrueKE);
+            // if (hEventClosureTest) hEventClosureTest->Fill(Ekin_per_event[ievt], reco.EM_energy + calibratedKE);
 
-            int Nch = reco.chargedClusters.size();
-            int key = (Nch >= 4) ? 4 : Nch;
-            if (hClosureTestByNchs.count(key)) hClosureTestByNchs[key]->Fill(reco.EM_energy, totTrueKE);
+            // int Nch = reco.chargedClusters.size();
+            // int key = (Nch >= 4) ? 4 : Nch;
+            // if (hClosureTestByNchs.count(key)) hClosureTestByNchs[key]->Fill(reco.EM_energy, totTrueKE);
+
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+            //OLD STUFF WHICH PROBS IS WRONG
 
             // momenta.clear();
             // weights.clear();
@@ -648,6 +746,16 @@ int main(int argc, char **argv) {
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
     }
+
+            // TProfile* profile = hTrueVsVis->ProfileX("pTrueVsVis");
+            // TF1* fitfunc = new TF1("f_lin", "[0] + [1]*x", 200, 1600);
+
+            // profile->Fit(fitfunc, "Q");
+            // double A = fitfunc->GetParameter(0);
+            // double B = fitfunc->GetParameter(1);
+            // double Aerr = fitfunc->GetParError(0);
+            // double Berr = fitfunc->GetParError(1);
+            // std::cout << "Params A, B : " << A << ", " << B << std::endl;
     
 
     if (doPi0Analysis) {
@@ -794,42 +902,76 @@ int main(int argc, char **argv) {
         // opts_hEventSphericity.addInfoPave = true;
         // Plot1D({hEventSphericity}, {kBlack}, "EventVar/eventSphericity.png", opts_hEventSphericity);
 
-        PlotOptions opts_hEventCorrectedTotE;
-        opts_hEventCorrectedTotE.addLegend = true;
-        opts_hEventCorrectedTotE.legendEntries = {"Total corrected event energy"};
-        opts_hEventCorrectedTotE.addInfoPave = true;
-        Plot1D({hEventCorrectedTotE}, {kBlack}, "EventVar/EventCorrectedTotE.png", opts_hEventCorrectedTotE);
+        // PlotOptions opts_hEventCorrectedTotE;
+        // opts_hEventCorrectedTotE.addLegend = true;
+        // opts_hEventCorrectedTotE.legendEntries = {"Total corrected event energy"};
+        // opts_hEventCorrectedTotE.addInfoPave = true;
+        // Plot1D({hEventCorrectedTotE}, {kBlack}, "EventVar/EventCorrectedTotE.png", opts_hEventCorrectedTotE);
 
-        // PlotOptions opts_hEventClosureTest;
-        // opts_hEventClosureTest.drawOption = "COLZ";
-        // opts_hEventClosureTest.overlayProfileX = true;
-        // opts_hEventClosureTest.profileColor = kRed;
-        // opts_hEventClosureTest.addTopLatex = true;
+        PlotOptions opts_hEventClosureTest_full;
+        opts_hEventClosureTest_full.drawOption = "COLZ";
+        opts_hEventClosureTest_full.overlayProfileX = true;
+        opts_hEventClosureTest_full.profileColor = kRed;
+        opts_hEventClosureTest_full.addTopLatex = true;
+        // opts_hEventClosureTest.addLegend = true;
+        // opts_hEventClosureTest.legendEntries = {"E_{EM} vs KE^{true}"};
+        Plot2D({hEventClosureTest}, "EventVar/EventClosureTest.png", opts_hEventClosureTest_full);
+
+        // for (auto const& [nCh, hist] : hClosureTestByNchs) {
+        //     if (!hist) continue;
+        //     PlotOptions opts_hEventClosureTest;
+        //     opts_hEventClosureTest.drawOption = "COLZ";
+        //     opts_hEventClosureTest.overlayProfileX = true;
+        //     opts_hEventClosureTest.profileColor = kRed;
+        //     opts_hEventClosureTest.addTopLatex = true;
+        //     std::string nchlabel;
+        //     if (nCh < 4) nchlabel = Form("N_{ch} = %d", nCh);
+        //     else nchlabel = "N_{ch} #geq 4";
+        //     opts_hEventClosureTest.addLegend = true;
+        //     opts_hEventClosureTest.legendEntries = {nchlabel};
+        //     std::string outname = Form("EventVar/ClosureTest/EventClosureTest_%d.png", nCh);
+        //     Plot2D({hist}, outname, opts_hEventClosureTest); 
+        // }
+
+        PlotOptions opts_hDiffERecoVisVsETrue;
+        opts_hDiffERecoVisVsETrue.addLegend = true;
+        // opts_hDiffERecoVisVsETrue.legendEntries = {"E_{RECO} - E_{TRUE}", "E_{VIS} - E_{TRUE}"};
+        opts_hDiffERecoVisVsETrue.legendEntries = {"E_{RECO} - E_{TRUE}"};
+        // opts_hDiffERecoVisVsETrue.extraLegendLines = {Form("1) MEAN: %.2f, RMS: %.2f", hDiffERecoVsETrue->GetMean(), hDiffERecoVsETrue->GetRMS()),
+        //                                               Form("2) MEAN: %.2f, RMS: %.2f", hDiffEVisVsETrue->GetMean(), hDiffEVisVsETrue->GetRMS())};
+        opts_hDiffERecoVisVsETrue.extraLegendLines = {Form("1) MEAN: %.2f, RMS: %.2f", hDiffERecoVsETrue->GetMean(), hDiffERecoVsETrue->GetRMS())};
+        opts_hDiffERecoVisVsETrue.addInfoPave = true;
+        opts_hDiffERecoVisVsETrue.legendX1 = 0.65;
+        opts_hDiffERecoVisVsETrue.legendX2 = 0.98;
+        // Plot1D({hDiffERecoVsETrue, hDiffEVisVsETrue}, {kBlack, kRed}, "EventVar/ERecoVisVsETrue.png", opts_hDiffERecoVisVsETrue);
+        Plot1D({hDiffERecoVsETrue}, {kBlack}, "EventVar/DiffERecoETrue.png", opts_hDiffERecoVisVsETrue);
+
+        PlotOptions opts_hTrueVsVis;
+        // opts_hTrueVsVis.addLegend = true;
+        // opts_hTrueVsVis.legendEntries = {"E_{vis}"}
+        opts_hTrueVsVis.addInfoPave = true;
+        opts_hTrueVsVis.overlayProfileX = true;
+        opts_hTrueVsVis.overlayFitLine = true;
+        Plot2D(hTrueVsVis, "EventVar/ETrueVsEVis.png", opts_hTrueVsVis);
+
+        // PlotOptions opts_hDiffERecoETrueVsETRUE;
+        // opts_hDiffERecoETrueVsETRUE.drawOption = "COLZ";
+        // opts_hDiffERecoETrueVsETRUE.overlayProfileX = true;
+        // opts_hDiffERecoETrueVsETRUE.profileColor = kRed;
+        // opts_hDiffERecoETrueVsETRUE.addTopLatex = true;
         // // opts_hEventClosureTest.addLegend = true;
         // // opts_hEventClosureTest.legendEntries = {"E_{EM} vs KE^{true}"};
-        // Plot2D({hEventClosureTest}, "EventVar/EventClosureTest.png", opts_hEventClosureTest);
-
-        for (auto const& [nCh, hist] : hClosureTestByNchs) {
-            if (!hist) continue;
-            PlotOptions opts_hEventClosureTest;
-            opts_hEventClosureTest.drawOption = "COLZ";
-            opts_hEventClosureTest.overlayProfileX = true;
-            opts_hEventClosureTest.profileColor = kRed;
-            opts_hEventClosureTest.addTopLatex = true;
-            std::string nchlabel;
-            if (nCh < 4) nchlabel = Form("N_{ch} = %d", nCh);
-            else nchlabel = "N_{ch} #geq 4";
-            opts_hEventClosureTest.addLegend = true;
-            opts_hEventClosureTest.legendEntries = {nchlabel};
-            std::string outname = Form("EventVar/ClosureTest/EventClosureTest_%d.png", nCh);
-            Plot2D({hist}, outname, opts_hEventClosureTest); 
-        }
+        // Plot2D({hDiffERecoETrueVsETRUE}, "EventVar/DiffERecoETrueVsETRUE.png", opts_hDiffERecoETrueVsETRUE);
 
         // delete hEventInvariantMass;
         // delete hEventSphericity;
         delete hEventCorrectedTotE;
-        // delete hEventClosureTest;
-        for (auto const& [nCh, hist] : hClosureTestByNchs) delete hClosureTestByNchs[nCh];
+        // for (auto const& [nCh, hist] : hClosureTestByNchs) delete hClosureTestByNchs[nCh];
+        delete hEventClosureTest;
+        delete hDiffERecoVsETrue;
+        delete hTrueVsVis;
+        // delete hDiffEVisVsETrue;
+        // delete hDiffERecoETrueVsETRUE;
     }
 
     f->Close(); delete f;

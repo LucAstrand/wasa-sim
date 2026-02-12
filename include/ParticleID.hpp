@@ -20,8 +20,8 @@ inline double PDGMassMeV(int pdg)
         case 211:  return 139.57039;      // pi+-
         case 2212: return 938.27208816;   // p
         default:
-            std::cerr << "Unknown PDG code " << pdg << std::endl;
-            return -1.0;
+            // std::cerr << "Unknown PDG code " << pdg << std::endl;
+            return 0.0; //return zero if unknown PDG code.
     }
 }
 

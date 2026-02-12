@@ -205,17 +205,18 @@ void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, cons
     SavePlot(c.get(), plotname);
 }
 
-void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& options) {
+void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& opts) {
     if (hist == nullptr) {
         std::cerr << "Error: No valid histogram provided." << std::endl;
         return;
     }
+    PlotOptions options = opts;
     SetPrettyStyle();
     gStyle->SetOptStat(options.showStats ? 1 : 0);
     auto c = PlotCreateCanvas("c2D_" + plotname);
     hist->SetLineColor(kBlack);
     hist->SetLineWidth(2);
-    hist->Draw(options.drawOption.c_str());  // e.g., "COLZ" for color map if you change default
+    hist->Draw(options.drawOption.c_str());
 
     std::unique_ptr<TProfile> profX;
     if (options.overlayProfileX) {
@@ -228,6 +229,27 @@ void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& options)
         profX->SetMarkerStyle(20);
         profX->Draw(options.profileDrawOpt.c_str());
     }
+
+    std::unique_ptr<TF1> f;
+    if (options.overlayFitLine) {
+        if (!profX) {
+            profX.reset(hist->ProfileX((plotname + "_profX").c_str()));
+            profX->SetDirectory(nullptr);
+        }
+        const double xmin = hist->GetXaxis()->GetXmin();
+        const double xmax = hist->GetXaxis()->GetXmax();
+
+        f = std::make_unique<TF1>((plotname + "_fit").c_str(), "[0] + [1]*x", xmin, xmax);
+        profX->Fit(f.get(), "Q");
+
+        f->SetLineColor(options.fitLineColor);
+        f->SetLineWidth(options.fitLineWidth);
+        f->Draw("SAME");
+        const double A = f->GetParameter(0);
+        const double B = f->GetParameter(1);
+        options.extraLegendLines.push_back(Form("Fit: y = %.2f + %.4f x", A, B));
+    }
+
 
     std::unique_ptr<TLegend> leg;
     if (options.addLegend) {

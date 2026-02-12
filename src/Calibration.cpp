@@ -38,7 +38,7 @@ double ChargedKECalibration::GetMeanKE(int Nch, double Eem) const {
     std::unique_ptr<TH1D> proj(
         h_ke->ProjectionZ("_pz", bx, bx, by, by)
     ); // may want some protection against proj->GetEntries() < 10 or something 
-    if (proj->GetEntries() < 10) return NAN; 
+    // if (proj->GetEntries() < 10) return NAN; 
     return proj->GetMean();
 }
 
@@ -146,25 +146,33 @@ void DoCalibration(
         RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex);
 
         // --- True charged pion KE ---
-        double KEtrue = 0.0;
+        // double KEtrue = 0.0;
+        double MissingKE = 0.0;
+        double totTpcDeposit = 0.0;
         int Nch = reco.chargedClusters.size();
 
-        // for (size_t i = 0; i < TPC_pdg->size(); ++i) {
-        //     if ((*TPC_pdg)[i] == 211)
-        //         KEtrue += (*TPC_TrueKE)[i]; // this is a global thing, like multiple pions!!!! 
+        // for (ChargedCluster& cluster : reco.chargedClusters) {
+        //     // if (abs(cluster.objectTruePDG) == 211) {// only charged pions
+        //         double chEdep = cluster.totalEnergy; // consider that TPC Edep might be missing here and also in the clustering 
+        //         double KEtrue = cluster.objectTrueKE;
+        //         double KE_missing = std::max(KEtrue - chEdep, 0.0);
+        //         MissingKE += KE_missing; 
+        //         totTpcDeposit += cluster.EdepSmeared;
+        //     // }
         // }
-
-        for (ChargedCluster& cluster : reco.chargedClusters) {
-            if (abs(cluster.objectTruePDG) == 211) // only charged pions
-                KEtrue += cluster.objectTrueKE;
+        // calibration.FillCalibration(
+        //     Nch,
+        //     reco.EM_energy + totTpcDeposit,
+        //     MissingKE 
+        // );
+        double eTrue = 0.0;
+        size_t n = primaryEkin->size();
+        for (size_t i = 0; i < n; ++i) {
+            eTrue += (*primaryEkin)[i];
         }
-
-
-        calibration.FillCalibration(
-            Nch,
-            reco.EM_energy,
-            KEtrue
-        );
+        double Evis = reco.EM_energy + totTpcDeposit;
+        double Emiss = eTrue - Evis;
+        calibration.FillCalibration(Nch, Evis, Emiss);
     }
 
     calibration.Finalize();

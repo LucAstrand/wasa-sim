@@ -89,6 +89,7 @@ struct ChargedCluster {
     double objectTruedEdx; // true info from sim for control plots
     int objectTruePDG;
     double clusterdEdx;
+    double EdepSmeared;
     double nSigmaPion;
     double nSigmaProton;
     double nSigmaElectron;

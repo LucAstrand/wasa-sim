@@ -38,11 +38,14 @@ struct PlotOptions {
     int profileColor = kBlack;
     int profileLineWidth = 2;
     std::string profileDrawOpt = "SAME";
+    bool overlayFitLine = false;
+    int fitLineColor = kBlack;
+    int fitLineWidth = 2;
 };
 
 // Core functions
 void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, const std::string& plotname, const PlotOptions& options = PlotOptions());
-void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& options = PlotOptions());
+void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& opts = PlotOptions());
 void Plot2DOverlay(
     const std::vector<TH2*>& hists,
     const std::vector<int>& colors,
