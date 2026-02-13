@@ -31,7 +31,7 @@ struct PlotOptions {
     std::string legendDrawOpt = "l"; // "l" - Line , "p"
     std::string drawOption = "HIST";  // e.g., "HIST", "E", "COLZ" for 2D
     bool normalizeHists = false;  // Scale to unit area if true (for overlays)
-    double legendX1 = 0.55, legendY1 = 0.7, legendX2 = 0.88, legendY2 = 0.88;  // Customizable position
+    double legendX1 = 0.65, legendY1 = 0.7, legendX2 = 0.98, legendY2 = 0.88;  // Customizable position
     double infoX1 = 0.17, infoY1 = 0.70, infoX2 = 0.50, infoY2 = 0.90;
 
     bool overlayProfileX = false;

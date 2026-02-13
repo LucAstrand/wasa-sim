@@ -14,7 +14,13 @@ RecoEvent ReconstructEvent(
     // std::cout << "number of charged Clusters: " << evt.chargedClusters.size() << std::endl;
 
     evt.EM_energy = 0.0;
-    evt.clusters = clusterNeutralHits(hits, vertex, 25*TMath::DegToRad()); // This would be only photons
+    // evt.clusters = clusterNeutralHits(hits, vertex, 25*TMath::DegToRad()); 
+    evt.clusters = clusterNeutralHits(hits, vertex, 0.2 /* rad */); 
+    evt.clusters.erase(std::remove_if(evt.clusters.begin(), evt.clusters.end(),
+                                [](const Cluster &c){ return c.p4.E() < 50.0; }),
+                evt.clusters.end());    
+    
+    // This would be only photons
     // for (const auto& c : evt.clusters) {
     //     evt.EM_energy += c.p4.E(); // only the neutral cluster energy for now???
     // }

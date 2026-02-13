@@ -170,7 +170,7 @@ void DoCalibration(
         for (size_t i = 0; i < n; ++i) {
             eTrue += (*primaryEkin)[i];
         }
-        double Evis = reco.EM_energy + totTpcDeposit;
+        double Evis = reco.EM_energy; // + totTpcDeposit;
         double Emiss = eTrue - Evis;
         calibration.FillCalibration(Nch, Evis, Emiss);
     }

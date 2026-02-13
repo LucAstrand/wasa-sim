@@ -25,8 +25,8 @@ bool Pi0Efficiency::IsReco(const TruePi0& tpi0, const std::vector<Pi0Candidate>&
 
     for (const auto& rpi0 : recoPi0s) {
         auto match = [&](const Cluster* c, const TruePhoton* g) {
-            return c->p4.Vect()
-                       .Angle(g->p4.Vect()) < 0.05;
+            std::cout << "Angle: " << c->p4.Vect().Angle(g->p4.Vect()) << std::endl;
+            return c->p4.Vect().Angle(g->p4.Vect()) < 0.15;
         };
 
         if ( (match(rpi0.c1, g1) && match(rpi0.c2, g2)) ||

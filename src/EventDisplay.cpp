@@ -417,14 +417,20 @@ int main(int argc, char **argv) {
         }
         // std::vector<Cluster> clusters = runClustering(centerX, centerY, centerZ);
         std::vector<Cluster> clusters;
-        double dEta = 0.10/2;
-        double dPhi = 0.10/2;
-        double E_seed = 15.00;
-        double E_neighbor = 0.03;
-        int winSize = 3;
+        // double dEta = 0.10/2;
+        // double dPhi = 0.10/2;
+        // double E_seed = 15.00;
+        // double E_neighbor = 0.03;
+        // int winSize = 3;
 
-        double totalE_Evt = 0;
-        clusters = SlidingWindowClusterHits(hits, vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
+        // double totalE_Evt = 0;
+        // clusters = SlidingWindowClusterHits(hits, vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
+
+        clusters = clusterNeutralHits(hits, vertex, 25 * TMath::DegToRad()); // Have to optimise the angle a bit! 
+        // Apply cluster energy threshold
+        clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
+                                    [](const Cluster &c){ return c.p4.E() < 50.0; }),
+                    clusters.end());
 
         // ============ 5. Draw clusters =======================
         // for (size_t ci = 0; ci < clusters.size(); ci++) {
