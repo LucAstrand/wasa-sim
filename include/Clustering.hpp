@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 #include <algorithm>
+#include <numeric>
 
 #include "TVector3.h"
 

@@ -122,16 +122,67 @@ void finalizeNeutralCluster(Cluster& cl, const TVector3& vtx) {
     cl.p4.SetPxPyPzE(E_sum * dir.X(), E_sum * dir.Y(), E_sum * dir.Z(), E_sum);
 }
 
-std::vector<Cluster> clusterNeutralHits(std::vector<Hit>& hits, const TVector3& vtx, double theta_max) {
-    // Sort hits by descending energy
-    std::sort(hits.begin(), hits.end(), 
-              [](const Hit& a, const Hit& b){ return a.e > b.e; });
+// std::vector<Cluster> clusterNeutralHits(std::vector<Hit>& hits, const TVector3& vtx, double theta_max) {
+//     // Sort hits by descending energy
+//     std::sort(hits.begin(), hits.end(), 
+//               [](const Hit& a, const Hit& b){ return a.e > b.e; });
+
+//     std::vector<Cluster> clusters;
+//     std::vector<bool> used(hits.size(), false);
+
+//     for (size_t i = 0; i < hits.size(); ++i) {
+//         if (used[i]) continue;
+
+//         // --- Seed cluster ---
+//         Cluster cl;
+//         Hit& seed = hits[i];
+//         used[i] = true;
+//         cl.hits.push_back(&seed);
+
+//         TVector3 seedDir = hitDirection(seed, vtx).Unit();
+
+//         // --- Grow cluster ---
+//         for (size_t j = i + 1; j < hits.size(); ++j) {
+//             if (used[j]) continue;
+
+//             Hit& h = hits[j];
+//             if (h.owner != HitOwner::None) continue;
+//             TVector3 hDir = hitDirection(h, vtx).Unit();
+
+//             double angle = seedDir.Angle(hDir);
+//             if (angle < theta_max) {
+//                 cl.hits.push_back(&h);
+//                 used[j] = true;
+//                 h.owner = HitOwner::Neutral;
+//             }
+//         }
+
+//         // --- Finalize cluster ---
+//         finalizeNeutralCluster(cl, vtx);
+//         clusters.push_back(cl);
+//     }
+
+//     return clusters;
+// }
+
+std::vector<Cluster> clusterNeutralHits(std::vector<Hit>& hits,
+                                        const TVector3& vtx,
+                                        double theta_max)
+{
+    // --- Sort hit indices by descending energy (do NOT reorder hits) ---
+    std::vector<size_t> order(hits.size());
+    std::iota(order.begin(), order.end(), 0);
+
+    std::sort(order.begin(), order.end(),
+              [&](size_t a, size_t b) { return hits[a].e > hits[b].e; });
 
     std::vector<Cluster> clusters;
     std::vector<bool> used(hits.size(), false);
 
-    for (size_t i = 0; i < hits.size(); ++i) {
+    for (size_t oi = 0; oi < order.size(); ++oi) {
+        const size_t i = order[oi];
         if (used[i]) continue;
+        if (hits[i].owner != HitOwner::None) continue;
 
         // --- Seed cluster ---
         Cluster cl;
@@ -142,14 +193,16 @@ std::vector<Cluster> clusterNeutralHits(std::vector<Hit>& hits, const TVector3& 
         TVector3 seedDir = hitDirection(seed, vtx).Unit();
 
         // --- Grow cluster ---
-        for (size_t j = i + 1; j < hits.size(); ++j) {
+        for (size_t oj = oi + 1; oj < order.size(); ++oj) {
+            const size_t j = order[oj];
             if (used[j]) continue;
 
             Hit& h = hits[j];
             if (h.owner != HitOwner::None) continue;
-            TVector3 hDir = hitDirection(h, vtx).Unit();
 
+            TVector3 hDir = hitDirection(h, vtx).Unit();
             double angle = seedDir.Angle(hDir);
+
             if (angle < theta_max) {
                 cl.hits.push_back(&h);
                 used[j] = true;
@@ -159,11 +212,12 @@ std::vector<Cluster> clusterNeutralHits(std::vector<Hit>& hits, const TVector3& 
 
         // --- Finalize cluster ---
         finalizeNeutralCluster(cl, vtx);
-        clusters.push_back(cl);
+        clusters.push_back(std::move(cl));
     }
 
     return clusters;
 }
+
 
 // =========================================================
 //   CHARGED OBJECT CLUSTERING (Angular acceptance based)
@@ -182,6 +236,7 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         ChargedCluster c;
         c.trackID = trk.id;
         c.direction = trk.direction.Unit();
+        c.TPCExitPoint = trk.exitPoint;
         c.objectTrueKE = trk.TrueKE;
         c.objectTruePDG = trk.TruePDG;
         c.objectTruedEdx = BetheBloch(trk.TruePDG, trk.TrueKE, tpcGas);
@@ -215,11 +270,17 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         int bestTrack    = -1;
 
         for (size_t i = 0; i < tracks.size(); ++i) {
-            TVector3 delta = hitPos - tracks[i].vertex;
-            double deltaMag = delta.Mag();
+            TVector3 delta = hitPos - tracks[i].exitPoint; //hitPos - tracks[i].vertex;
+            // double deltaMag = delta.Mag();
+            if (delta.Mag2() < 1e-12) {
+                bestAngle = 0.0;
+                bestTrack = static_cast<int>(i);
+                break; // can't do better than 0
+            }
             TVector3 hitDir = delta.Unit();
             double dot = tracks[i].direction.Unit().Dot(hitDir);
             dot = std::clamp(dot, -1.0, 1.0);
+            if (dot < 0) continue;
             double theta = std::acos(dot);
 
             if (theta < bestAngle) {

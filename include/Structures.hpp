@@ -85,6 +85,7 @@ struct ChargedCluster {
     std::vector<Hit*> hits; // Pointer now! use -> to access the quantities!
     double totalEnergy = 0.0;
     TVector3 direction;
+    TVector3 TPCExitPoint;
     double objectTrueKE; // true info from sim for control plots 
     double objectTruedEdx; // true info from sim for control plots
     int objectTruePDG;

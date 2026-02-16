@@ -45,15 +45,84 @@ static Color_t MakeDistinctColor(int i, float sat=1.0f, float val=1.0f)
     return idx;
 }
 
+static inline void MakePerpBasis(const TVector3& dir, TVector3& u, TVector3& v)
+{
+    // Pick a vector not parallel to dir
+    TVector3 a = (std::fabs(dir.Z()) < 0.9) ? TVector3(0,0,1) : TVector3(0,1,0);
+    u = dir.Cross(a).Unit();
+    v = dir.Cross(u).Unit();
+}
+
+// Draw the same cone used by your clustering: angle between (hit - vertex) and direction < thetaMax
+TEveElement* DrawMatchCone(const TVector3& apex,
+                           const TVector3& dirIn,
+                           double thetaMax,      // radians
+                           double L,             // length in your detector units
+                           Color_t col = kCyan,
+                           int nCircle = 48,
+                           int nRays   = 12,
+                           double alpha = 0.7)   // (0..1) line transparency feel; TEveLine doesn't do true alpha
+{
+    auto group = new TEveElementList("MatchCone");
+    group->SetMainColor(col);
+
+    TVector3 dir = dirIn;
+    if (dir.Mag() <= 0) return group;
+    dir = dir.Unit();
+
+    TVector3 u, v;
+    MakePerpBasis(dir, u, v);
+
+    // Base circle at distance L along axis
+    const TVector3 baseC = apex + L * dir;
+    const double rBase   = L * std::tan(thetaMax);
+
+    auto base = new TEveLine("ConeBase");
+    base->SetMainColor(col);
+    base->SetLineWidth(2);
+
+    for (int i = 0; i <= nCircle; ++i) {
+        double phi = 2.0 * TMath::Pi() * (double)i / (double)nCircle;
+        TVector3 p = baseC + rBase * (std::cos(phi) * u + std::sin(phi) * v);
+        base->SetNextPoint(p.X(), p.Y(), p.Z());
+    }
+    group->AddElement(base);
+
+    // Rays from apex to a few points on the base circle
+    for (int k = 0; k < nRays; ++k) {
+        double phi = 2.0 * TMath::Pi() * (double)k / (double)nRays;
+        TVector3 p = baseC + rBase * (std::cos(phi) * u + std::sin(phi) * v);
+
+        auto ray = new TEveLine(Form("ConeRay_%d", k));
+        ray->SetMainColor(col);
+        ray->SetLineStyle(2);
+        ray->SetLineWidth(1);
+        ray->SetNextPoint(apex.X(), apex.Y(), apex.Z());
+        ray->SetNextPoint(p.X(), p.Y(), p.Z());
+        group->AddElement(ray);
+    }
+
+    // Optional: draw axis line for clarity
+    auto axis = new TEveLine("ConeAxis");
+    axis->SetMainColor(col);
+    axis->SetLineWidth(2);
+    axis->SetNextPoint(apex.X(), apex.Y(), apex.Z());
+    axis->SetNextPoint(baseC.X(), baseC.Y(), baseC.Z());
+    group->AddElement(axis);
+
+    return group;
+}
+
+
 // ---------- Draw a reconstructed cluster consistently ----------
-TEveElementList* DrawRecoCluster(const Cluster& c, int cid, Color_t col,
+TEveElementList* DrawRecoNCluster(const Cluster& c, int cid, Color_t col,
                                 bool drawBBox=true, bool drawHitBoxes=false)
 {
-    auto group = new TEveElementList(Form("Cluster_%d", cid));
+    auto group = new TEveElementList(Form("NCluster_%d", cid));
     group->SetMainColor(col);
 
     // ---- Hits: one TEvePointSet per cluster (fast + consistent) ----
-    auto hitsPS = new TEvePointSet(Form("ClusterHits_%d", cid));
+    auto hitsPS = new TEvePointSet(Form("NClusterHits_%d", cid));
     hitsPS->SetMarkerStyle(4);
     hitsPS->SetMarkerSize(1.0);
     hitsPS->SetMarkerColor(col);
@@ -134,6 +203,60 @@ TEveElementList* DrawRecoCluster(const Cluster& c, int cid, Color_t col,
         bs->RefitPlex();
         group->AddElement(bs);
     }
+
+    return group;
+}
+
+TEveElementList* DrawRecoCCluster(const ChargedCluster& c, int cid, Color_t col,
+                                bool drawBBox=true, bool drawHitBoxes=false)
+{
+    auto group = new TEveElementList(Form("CCluster_%d", cid));
+    group->SetMainColor(col);
+
+    // ---- Hits: one TEvePointSet per cluster (fast + consistent) ----
+    auto hitsPS = new TEvePointSet(Form("CClusterHits_%d", cid));
+    hitsPS->SetMarkerStyle(4);
+    hitsPS->SetMarkerSize(1.0);
+    hitsPS->SetMarkerColor(col);
+
+    for (const Hit* h : c.hits) {
+        if (!h) continue;
+        if (h->owner == HitOwner::Charged) {
+            hitsPS->SetNextPoint(h->x, h->y, h->z);
+        }
+    }
+    group->AddElement(hitsPS);
+
+    // // ---- Centroid ----
+    // auto cent = new TEvePointSet(Form("Direction_%d", cid));
+    // cent->SetMarkerStyle(20);
+    // cent->SetMarkerSize(1.6);
+    // cent->SetMarkerColor(col);
+    // cent->SetNextPoint(c.direction.X(), c.direction.Y(), c.direction.Z());
+    // group->AddElement(cent);
+
+    // ---- Momentum arrow ----
+    // TVector3 cc = c.centroid;
+    TVector3 dir = c.direction;
+    TVector3 exitPoint = c.TPCExitPoint;
+    if (dir.Mag() > 0) dir = dir.Unit();
+
+    double E = c.totalEnergy;
+    double arrowLen = 4.0 + std::log(std::max(1e-6, E));
+    TVector3 vec = arrowLen * dir;
+
+    auto arrow = new TEveArrow(vec.X(), vec.Y(), vec.Z(), exitPoint.X(), exitPoint.Y(), exitPoint.Z());
+    arrow->SetMainColor(col);
+    // arrow->SetLineWidth(2);
+    group->AddElement(arrow);
+
+    const TVector3 axis = dir.Unit();
+    double theta = 25*TMath::DegToRad();      // MUST be radians
+    double L = 100.0;             // choose: track length or detector size
+
+    auto coneEl = DrawMatchCone(exitPoint, axis, theta, L, kMagenta);
+    group->AddElement(coneEl);
+
 
     return group;
 }
@@ -403,15 +526,16 @@ int main(int argc, char **argv) {
         };
 
         // ---------- DRAWING OPTIONS ----------
-        const bool drawAllClusters = false;     // set false if you only want selected pi0 clusters
-        const bool drawBBox        = true;
-        const bool drawHitBoxes    = false;    // heavy if many hits; try true for a few clusters
+        const bool drawAllNClusters = false;     // set false if you only want selected pi0 clusters
+        const bool drawBBox         = true;
+        const bool drawHitBoxes     = false;    // heavy if many hits; try true for a few clusters
+        const bool drawAllCClusters = true;
 
-        if (drawAllClusters) {
+        if (drawAllNClusters) {
             // Draw every cluster with its own unique color
             for (size_t ci = 0; ci < reco.clusters.size(); ++ci) {
                 Color_t ccol = MakeDistinctColor((int)ci);
-                auto clEve = DrawRecoCluster(reco.clusters[ci], (int)ci, ccol, drawBBox, drawHitBoxes);
+                auto clEve = DrawRecoNCluster(reco.clusters[ci], (int)ci, ccol, drawBBox, drawHitBoxes);
                 eventList->AddElement(clEve);
             }
         } else {
@@ -424,10 +548,20 @@ int main(int argc, char **argv) {
                 Color_t col2 = MakeDistinctColor(i2 >= 0 ? i2 : 1001);
 
                 // For selected, you might want hit boxes ON to see the shape:
-                eventList->AddElement(DrawRecoCluster(*pi0.c1, i1, col1, /*drawBBox=*/true, /*drawHitBoxes=*/true));
-                eventList->AddElement(DrawRecoCluster(*pi0.c2, i2, col2, /*drawBBox=*/true, /*drawHitBoxes=*/true));
+                eventList->AddElement(DrawRecoNCluster(*pi0.c1, i1, col1, /*drawBBox=*/true, /*drawHitBoxes=*/true));
+                eventList->AddElement(DrawRecoNCluster(*pi0.c2, i2, col2, /*drawBBox=*/true, /*drawHitBoxes=*/true));
             }
         }
+
+        if (drawAllCClusters) {
+            for (size_t ch = 0; ch < reco.chargedClusters.size(); ++ch) {
+                Color_t chcol = MakeDistinctColor((int)ch);
+                auto chclEve = DrawRecoCCluster(reco.chargedClusters[ch], (int)ch, chcol, drawBBox, drawHitBoxes);
+                eventList->AddElement(chclEve);
+            }
+        }
+        
+
 
         // Done with this event
     }

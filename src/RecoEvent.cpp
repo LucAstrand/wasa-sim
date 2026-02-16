@@ -15,9 +15,9 @@ RecoEvent ReconstructEvent(
 
     evt.EM_energy = 0.0;
     // evt.clusters = clusterNeutralHits(hits, vertex, 25*TMath::DegToRad()); 
-    evt.clusters = clusterNeutralHits(hits, vertex, 0.2 /* rad */); 
+    evt.clusters = clusterNeutralHits(hits, vertex, 0.12 /* rad */); //og 0.2
     evt.clusters.erase(std::remove_if(evt.clusters.begin(), evt.clusters.end(),
-                                [](const Cluster &c){ return c.p4.E() < 50.0; }),
+                                [](const Cluster &c){ return c.p4.E() < 20.0; }),
                 evt.clusters.end());    
     
     // This would be only photons
