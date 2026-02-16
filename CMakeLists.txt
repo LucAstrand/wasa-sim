@@ -67,6 +67,7 @@ add_executable(EventDisplay
     src/EventDisplay.cpp
     src/Clustering.cpp
     src/ParticleID.cpp
+    src/RecoEvent.cpp
 )
 
 target_include_directories(EventDisplay PRIVATE include)

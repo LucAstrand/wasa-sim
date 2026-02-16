@@ -1,135 +1,147 @@
 #include "EventDisplay.hpp"
 
-TEveElementList* DrawCluster(const Cluster& c, int id, Color_t color)
-{
-    auto group = new TEveElementList(Form("Cluster_%d", id));
-    group->SetMainColor(color);
+#include <algorithm>
+#include <cmath>
+#include <iostream>
+#include <unordered_set>
 
-    // ---------------- Centroid point ----------------
-    TEvePointSet* ps = new TEvePointSet();
-    ps->SetNextPoint(c.centroid.X(), c.centroid.Y(), c.centroid.Z());
-    ps->SetMarkerStyle(20);
-    ps->SetMarkerSize(1.5);
-    ps->SetMarkerColor(color);
-    group->AddElement(ps);
-
-    // ---------------- Cluster box ----------------
-    double L = 3.0;  // half-size in cm
-    TVector3 cc = c.centroid;
-
-    TEveBox* box = new TEveBox();
-    box->SetMainColor(color);
-    box->SetMainTransparency(60);  // semi-transparent
-
-    box->SetVertex(0, cc.X()-L, cc.Y()-L, cc.Z()-L);
-    box->SetVertex(1, cc.X()+L, cc.Y()-L, cc.Z()-L);
-    box->SetVertex(2, cc.X()+L, cc.Y()+L, cc.Z()-L);
-    box->SetVertex(3, cc.X()-L, cc.Y()+L, cc.Z()-L);
-    box->SetVertex(4, cc.X()-L, cc.Y()-L, cc.Z()+L);
-    box->SetVertex(5, cc.X()+L, cc.Y()-L, cc.Z()+L);
-    box->SetVertex(6, cc.X()+L, cc.Y()+L, cc.Z()+L);
-    box->SetVertex(7, cc.X()-L, cc.Y()+L, cc.Z()+L);
-
-    group->AddElement(box);
-
-    // ---------------- Momentum arrow ----------------
-    TVector3 dir = c.p4.Vect().Unit();
-    double arrowLen = 4.0 + log(c.p4.E());
-
-    // Convert (direction × length) → vector
-    TVector3 vec = arrowLen * dir;
-
-    // TEveArrow(vec, origin)
-    TEveArrow* arrow = new TEveArrow(
-        vec.X(), vec.Y(), vec.Z(),
-        cc.X(), cc.Y(), cc.Z()
-    );
-
-    // Color as needed
-    arrow->SetMainColor(color);
-    // arrow->SetTubeRadius(0.3);
-
-    return group;
+// ---------- SafeSetBranch ----------
+template <typename T>
+bool SafeSetBranch(TTree* tree, const char* branchName, T*& ptr) {
+    if (tree->GetListOfBranches()->FindObject(branchName)) {
+        tree->SetBranchAddress(branchName, &ptr);
+        return true;
+    } else {
+        std::cout << "[Warning] Branch " << branchName << " not found. Skipping." << std::endl;
+        return false;
+    }
 }
 
-TEveElementList* BuildClusterBoundingBox(const Cluster& c,
-                                 const std::vector<double>& centerX,
-                                 const std::vector<double>& centerY,
-                                 const std::vector<double>& centerZ,
-                                 Color_t col)
+// ---------- Distinct per-cluster colors ----------
+static Color_t MakeDistinctColor(int i, float sat=1.0f, float val=1.0f)
 {
-    auto group = new TEveElementList("Cluster");
+    // Golden ratio hue stepping for visually distinct colors
+    double hue = fmod(i * 0.61803398875, 1.0);
+
+    float r=0, g=0, b=0;
+
+    float h = (float)(hue * 6.0);
+    float c = val * sat;
+    float x = c * (1.0f - fabsf(fmodf(h, 2.0f) - 1.0f));
+    float m = val - c;
+
+    float rp=0, gp=0, bp=0;
+    if      (0 <= h && h < 1) { rp = c; gp = x; bp = 0; }
+    else if (1 <= h && h < 2) { rp = x; gp = c; bp = 0; }
+    else if (2 <= h && h < 3) { rp = 0; gp = c; bp = x; }
+    else if (3 <= h && h < 4) { rp = 0; gp = x; bp = c; }
+    else if (4 <= h && h < 5) { rp = x; gp = 0; bp = c; }
+    else                      { rp = c; gp = 0; bp = x; }
+
+    r = rp + m; g = gp + m; b = bp + m;
+
+    Color_t idx = TColor::GetFreeColorIndex();
+    new TColor(idx, r, g, b); // register in ROOT
+    return idx;
+}
+
+// ---------- Draw a reconstructed cluster consistently ----------
+TEveElementList* DrawRecoCluster(const Cluster& c, int cid, Color_t col,
+                                bool drawBBox=true, bool drawHitBoxes=false)
+{
+    auto group = new TEveElementList(Form("Cluster_%d", cid));
     group->SetMainColor(col);
+
+    // ---- Hits: one TEvePointSet per cluster (fast + consistent) ----
+    auto hitsPS = new TEvePointSet(Form("ClusterHits_%d", cid));
+    hitsPS->SetMarkerStyle(4);
+    hitsPS->SetMarkerSize(1.0);
+    hitsPS->SetMarkerColor(col);
+
+    for (const Hit* h : c.hits) {
+        if (!h) continue;
+        hitsPS->SetNextPoint(h->x, h->y, h->z);
+    }
+    group->AddElement(hitsPS);
+
+    // ---- Centroid ----
+    auto cent = new TEvePointSet(Form("Centroid_%d", cid));
+    cent->SetMarkerStyle(20);
+    cent->SetMarkerSize(1.6);
+    cent->SetMarkerColor(col);
+    cent->SetNextPoint(c.centroid.X(), c.centroid.Y(), c.centroid.Z());
+    group->AddElement(cent);
+
+    // ---- Momentum arrow ----
     TVector3 cc = c.centroid;
+    TVector3 dir = c.p4.Vect();
+    if (dir.Mag() > 0) dir = dir.Unit();
 
-
-    // ---------------- Centroid point ----------------
-    TEvePointSet* ps = new TEvePointSet();
-    ps->SetNextPoint(c.centroid.X(), c.centroid.Y(), c.centroid.Z());
-    ps->SetMarkerStyle(20);
-    ps->SetMarkerSize(1.5);
-    ps->SetMarkerColor(col);
-    group->AddElement(ps);
-
-    // // ---------------- Cluster box ----------------
-    // double xmin=1e9, xmax=-1e9;
-    // double ymin=1e9, ymax=-1e9;
-    // double zmin=1e9, zmax=-1e9;
-
-    // for (int idx : c.hitIndices) {
-    //     double x = centerX[idx];
-    //     double y = centerY[idx];
-    //     double z = centerZ[idx];
-
-    //     xmin = std::min(xmin, x);
-    //     xmax = std::max(xmax, x);
-    //     ymin = std::min(ymin, y);
-    //     ymax = std::max(ymax, y);
-    //     zmin = std::min(zmin, z);
-    //     zmax = std::max(zmax, z);
-    // }
-
-    // TEveBox* box = new TEveBox();
-    // box->SetMainColor(col);
-    // box->SetMainTransparency(60);
-
-    // box->SetVertex(0, xmin, ymin, zmin);
-    // box->SetVertex(1, xmax, ymin, zmin);
-    // box->SetVertex(2, xmax, ymax, zmin);
-    // box->SetVertex(3, xmin, ymax, zmin);
-    // box->SetVertex(4, xmin, ymin, zmax);
-    // box->SetVertex(5, xmax, ymin, zmax);
-    // box->SetVertex(6, xmax, ymax, zmax);
-    // box->SetVertex(7, xmin, ymax, zmax);
-
-    // group->AddElement(box);
-    
-    // ---------------- Momentum arrow ----------------
-    TVector3 dir = c.p4.Vect().Unit();
-    double arrowLen = 4.0 + log(c.p4.E());
-    
-    // Convert (direction × length) → vector
+    double E = c.p4.E();
+    double arrowLen = 4.0 + std::log(std::max(1e-6, E));
     TVector3 vec = arrowLen * dir;
-    
-    // TEveArrow(vec, origin)
-    TEveArrow* arrow = new TEveArrow(
-        vec.X(), vec.Y(), vec.Z(),
-        cc.X(), cc.Y(), cc.Z()
-    );
-    
-    // Color as needed
+
+    auto arrow = new TEveArrow(vec.X(), vec.Y(), vec.Z(), cc.X(), cc.Y(), cc.Z());
     arrow->SetMainColor(col);
+    // arrow->SetLineWidth(2);
     group->AddElement(arrow);
-    
-    // return box;
+
+    // ---- Optional: bounding box from cluster hits ----
+    if (drawBBox && !c.hits.empty()) {
+        double xmin=1e9, xmax=-1e9, ymin=1e9, ymax=-1e9, zmin=1e9, zmax=-1e9;
+        bool any=false;
+
+        for (const Hit* h : c.hits) {
+            if (!h) continue;
+            any = true;
+            xmin = std::min(xmin, h->x); xmax = std::max(xmax, h->x);
+            ymin = std::min(ymin, h->y); ymax = std::max(ymax, h->y);
+            zmin = std::min(zmin, h->z); zmax = std::max(zmax, h->z);
+        }
+
+        if (any) {
+            auto box = new TEveBox(Form("BBox_%d", cid));
+            box->SetMainColor(col);
+            box->SetMainTransparency(75);
+
+            box->SetVertex(0, xmin, ymin, zmin);
+            box->SetVertex(1, xmax, ymin, zmin);
+            box->SetVertex(2, xmax, ymax, zmin);
+            box->SetVertex(3, xmin, ymax, zmin);
+            box->SetVertex(4, xmin, ymin, zmax);
+            box->SetVertex(5, xmax, ymin, zmax);
+            box->SetVertex(6, xmax, ymax, zmax);
+            box->SetVertex(7, xmin, ymax, zmax);
+
+            group->AddElement(box);
+        }
+    }
+
+    // ---- Optional: little boxes per hit (cluster "shape") ----
+    // Looks nice if hits correspond to cells. Can be heavy if many hits.
+    if (drawHitBoxes && !c.hits.empty()) {
+        auto bs = new TEveBoxSet(Form("HitBoxes_%d", cid));
+        bs->SetMainColor(col);
+        bs->SetMainTransparency(40);
+        bs->Reset(TEveBoxSet::kBT_AABox, true, 64);
+
+        const float half = 0.5f; // tune this to your cell size
+        for (const Hit* h : c.hits) {
+            if (!h) continue;
+            bs->AddBox(h->x - half, h->y - half, h->z - half,
+                         2*half, 2*half, 2*half);
+        }
+        bs->RefitPlex();
+        group->AddElement(bs);
+    }
+
     return group;
-    
 }
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-            std::cerr << "Usage: " << argv[0] << " <data.root> <geometry.root> \n";
-            return 1;
+        std::cerr << "Usage: " << argv[0] << " <data.root> <geometry.root>\n";
+        return 1;
     }
     const char* dataFile = argv[1];
     const char* geoFile  = argv[2];
@@ -139,330 +151,288 @@ int main(int argc, char **argv) {
         std::cerr << "ERROR: Could not load geometry!\n";
         return 1;
     }
+
     new TApplication("app", &argc, argv);
     TEveManager::Create();
 
-//    // camera
-//    auto s = gEve->SpawnNewScene("Projected Event");
-//    gEve->GetDefaultViewer()->AddScene(s);
-//    auto v = gEve->GetDefaultGLViewer();
-//    v->SetCurrentCamera(TGLViewer::kCameraOrthoXOY);
-//    TGLOrthoCamera &cam = (TGLOrthoCamera &)v->CurrentCamera();
-//    cam.SetZoomMinMax(0.2, 20);
- 
-//    // projections
-//    auto mng = new TEveProjectionManager(TEveProjection::kPT_RPhi);
-//    s->AddElement(mng);
-//    auto axes = new TEveProjectionAxes(mng);
-//    axes->SetTitle("R-PhiProjection");
-//    s->AddElement(axes);
-//    gEve->AddToListTree(axes, kTRUE);
-//    gEve->AddToListTree(mng, kTRUE);
-
-    // // =====================================================
-    // // 1. Create two scenes: one for 3D, one for projections
-    // // =====================================================
-    // TEveScene* scene3D  = gEve->SpawnNewScene("3D Scene");
-    // TEveScene* scene2D  = gEve->SpawnNewScene("Projection Scene");
-
-    // // =====================================================
-    // // 2. Create two viewers (two separate windows/tabs)
-    // // =====================================================
-    // TEveViewer* viewer3D = gEve->SpawnNewViewer("3D View");
-    // TEveViewer* viewer2D = gEve->SpawnNewViewer("Projected View");
-
-    // // Attach scenes to viewers
-    // viewer3D->AddScene(scene3D);
-    // viewer2D->AddScene(scene2D);
-
-    // // =====================================================
-    // // 3. Configure cameras
-    // // =====================================================
-
-    // // --- 3D viewer uses standard perspective camera ---
-    // TGLViewer* glv3D = viewer3D->GetGLViewer();
-    // glv3D->SetCurrentCamera(TGLViewer::kCameraPerspXOZ);
-
-    // // --- 2D viewer uses R–Phi orthographic camera ---
-    // TGLViewer* glv2D = viewer2D->GetGLViewer();
-    // glv2D->SetCurrentCamera(TGLViewer::kCameraOrthoXOY);
-    // TGLOrthoCamera& cam2D = (TGLOrthoCamera&) glv2D->CurrentCamera();
-    // cam2D.SetZoomMinMax(0.2, 20);
-
-    // // =====================================================
-    // // 4. Create projection manager & attach only to 2D scene
-    // // =====================================================
-    // TEveProjectionManager* projMgr =
-    //     new TEveProjectionManager(TEveProjection::kPT_RPhi);
-    // scene2D->AddElement(projMgr);
-
-    // TEveProjectionAxes* projAxes = new TEveProjectionAxes(projMgr);
-    // projAxes->SetTitle("R-φ Projection");
-    // scene2D->AddElement(projAxes);
-
-    // gEve->AddToListTree(projMgr, kTRUE);
-    // gEve->AddToListTree(projAxes, kTRUE);
-
-    
-
+    // Make detector geometry semi-transparent
     TGeoVolume* topVolume = gGeoManager->GetTopVolume();
     int nd = topVolume->GetNdaughters();
-
     for (int i = 0; i < nd; i++) {
         TGeoNode* node = topVolume->GetNode(i);
         TGeoVolume* vol = node->GetVolume();
-
-        vol->SetTransparency(80);     // 0-100
-        vol->SetLineColor(kGray + 1); // optional: lighter color
+        vol->SetTransparency(80);
+        vol->SetLineColor(kGray + 1);
     }
-
 
     auto top = new TEveGeoTopNode(gGeoManager, gGeoManager->GetTopNode());
     top->SetVisLevel(4);
     gEve->AddGlobalElement(top);
-    // scene3D->AddElement(top);
 
     TFile* f = TFile::Open(dataFile);
     if (!f) { std::cerr << "ERROR: cannot open datafile\n"; return 1; }
 
-    // TTree* t = (TTree*)f->Get("hibeam");
     TTree* t = (TTree*)f->Get("digitizedHits");
     if (!t) { std::cerr << "ERROR: TTree not found\n"; return 1; }
 
-    std::vector<double>* PrimaryEkin = nullptr;
-    std::vector<double>* PrimaryTime = nullptr;
-    std::vector<double>* PrimaryPosX = nullptr;
-    std::vector<double>* PrimaryPosY = nullptr;
-    std::vector<double>* PrimaryPosZ = nullptr;
-    std::vector<double>* PrimaryMomX = nullptr;
-    std::vector<double>* PrimaryMomY = nullptr;
-    std::vector<double>* PrimaryMomZ = nullptr;
-    std::vector<double>* centerX = nullptr;
-    std::vector<double>* centerZ = nullptr;
-    std::vector<double>* centerY = nullptr;
-    std::vector<double>* energies = nullptr;
+    // Hit cell centers + energy
+    std::vector<double> *centerXs = nullptr, *centerYs = nullptr, *centerZs = nullptr, *energies = nullptr;
+    SafeSetBranch(t, "centerX", centerXs);
+    SafeSetBranch(t, "centerY", centerYs);
+    SafeSetBranch(t, "centerZ", centerZs);
+    SafeSetBranch(t, "energy", energies);
+
+    // Primary vertex
+    std::vector<double> *primaryX = nullptr, *primaryY = nullptr, *primaryZ = nullptr, *primaryEkin = nullptr;
+    std::vector<double> *primaryPx = nullptr, *primaryPy = nullptr, *primaryPz = nullptr;
+    std::vector<int> *primaryPDG = nullptr;
+    SafeSetBranch(t, "PrimaryPosX", primaryX);
+    SafeSetBranch(t, "PrimaryPosY", primaryY);
+    SafeSetBranch(t, "PrimaryPosZ", primaryZ);
+    SafeSetBranch(t, "PrimaryEkin", primaryEkin);
+    SafeSetBranch(t, "PrimaryMomX", primaryPx);
+    SafeSetBranch(t, "PrimaryMomY", primaryPy);
+    SafeSetBranch(t, "PrimaryMomZ", primaryPz);
+    SafeSetBranch(t, "PrimaryPDG", primaryPDG);
+
+    // Truth info (photons)
+    std::vector<double> *truePhotonPosX = nullptr, *truePhotonPosY = nullptr, *truePhotonPosZ = nullptr, *truePhotonE = nullptr;
+    std::vector<int> *truePhotonTrackID = nullptr, *truePhotonParentID = nullptr;
+    SafeSetBranch(t, "truthPosX", truePhotonPosX);
+    SafeSetBranch(t, "truthPosY", truePhotonPosY);
+    SafeSetBranch(t, "truthPosZ", truePhotonPosZ);
+    SafeSetBranch(t, "truthE", truePhotonE);
+    SafeSetBranch(t, "TruePhotonTrackID", truePhotonTrackID);
+    SafeSetBranch(t, "TruePhotonParentID", truePhotonParentID);
+
     std::vector<double>* TruePhotonCreationX = nullptr;
     std::vector<double>* TruePhotonCreationY = nullptr;
     std::vector<double>* TruePhotonCreationZ = nullptr;
     std::vector<double>* TruePhotonEndX = nullptr;
     std::vector<double>* TruePhotonEndY = nullptr;
     std::vector<double>* TruePhotonEndZ = nullptr;
-    std::vector<double>* TPC_firstPosX = nullptr;
-    std::vector<double>* TPC_firstPosY = nullptr;
-    std::vector<double>* TPC_firstPosZ = nullptr;
-    std::vector<double>* TPC_lastPosX = nullptr;
-    std::vector<double>* TPC_lastPosY = nullptr;
-    std::vector<double>* TPC_lastPosZ = nullptr;
 
+    SafeSetBranch(t, "TruePhotonCreationX", TruePhotonCreationX);
+    SafeSetBranch(t, "TruePhotonCreationY", TruePhotonCreationY);
+    SafeSetBranch(t, "TruePhotonCreationZ", TruePhotonCreationZ);
+    SafeSetBranch(t, "TruePhotonEndX", TruePhotonEndX);
+    SafeSetBranch(t, "TruePhotonEndY", TruePhotonEndY);
+    SafeSetBranch(t, "TruePhotonEndZ", TruePhotonEndZ);
 
+    // TPC info
+    std::vector<double> *TPC_Edep = nullptr, *TPC_smearedEdep = nullptr;
+    std::vector<double> *TPC_firstPosX = nullptr, *TPC_firstPosY = nullptr, *TPC_firstPosZ = nullptr;
+    std::vector<double> *TPC_lastPosX = nullptr, *TPC_lastPosY = nullptr, *TPC_lastPosZ = nullptr;
+    std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_TrueKE = nullptr, *TPC_pdg = nullptr;
+    SafeSetBranch(t, "TPC_Edep", TPC_Edep);
+    SafeSetBranch(t, "TPC_smearedEdep", TPC_smearedEdep);
+    SafeSetBranch(t, "TPC_firstPosX", TPC_firstPosX);
+    SafeSetBranch(t, "TPC_firstPosY", TPC_firstPosY);
+    SafeSetBranch(t, "TPC_firstPosZ", TPC_firstPosZ);
+    SafeSetBranch(t, "TPC_lastPosX", TPC_lastPosX);
+    SafeSetBranch(t, "TPC_lastPosY", TPC_lastPosY);
+    SafeSetBranch(t, "TPC_lastPosZ", TPC_lastPosZ);
+    SafeSetBranch(t, "TPC_PathLength", TPC_PathLength);
+    SafeSetBranch(t, "TPC_dEdx", TPC_dEdx);
+    SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
+    SafeSetBranch(t, "TPC_pdg", TPC_pdg);
 
-    t->SetBranchAddress("PrimaryEkin",    &PrimaryEkin);
-    t->SetBranchAddress("PrimaryTime",    &PrimaryTime);
-    t->SetBranchAddress("PrimaryPosX",    &PrimaryPosX);
-    t->SetBranchAddress("PrimaryPosY",    &PrimaryPosY);
-    t->SetBranchAddress("PrimaryPosZ",    &PrimaryPosZ);
-    t->SetBranchAddress("PrimaryMomX",    &PrimaryMomX);
-    t->SetBranchAddress("PrimaryMomY",    &PrimaryMomY);
-    t->SetBranchAddress("PrimaryMomZ",    &PrimaryMomZ);
-
-    t->SetBranchAddress("centerX",    &centerX);
-    t->SetBranchAddress("centerY",    &centerY);
-    t->SetBranchAddress("centerZ",    &centerZ);
-    t->SetBranchAddress("energy", &energies);
-
-
-    t->SetBranchAddress("TruePhotonCreationX",    &TruePhotonCreationX);
-    t->SetBranchAddress("TruePhotonCreationY",    &TruePhotonCreationY);
-    t->SetBranchAddress("TruePhotonCreationZ",    &TruePhotonCreationZ);
-    t->SetBranchAddress("TruePhotonEndX",    &TruePhotonEndX);
-    t->SetBranchAddress("TruePhotonEndY",    &TruePhotonEndY);
-    t->SetBranchAddress("TruePhotonEndZ",    &TruePhotonEndZ);
-
-    t->SetBranchAddress( "TPC_firstPosX", &TPC_firstPosX);
-    t->SetBranchAddress( "TPC_firstPosY", &TPC_firstPosY);
-    t->SetBranchAddress( "TPC_firstPosZ", &TPC_firstPosZ);
-    t->SetBranchAddress( "TPC_lastPosX", &TPC_lastPosX);
-    t->SetBranchAddress( "TPC_lastPosY", &TPC_lastPosY);
-    t->SetBranchAddress( "TPC_lastPosZ", &TPC_lastPosZ);
-
-    // --------------------------------------------------------
-    // 4. Detector subsystems 
-    // --------------------------------------------------------
-    std::vector<std::string> dets = {
-        "SECE0",
-        "SECE1",
-        "SECE2",
-        "SECE3",
-        "SECE4",
-        "SECE5",
-        "SECE6",
-        "SECE7",
-        "SECE8",
-        "SECE9",
-        "SECE10",
-        "SECE11",
-        "SECE12",
-        "SECE13",
-        "SECE14",
-        "SECE15",
-        "SECE16",
-    };
-
-    // Hit branches
-    std::map<std::string, std::vector<double>*> HitX, HitY, HitZ, HitE;
-
-    for (auto& D : dets) {
-        HitX[D] = HitY[D] = HitZ[D] = HitE[D] = nullptr;
-
-        t->SetBranchAddress((D+"_Position_X").c_str(), &HitX[D]);
-        t->SetBranchAddress((D+"_Position_Y").c_str(), &HitY[D]);
-        t->SetBranchAddress((D+"_Position_Z").c_str(), &HitZ[D]);
-        t->SetBranchAddress((D+"_EDep").c_str(),        &HitE[D]);
-    }
-
-    Long64_t nEvents = 10;//t->GetEntries();
+    Long64_t nEvents = 10; // or: t->GetEntries();
 
     for (Long64_t ev = 0; ev < nEvents; ev++) {
         t->GetEntry(ev);
 
-        // ============ 1. Unique color per event ============
-        // gStyle->SetPalette(kAurora);
-        // int idx = ev % gStyle->GetNumberOfColors();
-        // Color_t eventColor = gStyle->GetColorPalette(idx);
-        // std::cout << eventColor << std::endl;
-
-        // Pick a hue we can vary per event:
-        double hue = fmod(ev * 0.61803398875, 1.0);
-
-        // Convert HSV → RGB manually (this version works)
-        float r, g, b;
-        {
-            float h = hue * 6;
-            float c = 1.0f;
-            float x = (1 - fabs(fmod(h, 2) - 1)) * c;
-
-            if      (0 <= h && h < 1) { r = c; g = x; b = 0; }
-            else if (1 <= h && h < 2) { r = x; g = c; b = 0; }
-            else if (2 <= h && h < 3) { r = 0; g = c; b = x; }
-            else if (3 <= h && h < 4) { r = 0; g = x; b = c; }
-            else if (4 <= h && h < 5) { r = x; g = 0; b = c; }
-            else                      { r = c; g = 0; b = x; }
-        }
-
-        // Normalize
-        float R = r;
-        float G = g;
-        float B = b;
-
-        // Allocate a real color index in ROOT + OpenGL
-        Color_t colIndex = TColor::GetFreeColorIndex();
-        new TColor(colIndex, R, G, B);   // <-- THIS MAKES IT REAL
-
-        // Use this color
-        Color_t eventColor = colIndex;
-
-        // ============ 2. Group for this event ===============
-        TEveElementList* eventList =
-            new TEveElementList(Form("Event_%lld", ev));
-        eventList->SetMainColor(eventColor);
+        // Build event list
+        auto eventList = new TEveElementList(Form("Event_%lld", ev));
         gEve->AddElement(eventList);
-        // scene3D->AddElement(eventList);
 
+        // ---------- Event color (only used for truth/charged tracks here) ----------
+        // Keep eventColor distinct, but clusters will have their own colors.
+        Color_t eventColor = MakeDistinctColor((int)ev, 0.6f, 1.0f);
 
-        // ============ 3. Draw photons =======================
-        for (size_t i = 0; i < TruePhotonCreationX->size(); i++) {
-            auto photon = new TEveLine(Form("Photon_%zu", i));
-            photon->SetLineWidth(3);
-            photon->SetMainColor(eventColor);
+        // ---------- Draw photons (truth) ----------
+        if (TruePhotonCreationX && TruePhotonEndX) {
+            for (size_t i = 0; i < TruePhotonCreationX->size(); i++) {
+                auto photon = new TEveLine(Form("Photon_%lld_%zu", ev, i));
+                photon->SetLineWidth(3);
+                photon->SetMainColor(eventColor);
 
-            photon->SetPoint(0,
-                (*TruePhotonCreationX)[i],
-                (*TruePhotonCreationY)[i],
-                (*TruePhotonCreationZ)[i]);
+                photon->SetPoint(0,
+                    (*TruePhotonCreationX)[i],
+                    (*TruePhotonCreationY)[i],
+                    (*TruePhotonCreationZ)[i]);
 
-            photon->SetPoint(1,
-                (*TruePhotonEndX)[i],
-                (*TruePhotonEndY)[i],
-                (*TruePhotonEndZ)[i]);
+                photon->SetPoint(1,
+                    (*TruePhotonEndX)[i],
+                    (*TruePhotonEndY)[i],
+                    (*TruePhotonEndZ)[i]);
 
-            eventList->AddElement(photon);
+                eventList->AddElement(photon);
+            }
         }
 
-        // ============ 3. Draw charged particles =======================
-        for (size_t i = 0; i < TPC_firstPosX->size(); i++) {
-            auto charged = new TEveLine(Form("charged_%zu", i));
-            charged->SetLineWidth(3);
-            charged->SetMainColor(eventColor);
+        // ---------- Draw charged tracks ----------
+        if (TPC_firstPosX && TPC_lastPosX) {
+            for (size_t i = 0; i < TPC_firstPosX->size(); i++) {
+                auto charged = new TEveLine(Form("charged_%lld_%zu", ev, i));
+                charged->SetLineWidth(3);
+                charged->SetMainColor(eventColor);
 
-            charged->SetPoint(0,
-                (*TPC_firstPosX)[i],
-                (*TPC_firstPosY)[i],
-                (*TPC_firstPosZ)[i]);
+                charged->SetPoint(0,
+                    (*TPC_firstPosX)[i],
+                    (*TPC_firstPosY)[i],
+                    (*TPC_firstPosZ)[i]);
 
-            charged->SetPoint(1,
-                (*TPC_lastPosX)[i],
-                (*TPC_lastPosY)[i],
-                (*TPC_lastPosZ)[i]);
+                charged->SetPoint(1,
+                    (*TPC_lastPosX)[i],
+                    (*TPC_lastPosY)[i],
+                    (*TPC_lastPosZ)[i]);
 
-            eventList->AddElement(charged);
+                eventList->AddElement(charged);
+            }
         }
 
-        // ============ 4. Build clusters ======================
-        TVector3 vertex((*PrimaryPosX)[0],(*PrimaryPosY)[0],(*PrimaryPosZ)[0]);
+        // ---------- Build hits ----------
         std::vector<Hit> hits;
-        size_t nHits = energies->size();
-        // std::cout << "Event " << ievt << ": " << nHits << " total hits across all rings" << std::endl;
-        for (size_t k=0; k<nHits; ++k) {
-            hits.push_back({(*centerX)[k], (*centerY)[k], (*centerZ)[k], (*energies)[k]});
-        }
-        // std::vector<Cluster> clusters = runClustering(centerX, centerY, centerZ);
-        std::vector<Cluster> clusters;
-        // double dEta = 0.10/2;
-        // double dPhi = 0.10/2;
-        // double E_seed = 15.00;
-        // double E_neighbor = 0.03;
-        // int winSize = 3;
+        if (!centerXs || !centerYs || !centerZs || !energies) continue;
 
-        // double totalE_Evt = 0;
-        // clusters = SlidingWindowClusterHits(hits, vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
-
-        clusters = clusterNeutralHits(hits, vertex, 25 * TMath::DegToRad()); // Have to optimise the angle a bit! 
-        // Apply cluster energy threshold
-        clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
-                                    [](const Cluster &c){ return c.p4.E() < 50.0; }),
-                    clusters.end());
-
-        // ============ 5. Draw clusters =======================
-        // for (size_t ci = 0; ci < clusters.size(); ci++) {
-        //     TEveElementList* cl = DrawCluster(clusters[ci], ci, eventColor);
-        //     eventList->AddElement(cl);
-        // }
-
-        for (Cluster c : clusters) {
-            TEveElementList* clusterElements = BuildClusterBoundingBox(
-                c, *centerX, *centerY, *centerZ, eventColor
-            );
-            eventList->AddElement(clusterElements);
-        }   
-
-        for (size_t i = 0; i < centerX->size(); i++) {
-        if (!centerX) continue;
-
-            auto ps = new TEvePointSet(Form("Hit_%lld_%zu", ev, i));
-            ps->SetMarkerStyle(4);
-            ps->SetMarkerSize(1.0);
-            ps->SetMarkerColor(eventColor);
-
-            ps->SetNextPoint(centerX->at(i), centerY->at(i), centerZ->at(i));
-
-            eventList->AddElement(ps);
+        const size_t nHits = energies->size();
+        hits.reserve(nHits);
+        for (size_t k = 0; k < nHits; ++k) {
+            hits.push_back({(*centerXs)[k], (*centerYs)[k], (*centerZs)[k], (*energies)[k]});
         }
 
-        // ============ 6. Update TEve ========================
-        // projMgr->ImportElements(eventList, scene2D);
+        // Primary vertex
+        TVector3 vertex(0,0,0);
+        if (primaryX && !primaryX->empty()) {
+            vertex = TVector3((*primaryX)[0], (*primaryY)[0], (*primaryZ)[0]);
+        }
+
+        // ---------- Build chargedTracks ----------
+        std::vector<ChargedTrack> chargedTracks;
+        if (TPC_Edep && TPC_firstPosX && TPC_lastPosX && TPC_TrueKE && TPC_pdg && TPC_dEdx && TPC_smearedEdep && TPC_PathLength) {
+            chargedTracks.reserve(TPC_Edep->size());
+            for (size_t k = 0; k < TPC_Edep->size(); ++k) {
+                TVector3 first((*TPC_firstPosX)[k], (*TPC_firstPosY)[k], (*TPC_firstPosZ)[k]);
+                TVector3 last((*TPC_lastPosX)[k],  (*TPC_lastPosY)[k],  (*TPC_lastPosZ)[k]);
+                TVector3 dir = last - first;
+
+                chargedTracks.push_back({
+                    k,
+                    vertex,
+                    last,
+                    dir,
+                    (*TPC_TrueKE)[k],
+                    (*TPC_pdg)[k],
+                    (*TPC_dEdx)[k],
+                    (*TPC_smearedEdep)[k],
+                    (*TPC_PathLength)[k],
+                    0.0,   // dEdxTheory placeholder
+                    0.15   // resolution
+                });
+            }
+        }
+
+        // ---------- Reconstruct ----------
+        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex);
+
+        // ---------- Draw ALL hits as gray background ----------
+        {
+            auto allHits = new TEvePointSet(Form("AllHits_%lld", ev));
+            allHits->SetMarkerStyle(4);
+            allHits->SetMarkerSize(0.6);
+            allHits->SetMarkerColor(kGray + 1);
+            for (size_t i = 0; i < centerXs->size(); ++i) {
+                allHits->SetNextPoint(centerXs->at(i), centerYs->at(i), centerZs->at(i));
+            }
+            eventList->AddElement(allHits);
+        }
+
+        // ---------- candidate selection ----------
+        double param_h = 135;
+        double param_k = 1.6;
+        double param_a = 45;
+        double param_b = 1.55;
+
+        std::vector<Pi0Candidate> candidates;
+        std::vector<Pi0Candidate> selected;
+
+        for (size_t a = 0; a < reco.clusters.size(); ++a) {
+            for (size_t b = a + 1; b < reco.clusters.size(); ++b) {
+                const auto& g1 = reco.clusters[a].p4;
+                const auto& g2 = reco.clusters[b].p4;
+
+                double mgg = (g1 + g2).M();
+                double theta = openingAngle(g1, g2);
+
+                double relipse =
+                    std::pow((mgg - param_h), 2) / std::pow(param_a, 2) +
+                    std::pow((theta - param_k), 2) / std::pow(param_b, 2);
+
+                if (relipse > 1) continue;
+
+                Pi0Candidate cand;
+                cand.c1 = &reco.clusters[a];
+                cand.c2 = &reco.clusters[b];
+                cand.mgg = mgg;
+                cand.theta = theta;
+                cand.p4 = g1 + g2;
+                cand.score = relipse;
+
+                candidates.push_back(cand);
+            }
+        }
+
+        std::sort(candidates.begin(), candidates.end(),
+            [](const Pi0Candidate& a, const Pi0Candidate& b) { return a.score < b.score; });
+
+        std::unordered_set<const Cluster*> used;
+        for (const auto& cand : candidates) {
+            if (used.count(cand.c1) || used.count(cand.c2)) continue;
+            used.insert(cand.c1);
+            used.insert(cand.c2);
+            selected.push_back(cand);
+        }
+
+        // ---------- Helper: cluster pointer -> index ----------
+        auto clusterIndex = [&](const Cluster* cptr)->int {
+            for (size_t i = 0; i < reco.clusters.size(); ++i) {
+                if (&reco.clusters[i] == cptr) return (int)i;
+            }
+            return -1;
+        };
+
+        // ---------- DRAWING OPTIONS ----------
+        const bool drawAllClusters = false;     // set false if you only want selected pi0 clusters
+        const bool drawBBox        = true;
+        const bool drawHitBoxes    = false;    // heavy if many hits; try true for a few clusters
+
+        if (drawAllClusters) {
+            // Draw every cluster with its own unique color
+            for (size_t ci = 0; ci < reco.clusters.size(); ++ci) {
+                Color_t ccol = MakeDistinctColor((int)ci);
+                auto clEve = DrawRecoCluster(reco.clusters[ci], (int)ci, ccol, drawBBox, drawHitBoxes);
+                eventList->AddElement(clEve);
+            }
+        } else {
+            // Draw only selected pi0 clusters, each with its own unique color
+            for (const Pi0Candidate& pi0 : selected) {
+                int i1 = clusterIndex(pi0.c1);
+                int i2 = clusterIndex(pi0.c2);
+
+                Color_t col1 = MakeDistinctColor(i1 >= 0 ? i1 : 1000);
+                Color_t col2 = MakeDistinctColor(i2 >= 0 ? i2 : 1001);
+
+                // For selected, you might want hit boxes ON to see the shape:
+                eventList->AddElement(DrawRecoCluster(*pi0.c1, i1, col1, /*drawBBox=*/true, /*drawHitBoxes=*/true));
+                eventList->AddElement(DrawRecoCluster(*pi0.c2, i2, col2, /*drawBBox=*/true, /*drawHitBoxes=*/true));
+            }
+        }
+
+        // Done with this event
     }
-    gEve->Redraw3D(kTRUE);
 
+    gEve->Redraw3D(kTRUE);
     gApplication->Run(kTRUE);
     return 0;
 }

@@ -36,6 +36,7 @@
 // #include <TEveElementList.h>
 #include <TEveLine.h>
 #include <TEvePointSet.h>
+#include <TEveBoxSet.h>
 
 #include <TEveProjectionManager.h>
 #include <TEveProjectionAxes.h>
@@ -59,6 +60,7 @@
 
 
 #include "Clustering.hpp"
+#include "RecoEvent.hpp"
 
 TEveElementList* DrawCluster(const Cluster& c, int id, Color_t color);
 
