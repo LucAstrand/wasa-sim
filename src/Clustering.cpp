@@ -233,6 +233,8 @@ std::vector<ChargedCluster> MatchHitsToTracks(
     for (size_t i = 0; i < tracks.size(); ++i) {
         const auto& trk = tracks[i];
 
+        if (std::abs(trk.TruePDG) == 11) std::cout << "electron Track!" << std::endl;
+
         ChargedCluster c;
         c.trackID = trk.id;
         c.direction = trk.direction.Unit();
@@ -245,9 +247,12 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         c.EdepSmeared = trk.EdepSmeared;
         c.nSigmaPion = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(211, trk.TrueKE, tpcGas), trk.resolution);
         c.nSigmaProton = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(2212, trk.TrueKE, tpcGas), trk.resolution);
+        c.nSigmaElectron = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(11, trk.TrueKE, tpcGas), trk.resolution);
         c.pidL = ComputePIDLikelihoods(
             c.nSigmaPion,
+            c.nSigmaElectron,
             c.nSigmaProton
+
         );
         c.pidGuess = AssignPIDFromLikelihood(c.pidL, 0.7);
 

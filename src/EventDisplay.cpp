@@ -210,7 +210,8 @@ TEveElementList* DrawRecoNCluster(const Cluster& c, int cid, Color_t col,
 TEveElementList* DrawRecoCCluster(const ChargedCluster& c, int cid, Color_t col,
                                 bool drawBBox=true, bool drawHitBoxes=false)
 {
-    auto group = new TEveElementList(Form("CCluster_%d", cid));
+    std::string particle_label = PIDToString(c.pidGuess);
+    auto group = new TEveElementList(Form("CCluster_%s_%d", particle_label.c_str(), cid));
     group->SetMainColor(col);
 
     // ---- Hits: one TEvePointSet per cluster (fast + consistent) ----

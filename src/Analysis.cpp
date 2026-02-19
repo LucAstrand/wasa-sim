@@ -216,15 +216,20 @@ int main(int argc, char **argv) {
     // Charged analysis objects
     TH1F  *hNSigmaPion                   = nullptr;
     TH1F  *hNSigmaProton                 = nullptr;
+    TH1F  *hNSigmaElectron               = nullptr;
     TH2F  *hdEdxVsE_cluster_Pion         = nullptr;
     TH2F  *hdEdxVsE_true_Pion            = nullptr;
     TH2F  *hdEdxVsE_cluster_Proton       = nullptr;
     TH2F  *hdEdxVsE_true_Proton          = nullptr;
+    TH2F  *hdEdxVsE_cluster_Electron     = nullptr;
+    TH2F  *hdEdxVsE_true_Electron        = nullptr;
     TH2F  *h2_Eres                       = nullptr;
     TH1F  *hdEdxTruePion                 = nullptr;
     TH1F  *hdEdxSmearPion                = nullptr;
     TH1F  *hdEdxTrueProton               = nullptr;
     TH1F  *hdEdxSmearProton              = nullptr;
+    TH1F  *hdEdxTrueElectron             = nullptr;
+    TH1F  *hdEdxSmearElectron            = nullptr;
     // Analysis helper classes (also pointers)
     Pi0Efficiency  *effPlotter           = nullptr;
     Pi0Acceptance  *accPlotter           = nullptr;
@@ -293,16 +298,21 @@ int main(int argc, char **argv) {
     if (doChargedAnalysis) {
         hNSigmaPion             = new TH1F("hNSigmaPion", ";n#sigma;Counts", 100, -5, 5);
         hNSigmaProton           = new TH1F("hNSigmaProton", ";n#sigma;Counts", 100, -5, 5);
+        hNSigmaElectron         = new TH1F("hNSigmaElectron", ";n#sigma;Counts", 100, -5, 5);
         hdEdxVsE_cluster_Pion   = new TH2F("hdEdxVsE_cluster_Pion",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
         hdEdxVsE_true_Pion      = new TH2F("hdEdxVsE_true_Pion",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
         hdEdxVsE_cluster_Proton = new TH2F("hdEdxVsE_cluster_Proton",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
-        hdEdxVsE_true_Proton    = new TH2F("hdEdxVsE_true_Proton",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);   
+        hdEdxVsE_true_Proton    = new TH2F("hdEdxVsE_true_Proton",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1); 
+        hdEdxVsE_cluster_Electron = new TH2F("hdEdxVsE_cluster_Electron",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.2);
+        hdEdxVsE_true_Electron    = new TH2F("hdEdxVsE_true_Electron",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.2);   
         pidEff                  = new PIDEfficiency(20, 0, 500);
         h2_Eres                 = new TH2F("h2_Eres", ";True KE [MeV];Energy Residual", 20, 0, 500, 100, -1.0, 1.0);
         hdEdxTruePion           = new TH1F("hdEdxTruePion", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
         hdEdxSmearPion          = new TH1F("hdEdxSmearPion", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
         hdEdxTrueProton         = new TH1F("hdEdxTrueProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
         hdEdxSmearProton        = new TH1F("hdEdxSmearProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
+        hdEdxTrueElectron       = new TH1F("hdEdxTrueElectron", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
+        hdEdxSmearElectron      = new TH1F("hdEdxSmearElectron", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
         hClusterE               = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
     }
     if (doEventVariables) {
@@ -435,9 +445,12 @@ int main(int argc, char **argv) {
 
 
 
-
+                // n-Sigma plots
                 if (hNSigmaPion) hNSigmaPion->Fill(cluster.nSigmaPion);
                 if (hNSigmaProton) hNSigmaProton->Fill(cluster.nSigmaProton);
+                if (hNSigmaElectron) hNSigmaElectron->Fill(cluster.nSigmaElectron);
+
+                // PDG number specific
                 if (cluster.objectTruePDG == 211 || cluster.objectTruePDG == -211) {
                 if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
                 if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
@@ -453,6 +466,18 @@ int main(int argc, char **argv) {
                 if (hdEdxTrueProton) hdEdxTrueProton->Fill(cluster.objectTruedEdx);
                 if (hdEdxSmearProton) hdEdxSmearProton->Fill(cluster.clusterdEdx);            
                 }
+
+                if (cluster.objectTruePDG == 11 || cluster.objectTruePDG == -11) {
+                std::cout << "Filling electron stuff" << std::endl;
+                if (hdEdxVsE_cluster_Electron) hdEdxVsE_cluster_Electron->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
+                if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
+                // if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y 
+                if (hdEdxVsE_true_Electron) hdEdxVsE_true_Electron->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
+                if (hdEdxTrueElectron) hdEdxTrueElectron->Fill(cluster.objectTruedEdx);
+                if (hdEdxSmearElectron) hdEdxSmearElectron->Fill(cluster.clusterdEdx);
+                }
+
+                // E res plots
                 double Eres = (cluster.totalEnergy - cluster.objectTrueKE) / cluster.objectTrueKE;
                 if (h2_Eres) h2_Eres->Fill(cluster.objectTrueKE, Eres);
             }            
@@ -623,7 +648,7 @@ int main(int argc, char **argv) {
 
         if (doEventVariables) {
             
-            double eVis = reco.EM_energy; // this is the sum of all the hti energies in the calorimeter, from any source.
+            double eVis = reco.EM_energy; // this is the sum of all the hit energies in the calorimeter, from any source.
             double eTrue = 0.0;
             size_t n = primaryEkin->size();
             for (size_t i = 0; i < n; ++i) {
@@ -871,27 +896,43 @@ int main(int argc, char **argv) {
         opts_nSigma.doFit = true;
         opts_nSigma.addLegend = true;
         opts_nSigma.legendEntries = {
-        "#pi hypothesis",
+        "#pi^{#pm} hypothesis",
+        "e^{#pm} hypothesis",
         "p hypothesis"
         };
-        std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaProton};
+        std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaElectron, hNSigmaProton};
         std::vector<int> colors = {
             kRed+1,
+            kGreen+1,
             kBlue+1
         };
         Plot1D(plots1D, colors, "Charged/nSigmaPlots.png", opts_nSigma);
 
+        // PlotOptions opts_hdEdxVsE_true;
+        // opts_hdEdxVsE_true.drawOption = "SCAT";
+        // opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}", "e^{#pm}" ,"p"};
+        // opts_hdEdxVsE_true.legendDrawOpt = "P";
+        // Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Electron, hdEdxVsE_true_Proton}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
+
+        // PlotOptions opts_hdEdxVsE_cluster;
+        // opts_hdEdxVsE_cluster.drawOption = "SCAT";
+        // opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}", "e^{#pm}","p"};
+        // opts_hdEdxVsE_cluster.legendDrawOpt = "P";
+        // Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Electron, hdEdxVsE_cluster_Proton}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
+
+        std::cout << "Entries: " << hdEdxVsE_true_Electron->GetEntries() << std::endl;
+
         PlotOptions opts_hdEdxVsE_true;
         opts_hdEdxVsE_true.drawOption = "SCAT";
-        opts_hdEdxVsE_true.legendEntries = {"#pi^{+}","p"};
+        opts_hdEdxVsE_true.legendEntries = {"e^{#pm}"};
         opts_hdEdxVsE_true.legendDrawOpt = "P";
-        Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
+        Plot2DOverlay({hdEdxVsE_true_Electron}, {kGreen},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
 
         PlotOptions opts_hdEdxVsE_cluster;
         opts_hdEdxVsE_cluster.drawOption = "SCAT";
-        opts_hdEdxVsE_cluster.legendEntries = {"#pi^{+}","p"};
+        opts_hdEdxVsE_cluster.legendEntries = {"e^{#pm}"};
         opts_hdEdxVsE_cluster.legendDrawOpt = "P";
-        Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
+        Plot2DOverlay({ hdEdxVsE_cluster_Electron}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
 
         PlotOptions opts_h2_Eres;
         TProfile* pEres = h2_Eres->ProfileX(Form("pEres_%s", h2_Eres->GetName()));
@@ -899,13 +940,15 @@ int main(int argc, char **argv) {
 
         PlotOptions opts_dEdxPlots;
         opts_dEdxPlots.addLegend = true;
-        opts_dEdxPlots.legendEntries = {"True #pi", "Smeared #pi", "True p", "Smeared p"};
-        std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueProton, hdEdxSmearProton};
+        opts_dEdxPlots.legendEntries = {"True #pi^{#pm}", "Smeared #pi^{#pm}", "True e^{#pm}", "Smeared e^{#pm}", "True p", "Smeared p"};
+        std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueElectron, hdEdxSmearElectron, hdEdxTrueProton, hdEdxSmearProton};
         std::vector<int> colors_dEdx = {
             kBlack,
-            kRed+1,
-            kGreen+2,
-            kBlue+1
+            kBlack+1,
+            kGreen,
+            kGreen+1,
+            kRed,
+            kRed+1
         };
         Plot1D(plots1D_dEdx, colors_dEdx, "Charged/dEdxPlots.png", opts_dEdxPlots);
 

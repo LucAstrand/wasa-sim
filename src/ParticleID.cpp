@@ -88,29 +88,29 @@ inline double LikelihoodFromNSigma(double nSigma) {
 
 }
 
-// PIDLikelihoods ComputePIDLikelihoods(double nSigmaPi,
-//                                      double nSigmaP,
-//                                      double nSigmaE)
-
 PIDLikelihoods ComputePIDLikelihoods(double nSigmaPi,
-                                     double nSigmaP)
+                                     double nSigmaP,
+                                     double nSigmaE)
+
+// PIDLikelihoods ComputePIDLikelihoods(double nSigmaPi,
+//                                      double nSigmaP)
 {
     PIDLikelihoods out;
 
     out.Lpi = LikelihoodFromNSigma(nSigmaPi);
     out.Lp  = LikelihoodFromNSigma(nSigmaP);
-    // out.Le  = LikelihoodFromNSigma(nSigmaE);
+    out.Le  = LikelihoodFromNSigma(nSigmaE);
 
-    // double sum = out.Lpi + out.Lp + out.Le;
-    double sum = out.Lpi + out.Lp;
+    double sum = out.Lpi + out.Lp + out.Le;
+    // double sum = out.Lpi + out.Lp;
 
     if (sum > 0) {
         out.Ppi = out.Lpi / sum;
         out.Pp  = out.Lp  / sum;
-        // out.Pe  = out.Le  / sum;
+        out.Pe  = out.Le  / sum;
     } else {
-        // out.Ppi = out.Pp = out.Pe = 0.0;
-        out.Ppi = out.Pp = 0.0;
+        out.Ppi = out.Pp = out.Pe = 0.0;
+        // out.Ppi = out.Pp = 0.0;
     }
 
     return out;
@@ -119,19 +119,19 @@ PIDLikelihoods ComputePIDLikelihoods(double nSigmaPi,
 PID AssignPIDFromLikelihood(const PIDLikelihoods& L,
                             double minProb)
 {
-    // if (L.Ppi > minProb && L.Ppi >= L.Pp && L.Ppi >= L.Pe)
-    //     return PID::Pion;
-
-    // if (L.Pp > minProb && L.Pp >= L.Ppi && L.Pp >= L.Pe)
-    //     return PID::Proton;
-
-    // if (L.Pe > minProb && L.Pe >= L.Ppi && L.Pe >= L.Pp)
-    //     return PID::Electron;
-    if (L.Ppi > minProb && L.Ppi >= L.Pp)
+    if (L.Ppi > minProb && L.Ppi >= L.Pp && L.Ppi >= L.Pe)
         return PID::Pion;
 
-    if (L.Pp > minProb && L.Pp >= L.Ppi)
+    if (L.Pp > minProb && L.Pp >= L.Ppi && L.Pp >= L.Pe)
         return PID::Proton;
+
+    if (L.Pe > minProb && L.Pe >= L.Ppi && L.Pe >= L.Pp)
+        return PID::Electron;
+    // if (L.Ppi > minProb && L.Ppi >= L.Pp)
+    //     return PID::Pion;
+
+    // if (L.Pp > minProb && L.Pp >= L.Ppi)
+    //     return PID::Proton;
 
     return PID::Unknown;
 }
