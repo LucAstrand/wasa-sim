@@ -908,31 +908,29 @@ int main(int argc, char **argv) {
         };
         Plot1D(plots1D, colors, "Charged/nSigmaPlots.png", opts_nSigma);
 
-        // PlotOptions opts_hdEdxVsE_true;
-        // opts_hdEdxVsE_true.drawOption = "SCAT";
-        // opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}", "e^{#pm}" ,"p"};
-        // opts_hdEdxVsE_true.legendDrawOpt = "P";
-        // Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Electron, hdEdxVsE_true_Proton}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
-
-        // PlotOptions opts_hdEdxVsE_cluster;
-        // opts_hdEdxVsE_cluster.drawOption = "SCAT";
-        // opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}", "e^{#pm}","p"};
-        // opts_hdEdxVsE_cluster.legendDrawOpt = "P";
-        // Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Electron, hdEdxVsE_cluster_Proton}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
-
-        std::cout << "Entries: " << hdEdxVsE_true_Electron->GetEntries() << std::endl;
-
         PlotOptions opts_hdEdxVsE_true;
         opts_hdEdxVsE_true.drawOption = "SCAT";
-        opts_hdEdxVsE_true.legendEntries = {"e^{#pm}"};
+        opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}","p"};
         opts_hdEdxVsE_true.legendDrawOpt = "P";
-        Plot2DOverlay({hdEdxVsE_true_Electron}, {kGreen},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
+        Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Proton}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
 
         PlotOptions opts_hdEdxVsE_cluster;
         opts_hdEdxVsE_cluster.drawOption = "SCAT";
-        opts_hdEdxVsE_cluster.legendEntries = {"e^{#pm}"};
+        opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}", "e^{#pm}","p"};
         opts_hdEdxVsE_cluster.legendDrawOpt = "P";
-        Plot2DOverlay({ hdEdxVsE_cluster_Electron}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
+        Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Electron, hdEdxVsE_cluster_Proton}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
+
+        // PlotOptions opts_hdEdxVsE_true;
+        // opts_hdEdxVsE_true.drawOption = "SCAT";
+        // opts_hdEdxVsE_true.legendEntries = {"e^{#pm}"};
+        // opts_hdEdxVsE_true.legendDrawOpt = "P";
+        // Plot2DOverlay({hdEdxVsE_true_Electron}, {kGreen},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
+
+        // PlotOptions opts_hdEdxVsE_cluster;
+        // opts_hdEdxVsE_cluster.drawOption = "SCAT";
+        // opts_hdEdxVsE_cluster.legendEntries = {"e^{#pm}"};
+        // opts_hdEdxVsE_cluster.legendDrawOpt = "P";
+        // Plot2DOverlay({ hdEdxVsE_cluster_Electron}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
 
         PlotOptions opts_h2_Eres;
         TProfile* pEres = h2_Eres->ProfileX(Form("pEres_%s", h2_Eres->GetName()));
