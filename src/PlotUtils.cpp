@@ -303,6 +303,7 @@ void Plot2DOverlay(
     if (options.addTopLatex)
         AddTopLatex(c.get(), options.topLatex);
 
+    c->SetLogx();
     SavePlot(c.get(), plotname);
 }
 

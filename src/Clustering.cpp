@@ -247,10 +247,10 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         c.EdepSmeared = trk.EdepSmeared;
         c.nSigmaPion = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(211, trk.TrueKE, tpcGas), trk.resolution);
         c.nSigmaProton = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(2212, trk.TrueKE, tpcGas), trk.resolution);
-        c.nSigmaElectron = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(11, trk.TrueKE, tpcGas), trk.resolution);
+        // c.nSigmaElectron = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(11, trk.TrueKE, tpcGas), trk.resolution);
         c.pidL = ComputePIDLikelihoods(
             c.nSigmaPion,
-            c.nSigmaElectron,
+            // c.nSigmaElectron,
             c.nSigmaProton
 
         );

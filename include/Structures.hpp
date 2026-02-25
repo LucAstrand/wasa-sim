@@ -93,7 +93,7 @@ struct ChargedCluster {
     double EdepSmeared;
     double nSigmaPion;
     double nSigmaProton;
-    double nSigmaElectron;
+    // double nSigmaElectron;
     PIDLikelihoods pidL;
     PID pidGuess;
 };

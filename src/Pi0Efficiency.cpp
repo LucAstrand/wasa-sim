@@ -26,6 +26,8 @@ bool Pi0Efficiency::IsReco(const TruePi0& tpi0, const std::vector<Pi0Candidate>&
     for (const auto& rpi0 : recoPi0s) {
         auto match = [&](const Cluster* c, const TruePhoton* g) {
             // std::cout << "Angle: " << c->p4.Vect().Angle(g->p4.Vect()) << std::endl;
+            // the question here is, do we care how close we are to the actual angles? 
+            // if the energy reco is great and the inv-mass plot works well should we care if we are off by like some angle?!
             return c->p4.Vect().Angle(g->p4.Vect()) < 0.15;
         };
 

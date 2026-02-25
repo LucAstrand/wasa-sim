@@ -36,16 +36,16 @@ inline double LikelihoodFromNSigma(double nSigma);
 struct PIDLikelihoods {
     double Lpi;
     double Lp;
-    double Le;
+    // double Le;
 
     double Ppi;
     double Pp;
-    double Pe;
+    // double Pe;
 };
 
 PIDLikelihoods ComputePIDLikelihoods(
     double nSigmaPi,
-    double nSigmaE,
+    // double nSigmaE,
     double nSigmaP
 );
 
