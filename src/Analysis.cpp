@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
                     << "  --pi0-analysis        Reconstruct Pi0s and invariant mass analysis\n"
                     << "  --charged-analysis    Reconstruct Charged objects and do PID studies\n"
                     << "  --truth-analysis      Performs truth level analysis for Pi0s\n"
+                    << "  --truth-mix-analysis  Performs truth-reco level mixed analysis for Pi0s\n"
                     << "  --event-variables     Computes the event level variables\n";
             return 1;
         }
@@ -77,6 +78,7 @@ int main(int argc, char **argv) {
     bool doPi0Analysis = false;
     bool doChargedAnalysis = false;
     bool doTruthAnalysis = false;
+    bool doTruthAndMixPlots = false;
     bool doEventVariables = false;
 
     for (int i = 3; i<argc; ++i) {
@@ -89,12 +91,13 @@ int main(int argc, char **argv) {
             }
             doPi0Analysis = true;
             doChargedAnalysis = true;
-            doTruthAnalysis = true;
+            doTruthAnalysis = true; // NOTE for the truth-reco mix plots you also need to have the flag "--truth-mix-analysis"
             doEventVariables = true;
         }
         if (arg == "--pi0-analysis") doPi0Analysis = true;
         if (arg == "--charged-analysis") doChargedAnalysis = true;
         if (arg == "--truth-analysis") doTruthAnalysis = true;
+        if (arg == "--truth-mix-analysis") doTruthAndMixPlots = true;
         if (arg == "--event-variables") doEventVariables = true;
     }
 
@@ -423,29 +426,8 @@ int main(int argc, char **argv) {
         // // Charged Object Clustering
 
         if (doChargedAnalysis) {
-            // double thetaMax = 25.0 * TMath::DegToRad();
-            // // chargedClusters.clear();
-            // chargedObjects.clear();
-            // chargedClusters = MatchHitsToTracks(chargedTracks, hits, thetaMax);
 
             for (const ChargedCluster& cluster : reco.chargedClusters) {
-                
-                // double calibratedKE = calibration.GetMeanKE(reco.chargedClusters.size(), reco.EM_energy);
-                // double mass = PDGMassMeV(PIDToPDG(cluster.pidGuess));
-                // double p_mag = std::sqrt(calibratedKE * (calibratedKE + 2 * mass));
-                // TVector3 dir = cluster.direction.Unit();
-                // //Build charged objects
-                // TLorentzVector charged_p4;
-                // charged_p4.SetPxPyPzE(
-                //     dir.X() * p_mag,
-                //     dir.Y() * p_mag,
-                //     dir.Z() * p_mag,
-                //     calibratedKE + mass
-                // );
-
-                // reco.chargedObjects.push_back({cluster.trackID, charged_p4, &cluster});
-
-
 
                 // n-Sigma plots
                 if (hNSigmaPion) hNSigmaPion->Fill(cluster.nSigmaPion);
@@ -468,7 +450,6 @@ int main(int argc, char **argv) {
                 if (hdEdxTrueProton) hdEdxTrueProton->Fill(cluster.objectTruedEdx);
                 if (hdEdxSmearProton) hdEdxSmearProton->Fill(cluster.clusterdEdx);            
                 }
-
                 // if (cluster.objectTruePDG == 11 || cluster.objectTruePDG == -11) {
                 // if (hdEdxVsE_cluster_Electron) hdEdxVsE_cluster_Electron->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
                 // if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
@@ -486,29 +467,7 @@ int main(int argc, char **argv) {
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-        // Neutral Object Clustering
-
-        // if (doPi0Analysis) {
-        //     // double totalE_Evt = 0;
-        //     clusters.clear();
-
-        //     // double dEta = 0.10/2;
-        //     // double dPhi = 0.10/2;
-        //     // double E_seed = 15.00;
-        //     // double E_neighbor = 0.03;
-        //     // int winSize = 7;
-        //     // clusters = SlidingWindowClusterHits(hits, vertex, dEta, dPhi, E_seed, E_neighbor, winSize);
-            
-        //     clusters = clusterNeutralHits(hits, vertex, 25 * TMath::DegToRad()); // Have to optimise the angle a bit! 
-        //     // Apply cluster energy threshold
-        //     clusters.erase(std::remove_if(clusters.begin(), clusters.end(),
-        //                                 [](const Cluster &c){ return c.p4.E() < 50.0; }),
-        //                 clusters.end());
-        // }
-
-        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-       
-        // // Invariant mass plot (neutral pion / double photon)
+        // Invariant mass plot (neutral pion / double photon)
 
         if (doPi0Analysis) {
             selected.clear();
@@ -577,7 +536,7 @@ int main(int argc, char **argv) {
 
         // Truth level + reco level plots 
 
-        if (doTruthAnalysis) {
+        if (doTruthAndMixPlots) {
             std::vector<int> clusterToTrue = matchClustersToTruth(reco.clusters, truePhotons, 10);
 
             // Construct hybrid TLorentzVectors
@@ -864,6 +823,10 @@ int main(int argc, char **argv) {
         // TruthPi0MassPlot(hPi0TrueMass, "Pi0Mass_Truth.png");
         if (hPi0TrueMass) Plot1D({hPi0TrueMass}, {kBlack}, "Truth/Pi0InvMassTT.png", optsPi0InvMassTT);
 
+        delete hPi0TrueMass;
+    }
+    
+    if (doTruthAndMixPlots) {
         // Mix Plots
         PlotOptions optsPi0InvMassRecoAngle;
         optsPi0InvMassRecoAngle.doFit = true;
@@ -882,7 +845,6 @@ int main(int argc, char **argv) {
         // TruthPi0MassPlot(h_mass_recoE_truthAngle, "Pi0Mass_recoE_truthAngle.png");
         if (h_mass_recoE_truthAngle) Plot1D({h_mass_recoE_truthAngle}, {kBlack}, "Truth/Pi0InvMassTruthAngle.png", optsPi0InvMassTruthAngle);
 
-        delete hPi0TrueMass;
         delete h_mass_truthE_recoAngle; 
         delete h_mass_recoE_truthAngle; 
     }
