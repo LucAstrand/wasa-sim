@@ -101,7 +101,7 @@ void Pi0Acceptance::FinalizePlot(const std::string& outFileName) {
     PlotOptions opts;
     opts.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
     opts.legendEntries = { "Acceptance" };
-    opts.infoLines = {"GEANT4 #pi^{0} sample"};
+    opts.infoLines = {"Signal dataset"};//{"GEANT4 #pi^{0} sample"};
     opts.addInfoPave = true;
     PlotGraph(gEff, outFileName.c_str(), opts);
 

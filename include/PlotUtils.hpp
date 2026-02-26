@@ -2,6 +2,7 @@
 #define PLOTUTILS_H
 
 #include "TH1.h"
+#include "TH2.h"
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TGraph.h"  // For future if needed
@@ -14,6 +15,9 @@
 #include "TLegend.h"
 #include "TLatex.h"
 #include "TObject.h"
+#include "TColor.h"
+#include "TROOT.h"
+#include "TStyle.h"
 
 struct PlotOptions {
     bool doFit = false;
@@ -30,10 +34,10 @@ struct PlotOptions {
     bool addLegend = true;
     std::string legendDrawOpt = "l"; // "l" - Line , "p"
     std::string drawOption = "HIST";  // e.g., "HIST", "E", "COLZ" for 2D
+    int colorMap = kSolar;//kCherry;//kRust;
     bool normalizeHists = false;  // Scale to unit area if true (for overlays)
     double legendX1 = 0.65, legendY1 = 0.7, legendX2 = 0.98, legendY2 = 0.88;  // Customizable position
     double infoX1 = 0.17, infoY1 = 0.70, infoX2 = 0.50, infoY2 = 0.90;
-
     bool overlayProfileX = false;
     int profileColor = kBlack;
     int profileLineWidth = 2;
@@ -45,7 +49,8 @@ struct PlotOptions {
 
 // Core functions
 void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, const std::string& plotname, const PlotOptions& options = PlotOptions());
-void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& opts = PlotOptions());
+// void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& opts = PlotOptions());
+void Plot2D(TH2* hist, const std::string& plotname, const PlotOptions& opts = PlotOptions());
 void Plot2DOverlay(
     const std::vector<TH2*>& hists,
     const std::vector<int>& colors,

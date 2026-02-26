@@ -11,6 +11,8 @@ struct RecoEvent {
     std::vector<ChargedObject> chargedObjects;
     TVector3 vertex;
     double EM_energy;
+    int chPionMultiplicity = 0;
+    int nPionMultiplicity = 0;
 };
 
 RecoEvent ReconstructEvent(

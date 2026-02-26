@@ -205,7 +205,8 @@ void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, cons
     SavePlot(c.get(), plotname);
 }
 
-void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& opts) {
+// void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& opts) {
+void Plot2D(TH2* hist, const std::string& plotname, const PlotOptions& opts) {
     if (hist == nullptr) {
         std::cerr << "Error: No valid histogram provided." << std::endl;
         return;
@@ -266,6 +267,8 @@ void Plot2D(TH2F* hist, const std::string& plotname, const PlotOptions& opts) {
         info->Draw();
     }
     if (options.addTopLatex) AddTopLatex(c.get(), options.topLatex);
+    gStyle->SetPalette(opts.colorMap);
+    // TColor::InvertPalette();
     SavePlot(c.get(), plotname);
 }
 
@@ -304,6 +307,8 @@ void Plot2DOverlay(
         AddTopLatex(c.get(), options.topLatex);
 
     c->SetLogx();
+    gStyle->SetPalette(options.colorMap);
+    // TColor::InvertPalette();
     SavePlot(c.get(), plotname);
 }
 
