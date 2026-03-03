@@ -94,7 +94,8 @@ int main(int argc, char** argv) {
     std::vector<double>* primaryMomX = nullptr;
     std::vector<double>* primaryMomY = nullptr;
     std::vector<double>* primaryMomZ = nullptr;
-    std::vector<int>* primaryPDG = nullptr;
+    std::vector<int>* primaryPDG     = nullptr;
+    std::vector<int>* primaryTrackID = nullptr;
 
     std::vector<double>* TruePhotonX = nullptr;
     std::vector<double>* TruePhotonY = nullptr;
@@ -141,6 +142,7 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("PrimaryMomY", &primaryMomY);
     inTree->SetBranchAddress("PrimaryMomZ", &primaryMomZ);
     inTree->SetBranchAddress("PrimaryPDG", &primaryPDG);
+    inTree->SetBranchAddress("PrimaryTrackID", &primaryTrackID);
     inTree->SetBranchAddress("TruePhotonX", &TruePhotonX);
     inTree->SetBranchAddress("TruePhotonY", &TruePhotonY);
     inTree->SetBranchAddress("TruePhotonZ", &TruePhotonZ);
@@ -213,7 +215,7 @@ int main(int argc, char** argv) {
     std::vector<double> centerXs, centerYs, centerZs, energies;
     std::vector<int> ringNos, copyNos;
     std::vector<double> outPrimaryPosX, outPrimaryPosY, outPrimaryPosZ, outPrimaryEkin, outPrimaryMomX, outPrimaryMomY, outPrimaryMomZ;
-    std::vector<int> outPrimaryPDG;
+    std::vector<int> outPrimaryPDG, outPrimaryTrackID;
     std::vector<double> outTruePhotonX, outTruePhotonY, outTruePhotonZ, outTruePhotonE, outTruePhotonTrackID, outTruePhotonParentID;
     std::vector<double> outTruePhotonCreationX, outTruePhotonCreationY, outTruePhotonCreationZ;
     std::vector<double> outTruePhotonEndX, outTruePhotonEndY, outTruePhotonEndZ;
@@ -235,6 +237,7 @@ int main(int argc, char** argv) {
     outTree->Branch("PrimaryMomY", &outPrimaryMomY);
     outTree->Branch("PrimaryMomZ", &outPrimaryMomZ);
     outTree->Branch("PrimaryPDG", &outPrimaryPDG);
+    outTree->Branch("PrimaryTrackID", &outPrimaryTrackID);
 
     outTree->Branch("truthPosX", &outTruePhotonX);
     outTree->Branch("truthPosY", &outTruePhotonY);
@@ -282,6 +285,7 @@ int main(int argc, char** argv) {
         outPrimaryMomY = primaryMomY ? *primaryMomY : std::vector<double>();
         outPrimaryMomZ = primaryMomZ ? *primaryMomZ : std::vector<double>();
         outPrimaryPDG  = primaryPDG  ? *primaryPDG  : std::vector<int>();
+        outPrimaryTrackID = primaryTrackID ? *primaryTrackID : std::vector<int>();
 
 
         outTruePhotonX = TruePhotonX ? *TruePhotonX : std::vector<double>();

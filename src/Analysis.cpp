@@ -28,7 +28,7 @@
 #include "TruePhotonCalc.hpp"
 #include "PhotonMatch.hpp"
 #include "Pi0Efficiency.hpp"
-#include "Pi0Acceptance.hpp"
+#include "Acceptance.hpp"
 #include "PIDEfficiency.hpp"
 #include "RecoEvent.hpp"
 #include "Calibration.hpp"
@@ -59,8 +59,8 @@ void MyErrorHandler(int level, Bool_t abort, const char* location, const char* m
 // ----------------------------------------------------
 
 int main(int argc, char **argv) {
-    if (argc < 3) {
-            std::cout << "Usage: " << argv[0] << " <input.root> <mcpl_data.mcpl> [options]\n"
+    if (argc < 4) {
+            std::cout << "Usage: " << argv[0] << " <input.root> <mcpl_data.mcpl> <vertices.root> [options]\n"
                     << "Options:\n"
                     << "  --calibration         Performs calibration procedure\n"
                     << "  --full-analysis       Performs everything\n"
@@ -75,6 +75,7 @@ int main(int argc, char **argv) {
     
     std::string root_inputfile = argv[1];
     std::string mcpl_inputfile = argv[2];
+    std::string vertices_inputfile = argv[3];
     bool doCalibration = false;
     bool doPi0Analysis = false;
     bool doChargedAnalysis = false;
@@ -82,7 +83,7 @@ int main(int argc, char **argv) {
     bool doTruthAndMixPlots = false;
     bool doEventVariables = false;
 
-    for (int i = 3; i<argc; ++i) {
+    for (int i = 4; i<argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--calibration") doCalibration = true;
         if (arg == "--full-analysis") {
@@ -111,7 +112,7 @@ int main(int argc, char **argv) {
     if (!f || f->IsZombie()) return 1;
 
     TTree *t = (TTree *)f->Get("digitizedHits");
-    if (!t) { std::cerr << "Tree digitizedHits not found" << std::endl; return 1; }
+    if (!t) { std::cerr << "Tree digitizedHits not found" << std::endl; return 1;}
 
     //Hit Cell center coordinates
     std::vector<double> *centerXs = nullptr, *centerYs = nullptr, *centerZs = nullptr, *energies = nullptr;
@@ -123,7 +124,7 @@ int main(int argc, char **argv) {
     // Primary vertex
     std::vector<double> *primaryX = nullptr, *primaryY = nullptr, *primaryZ = nullptr, *primaryEkin = nullptr;
     std::vector<double> *primaryPx = nullptr, *primaryPy = nullptr, *primaryPz = nullptr;
-    std::vector<int> *primaryPDG = nullptr;
+    std::vector<int> *primaryPDG = nullptr, *primaryTrackID = nullptr;
     SafeSetBranch(t, "PrimaryPosX", primaryX);
     SafeSetBranch(t, "PrimaryPosY", primaryY);
     SafeSetBranch(t, "PrimaryPosZ", primaryZ);
@@ -132,6 +133,7 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "PrimaryMomY", primaryPy);
     SafeSetBranch(t, "PrimaryMomZ", primaryPz);
     SafeSetBranch(t, "PrimaryPDG", primaryPDG);
+    SafeSetBranch(t, "PrimaryTrackID", primaryTrackID);
 
     // Truth info
     std::vector<double> *truePhotonPosX = nullptr, *truePhotonPosY = nullptr, *truePhotonPosZ = nullptr, *truePhotonE = nullptr;
@@ -164,43 +166,100 @@ int main(int argc, char **argv) {
 
     Long64_t nentries = t->GetEntries();
 
+    TFile *vtxFile = TFile::Open(vertices_inputfile.c_str());
+    if (!vtxFile || vtxFile->IsZombie()) return 1;
+
+    TTree *vtxTree = (TTree *)vtxFile->Get("vertices");
+    if (!vtxTree) {std::cerr << "Tree vertices not found" << std::endl; return 1;}
+
+    std::vector<Vtx> bestVtx;  // size = nentries
+    bestVtx.resize(nentries);
+
+    Long64_t event_id = -1;
+    Long64_t vertex_index = -1;
+    Long64_t n_tracks = 0;
+    double vtx_x = 0, vtx_y = 0, vtx_z = 0;
+    double chi2ndf = 0;
+    UChar_t accepted = 0;   
+
+    vtxTree->SetBranchAddress("event_id", &event_id);
+    vtxTree->SetBranchAddress("vertex_index", &vertex_index);
+    vtxTree->SetBranchAddress("n_tracks", &n_tracks);
+    vtxTree->SetBranchAddress("vtx_x", &vtx_x);
+    vtxTree->SetBranchAddress("vtx_y", &vtx_y);
+    vtxTree->SetBranchAddress("vtx_z", &vtx_z);
+    vtxTree->SetBranchAddress("chi2ndf", &chi2ndf);
+    vtxTree->SetBranchAddress("accepted", &accepted);
+
+    // Loop over all vertex candidates and keep the "best" accepted one per event.
+    // Best = highest n_tracks, tie-breaker lowest chi2ndf (matches the Python greedy preference)
+    const Long64_t nv = vtxTree->GetEntries();
+    for (Long64_t i = 0; i < nv; ++i) {
+    vtxTree->GetEntry(i);
+    if (accepted == 0) continue;
+
+    if (event_id < 0 || event_id >= (Long64_t)bestVtx.size()) continue;
+
+    Vtx& cur = bestVtx[event_id];
+    const bool better =
+        (!cur.has) ||
+        (n_tracks > cur.n_tracks) ||
+        (n_tracks == cur.n_tracks && chi2ndf < cur.chi2ndf);
+
+    if (better) {
+        cur.has = true;
+        cur.x = vtx_x; cur.y = vtx_y; cur.z = vtx_z;
+        cur.n_tracks = n_tracks;
+        cur.chi2ndf = chi2ndf;
+    }
+    }
+
+    std::cout << "Loaded accepted vertices for " 
+            << std::count_if(bestVtx.begin(), bestVtx.end(), [](const Vtx& v){return v.has;})
+            << " / " << bestVtx.size() << " events\n";
+
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
     // mcpl pre-processing to get the #Pi0s per event:
 
-    std::vector<int> pi0_per_event;
-    std::vector<int> chPi_per_event;
-    std::map<int, double> Ekin_per_event;
-    mcpl_file_t mcplFile = mcpl_open_file(mcpl_inputfile.c_str());
-    int current_event = -1;
-    const mcpl_particle_t* p;
-    while ((p = mcpl_read(mcplFile))) {
+    // std::vector<int> mcpl_pi0_per_event;
+    // std::vector<int> mcpl_chPi_per_event;
+    // std::map<int, double> Ekin_per_event;
+    // // std::unordered_map<int, std::vector<mcplPi0>> mcpl_Pi0s_per_event;
+    // // std::unordered_map<int, std::vector<mcplChPi>> mcpl_ChPis_per_event;
+    
+    // mcpl_file_t mcplFile = mcpl_open_file(mcpl_inputfile.c_str());
+    // int current_event = -1;
+    // const mcpl_particle_t* p;
+    // while ((p = mcpl_read(mcplFile))) {
         
-        // we might miss one if we proceed like this... because if it starts on 0 then the second event will be the first 1...
-        // NOTE here it is fine with the userflags of "cleaned_HIBEAM_WASA_rwag_signal_GBL_jbar_100k_9012_newUF.mcpl" as they start on a 1...
-        if (p->userflags == 1) { 
-            ++current_event;
-            pi0_per_event.push_back(0);
-            chPi_per_event.push_back(0);
-            // pi0_EKin_per_event.push_back(0);
-        }
+    //     // we might miss one if we proceed like this... because if it starts on 0 then the second event will be the first 1...
+    //     // NOTE here it is fine with the userflags of "cleaned_HIBEAM_WASA_rwag_signal_GBL_jbar_100k_9012_newUF.mcpl" as they start on a 1...
+    //     if (p->userflags == 1) { 
+    //         ++current_event;
+    //         mcpl_pi0_per_event.push_back(0);
+    //         mcpl_chPi_per_event.push_back(0);
+    //         // pi0_EKin_per_event.push_back(0);
+    //     }
         
-        //guard
-        if (current_event < 0) continue;
+    //     //guard
+    //     if (current_event < 0) continue;
         
-        if (abs(p->pdgcode) == 211 || p->pdgcode == 111 || p->pdgcode == 22) {
-            Ekin_per_event[current_event] += p->ekin; // Only primary mesons and photons (pi0, pi+- and gammas)
-        }
+    //     if (abs(p->pdgcode) == 211 || p->pdgcode == 111 || p->pdgcode == 22) {
+    //         Ekin_per_event[current_event] += p->ekin; // Only primary mesons and photons (pi0, pi+- and gammas)
+    //     }
 
-        if (p->pdgcode == 111) {
-            pi0_per_event[current_event]++;
-            // pi0_EKin_per_event[current_event] = p->ekin;
-        }
-        if (std::abs(p->pdgcode) == 211) {
-            chPi_per_event[current_event]++;
-        }
-    }
+    //     if (p->pdgcode == 111) {
+    //         mcpl_pi0_per_event[current_event]++;
+    //         // mcpl_Pi0s_per_event[current_event].push_back({p->ekin, TVector3(p->direction[0], p->direction[1], p->direction[2])});
+    //     }
+    //     if (std::abs(p->pdgcode) == 211) {
+    //         mcpl_chPi_per_event[current_event]++;
+    //         // mcpl_ChPis_per_event[current_event].push_back({p->ekin, TVector3(p->direction[0], p->direction[1], p->direction[2])});
+    //     }
 
-    mcpl_close_file(mcplFile);
+    // }
+
+    // mcpl_close_file(mcplFile);
 
     // Reminder: This gives us pi0_per_event[ievt] --> # Pi0s in MCPL ievt & corresponding EKin in other vector with same indexing.
 
@@ -218,6 +277,13 @@ int main(int argc, char **argv) {
     // std::vector<ChargedObject> chargedObjects;
     std::vector<TVector3> momenta;
     std::vector<double> weights;
+
+    std::vector<primaryPi0> primaryPi0s;
+    std::vector<primaryChPi> primaryChPis;
+    std::vector<int> pi0_per_event;
+    std::vector<int> chPi_per_event;
+
+
     //Pi0 analysis objects
     TH1F *hPi0Mass                       = nullptr;
     TH2F *hPi0ppM_pre                    = nullptr;
@@ -229,9 +295,9 @@ int main(int argc, char **argv) {
     TH1F *h_mass_recoE_truthAngle        = nullptr;
     //--> Pi0 Acceptance and Efficiency 
     Pi0Efficiency  *effPlotter           = nullptr;
-    Pi0Acceptance  *accPlotter           = nullptr;
-    Pi0Acceptance  *pi0AcceptanceVsEta   = nullptr;
-    Pi0Acceptance  *pi0AcceptanceVsTheta = nullptr;
+    Acceptance  *accPlotter              = nullptr;
+    Acceptance  *pi0AcceptanceVsEta      = nullptr;
+    Acceptance  *pi0AcceptanceVsTheta    = nullptr;
     // Charged analysis objects
     //--> Pions
     TH1F  *hNSigmaPion                   = nullptr;
@@ -255,6 +321,8 @@ int main(int argc, char **argv) {
     TH2F  *h2_Eres                       = nullptr;
     TH1F *hClusterE                      = nullptr;
     PIDEfficiency  *pidEff               = nullptr;
+    //--> Pi+- Acceptance and Efficiency 
+    Acceptance *chAccPlotter             = nullptr;
     // Event level variables
     TH1F  *hEventInvariantMass           = nullptr; 
     TH1F  *hEventSphericity              = nullptr; 
@@ -297,9 +365,10 @@ int main(int argc, char **argv) {
         // Pi0 Acceptance and Efficiency
         //Reminder Order: nbins, xmin, xmax 
         effPlotter              = new Pi0Efficiency(4, 1, 500);
-        accPlotter              = new Pi0Acceptance("E", 4, 1, 550);
-        pi0AcceptanceVsEta      = new Pi0Acceptance("eta", 100,-10, 10);
-        pi0AcceptanceVsTheta    = new Pi0Acceptance("theta", 60, 0, TMath::Pi());    
+        // accPlotter              = new Acceptance("E", 4, 1, 550);
+        accPlotter              = new Acceptance("nPiE", 100, 1, 1000);
+        pi0AcceptanceVsEta      = new Acceptance("nPiEta", 100,-10, 10);
+        pi0AcceptanceVsTheta    = new Acceptance("nPiTheta", 60, 0, TMath::Pi());    
     }
     if (doTruthAnalysis) {
         hPi0TrueMass            = new TH1F("hPi0TrueMass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
@@ -332,6 +401,9 @@ int main(int argc, char **argv) {
         pidEff                  = new PIDEfficiency(20, 0, 500);
         h2_Eres                 = new TH2F("h2_Eres", ";True KE [MeV];Energy Residual", 20, 0, 500, 100, -1.0, 1.0);
         hClusterE               = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
+        //--> Pi+- Acceptance and Efficiency 
+        chAccPlotter            = new Acceptance("chPiE", 100, 1, 1000);
+
     }
     if (doEventVariables) {
         hEventInvariantMass     = new TH1F("hEventInvariantMass",";Invariant Mass [MeV];Events",100,0,5000);
@@ -343,8 +415,8 @@ int main(int argc, char **argv) {
         hEvisVsEtrue            = new TH2F("hEvisVsEtrue","; E_{true} [MeV];E_{vis} [MeV]",100, 0, 3000, 100, 0, 3000);
         hDiffErecoEtrue         = new TH1F("hERecoVsETrue", "; E_{reco} - E_{true} [MEV]; Counts", 100,-1000, 1000);
         //--> Pion multiplicity related
-        hNPionMultiplicity      = new TH2I("hNPionMultiplicity", ";True #pi^0 Multiplicity; Reconstructed #pi^0 Multiplicity", 10, 0,9,10,0,9);
-        hChPionMultiplicity     = new TH2I("hChPionMultiplicity", ";True #pi^{#pm} Multiplicity; Reconstructed #pi^{#pm} Multiplicity", 10, 0,9,10,0,9);
+        hNPionMultiplicity      = new TH2I("hNPionMultiplicity", ";True (mcpl) #pi^0 Multiplicity; Reconstructed #pi^0 Multiplicity", 8, -0.5, 7.5, 8, -0.5, 7.5);
+        hChPionMultiplicity     = new TH2I("hChPionMultiplicity", ";True (mcpl) #pi^{#pm} Multiplicity; Reconstructed #pi^{#pm} Multiplicity", 9, -0.5, 8.5, 9, -0.5, 8.5);
     }
 
     ChargedKECalibration calibration("chargedKE.root");
@@ -362,10 +434,42 @@ int main(int argc, char **argv) {
 
         // Truth-level event vertex
         if (!primaryX||primaryX->empty()) continue;
-        TVector3 vertex((*primaryX)[0],(*primaryY)[0],(*primaryZ)[0]);
+        TVector3 tVertex((*primaryX)[0],(*primaryY)[0],(*primaryZ)[0]);
 
-        if (!primaryEkin || primaryEkin->empty()) continue; 
-        double genEkin = primaryEkin->at(0); 
+        const Vtx& v = bestVtx[ievt];
+        TVector3 vertex(0,0,0);
+        if (v.has) {
+            vertex = TVector3(v.x, v.y, v.z);
+        } else {
+            // std::cerr << "Event: " << ievt << " has no computed vertex." << std::endl;
+            // return 1;
+            // fallback to truth level info:
+            vertex = tVertex;
+        }
+
+        // if (!primaryEkin || primaryEkin->empty()) continue; 
+        // double genEkin = primaryEkin->at(0); 
+
+        // build true pi0s and Pi+-
+        size_t nPrimaries = primaryPDG->size();
+        // reset the vetors as they are filled on an event level
+        primaryPi0s.clear();
+        primaryChPis.clear();
+        for (size_t i=0; i<nPrimaries; ++i) {
+            
+            //init event value
+            pi0_per_event.push_back(0);
+            chPi_per_event.push_back(0);
+
+            if ((*primaryPDG)[i] == 111) { // pi0
+                pi0_per_event[ievt]++;
+                primaryPi0s.push_back({(*primaryTrackID)[i], TLorentzVector(TVector3((*primaryPx)[i], (*primaryPy)[i], (*primaryPz)[i]), (*primaryEkin)[i])});
+            }
+            if (std::abs((*primaryPDG)[i]) == 211) { // pi+-
+                chPi_per_event[ievt]++;
+                primaryChPis.push_back({(*primaryTrackID)[i], TLorentzVector(TVector3((*primaryPx)[i], (*primaryPy)[i], (*primaryPz)[i]), (*primaryEkin)[i])});
+            }
+        }
 
         hits.clear();
         if (!energies || energies->empty()) {
@@ -572,13 +676,9 @@ int main(int argc, char **argv) {
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
         if (doPi0Analysis) {
-            // std::cout << "[PI0 Eff] truePi0s: " << truePi0s.size() << " selected: " << selected.size() << std::endl;
             if (effPlotter) effPlotter->ProcessEvent(truePi0s, selected, reco.clusters);
-
-
-            // if (accPlotter) accPlotter->ProcessEvent(clusters, truePhotons, genEkin);
-            if (accPlotter) accPlotter->ProcessSignalEvent(truePi0s, genEkin, nPi0);
-
+            if (accPlotter) accPlotter->Pi0ProcessSignalEvent(truePi0s, primaryPi0s);
+            
 
             // double px = primaryPx->at(0);
             // double py = primaryPy->at(0);
@@ -599,6 +699,7 @@ int main(int argc, char **argv) {
 
         if (doChargedAnalysis) {
             pidEff->ProcessEvent(reco.chargedClusters);
+            chAccPlotter->ChPiProcessSignalEvent(reco.chargedClusters, primaryChPis);
             
             // assign a charged pion multiplicity based on PID Guess --> TPC info
             for (ChargedCluster ch : reco.chargedClusters) {
@@ -715,7 +816,15 @@ int main(int argc, char **argv) {
 
         //--> Pi0 Acceptance and Efficiency 
         effPlotter->FinalizePlot("Neutral/Pi0_efficiency_vs_Ekin.png");
-        accPlotter->FinalizePlot("Neutral/Pi0_acceptance_vs_Ekin.png");
+        
+        PlotOptions opts_accPlotter;
+        opts_accPlotter.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
+        // opts_accPlotter.legendEntries = { "Acceptance" };
+        opts_accPlotter.infoLines = {"Signal dataset"};//{"GEANT4 #pi^{0} sample"};
+        opts_accPlotter.addInfoPave = true;
+        opts_accPlotter.xAxisTitle = "Signal #pi^{0} E_{kin} [MeV]";
+        opts_accPlotter.yAxisTitle = "Acceptance [%]";
+        accPlotter->FinalizePlot("Neutral/Pi0_acceptance_vs_Ekin.png", opts_accPlotter);
         // pi0AcceptanceVsEta.FinalizePlot("plots/Pi0_acceptance_vs_Eta.png");
         // pi0AcceptanceVsTheta.FinalizePlot("plots/Pi0_acceptance_vs_Theta_50_500.png");
 
@@ -850,6 +959,16 @@ int main(int argc, char **argv) {
         opts_hClusterE.legendEntries = {"#pi"};
         Plot1D({hClusterE}, {kBlack}, "Charged/ClusterE_pion.png", opts_hClusterE);
 
+        //--> Pi+- Acceptance and Efficiency 
+        PlotOptions opts_chAccPlotter;
+        opts_chAccPlotter.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
+        // opts_chAccPlotter.legendEntries = { "Acceptance" };
+        opts_chAccPlotter.infoLines = {"Signal dataset"};//{"GEANT4 #pi^{0} sample"};
+        opts_chAccPlotter.addInfoPave = true;
+        opts_chAccPlotter.xAxisTitle = "Signal #pi^{#pm} E_{kin} [MeV]";
+        opts_chAccPlotter.yAxisTitle = "Acceptance [%]";
+        chAccPlotter->FinalizePlot("Charged/chPi_acceptance_vs_Ekin.png", opts_chAccPlotter);
+
         //CLEANUP
         delete hNSigmaPion;
         delete hNSigmaProton;
@@ -859,6 +978,7 @@ int main(int argc, char **argv) {
         delete hdEdxVsE_true_Proton;
         delete hClusterE;
         delete pidEff;
+        delete chAccPlotter;
     }
 
     if (doEventVariables) {
@@ -908,10 +1028,12 @@ int main(int argc, char **argv) {
         //--> Pion multiplicity related
         PlotOptions opts_hNPionMultiplicity;
         opts_hNPionMultiplicity.drawOption = "COLZ";
+        opts_hNPionMultiplicity.isHeatmap = true;
         Plot2D(hNPionMultiplicity, "EventVar/NPionMultiplicity.png", opts_hNPionMultiplicity);
 
         PlotOptions opts_hChPionMultiplicity;
         opts_hChPionMultiplicity.drawOption = "COLZ";
+        opts_hChPionMultiplicity.isHeatmap = true;
         Plot2D(hChPionMultiplicity, "EventVar/ChPionMultiplicity.png", opts_hChPionMultiplicity);
 
         // delete hEventInvariantMass;

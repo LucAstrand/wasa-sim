@@ -1,4 +1,4 @@
-#include "Pi0Acceptance.hpp"
+#include "Acceptance.hpp"
 
 #include "TCanvas.h"
 #include "TLegend.h"
@@ -10,11 +10,11 @@
 
 #include <iostream>
 
-Pi0Acceptance::Pi0Acceptance(const std::string& tag, int nBins, double xMin, double xMax)
+Acceptance::Acceptance(const std::string& tag, int nBins, double xMin, double xMax)
     : nBins_(nBins), xMin_(xMin), xMax_(xMax)
 {
-    h_num_ = new TH1D(Form("h_numPi0Acceptance_%s", tag.c_str()), ";True #pi^{0} E_{kin};Events", nBins_, xMin_, xMax_);
-    h_den_ = new TH1D(Form("h_denPi0Acceptance_%s", tag.c_str()), ";GPS #pi^{0} E_{kin};Events", nBins_, xMin_, xMax_);
+    h_num_ = new TH1D(Form("h_numPiAcceptance_%s", tag.c_str()), ";True #pi^{0} E_{kin};Events", nBins_, xMin_, xMax_);
+    h_den_ = new TH1D(Form("h_denPiAcceptance_%s", tag.c_str()), ";GPS #pi^{0} E_{kin};Events", nBins_, xMin_, xMax_);
 }
 
 // Pi0Acceptance::Pi0Acceptance(double etaMin, double etaMax, int nBins)
@@ -39,22 +39,63 @@ Pi0Acceptance::Pi0Acceptance(const std::string& tag, int nBins, double xMin, dou
 // }
 
 
-void Pi0Acceptance::ProcessGPSEvent(const std::vector<TruePi0>& truePi0s, const double xVar, int nPi0s) {
+// void Acceptance::Pi0ProcessGPSEvent(const std::vector<TruePi0>& truePi0s, const double xVar, int nPi0s) {
 
-    if (nPi0s != 0) h_den_->Fill(xVar, nPi0s);
-    if (truePi0s.size() != 0) h_num_->Fill(xVar, truePi0s.size());
+//     if (nPi0s != 0) h_den_->Fill(xVar, nPi0s);
+//     if (truePi0s.size() != 0) h_num_->Fill(xVar, truePi0s.size());
 
+// }
+
+// void Acceptance::Pi0ProcessSignalEvent(const std::vector<TruePi0>& truePi0s, const double xVar, int nPi0s) {
+
+//     if (nPi0s != 0) h_den_->Fill(xVar, nPi0s);
+//     if (truePi0s.size() != 0) h_num_->Fill(xVar, truePi0s.size());
+
+// }
+
+// void Acceptance::ChPiProcessGPSEvent(const std::vector<TruePi0>& truePi0s, const double xVar, int nPi0s) {
+
+//     if (nPi0s != 0) h_den_->Fill(xVar, nPi0s);
+//     if (truePi0s.size() != 0) h_num_->Fill(xVar, truePi0s.size());
+
+// }
+
+// void Acceptance::ChPiProcessSignalEvent(const std::vector<TruePi0>& truePi0s, const double xVar, int nPi0s) {
+
+//     if (nPi0s != 0) h_den_->Fill(xVar, nPi0s);
+//     if (truePi0s.size() != 0) h_num_->Fill(xVar, truePi0s.size());
+
+// }
+
+void Acceptance::Pi0ProcessSignalEvent(const std::vector<TruePi0>& truePi0s, const std::vector<primaryPi0>& primaryPi0s) {
+
+    for (const auto& p : primaryPi0s) h_den_->Fill(p.p4.E());
+
+    std::unordered_map<int, double> genEkin;
+    genEkin.reserve(primaryPi0s.size());
+    for (const auto& p : primaryPi0s) genEkin.emplace(p.trackID, p.p4.E());
+
+    for (const auto& d : truePi0s) {
+        auto it = genEkin.find(d.trackID);
+        if (it != genEkin.end()) h_num_->Fill(it->second);
+    }
 }
 
+void Acceptance::ChPiProcessSignalEvent(const std::vector<ChargedCluster>& chargedClusters, const std::vector<primaryChPi>& primaryChPis) {
+ 
+    for (const auto& p : primaryChPis) h_den_->Fill(p.p4.E());
 
-void Pi0Acceptance::ProcessSignalEvent(const std::vector<TruePi0>& truePi0s, const double xVar, int nPi0s) {
+    std::unordered_map<int, double> genEkin;
+    genEkin.reserve(primaryChPis.size());
+    for (const auto& p : primaryChPis) genEkin.emplace(p.trackID, p.p4.E());
 
-    if (nPi0s != 0) h_den_->Fill(xVar, nPi0s);
-    if (truePi0s.size() != 0) h_num_->Fill(xVar, truePi0s.size());
-
+    for (const auto& d : chargedClusters) {
+        auto it = genEkin.find(d.trackID);
+        if (it != genEkin.end()) h_num_->Fill(it->second);
+    }
 }
 
-void Pi0Acceptance::FinalizePlot(const std::string& outFileName) {
+void Acceptance::FinalizePlot(const std::string& outFileName, PlotOptions opts) {
 
 
     TGraphAsymmErrors* gEff = new TGraphAsymmErrors(h_num_, h_den_, "cl=0.683 b(1,1) mode"); // fraction in [0,1]
@@ -84,9 +125,11 @@ void Pi0Acceptance::FinalizePlot(const std::string& outFileName) {
     gEff->SetMarkerColor(kBlack);
     gEff->SetLineColor(kBlack);
 
-    gEff->GetYaxis()->SetTitle("Acceptance [%]");
+    // gEff->GetYaxis()->SetTitle("Acceptance [%]");
+    gEff->GetYaxis()->SetTitle(opts.yAxisTitle.c_str());
     //vs Ekin
-    gEff->GetXaxis()->SetTitle("GPS #pi^{0} E_{kin} [MeV]");
+    // gEff->GetXaxis()->SetTitle("Signal #pi^{0} E_{kin} [MeV]");
+    gEff->GetXaxis()->SetTitle(opts.xAxisTitle.c_str());
     //vs Eta 
     // gEff->GetXaxis()->SetTitle("GPS #pi^{0} pseudorapidity #eta");
     //vs Theta
@@ -98,11 +141,11 @@ void Pi0Acceptance::FinalizePlot(const std::string& outFileName) {
     gStyle->SetOptStat(0);
     gEff->Draw("AP");
 
-    PlotOptions opts;
-    opts.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
-    opts.legendEntries = { "Acceptance" };
-    opts.infoLines = {"Signal dataset"};//{"GEANT4 #pi^{0} sample"};
-    opts.addInfoPave = true;
+    // PlotOptions opts;
+    // opts.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
+    // opts.legendEntries = { "Acceptance" };
+    // opts.infoLines = {"Signal dataset"};//{"GEANT4 #pi^{0} sample"};
+    // opts.addInfoPave = true;
     PlotGraph(gEff, outFileName.c_str(), opts);
 
     // cleanup

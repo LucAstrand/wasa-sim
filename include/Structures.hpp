@@ -11,6 +11,13 @@
 //     double x, y, z, e;
 // };
 
+struct Vtx {
+    bool has = false;
+    double x=0, y=0, z=0;
+    int n_tracks = 0;
+    double chi2ndf = 1e99;
+};
+
 enum class HitOwner {
     None,
     Charged,
@@ -41,6 +48,25 @@ struct TruePi0 {
     int trackID;
     TLorentzVector p4;
     std::vector<const TruePhoton*> photons;
+};
+
+// struct TrueChPi {
+//     int trackID;
+//     TLorentzVector p4;
+// };
+
+struct primaryPi0 {
+    // double Ekin;
+    // TVector3 direction; 
+    int trackID;
+    TLorentzVector p4;
+};
+
+struct primaryChPi {
+    // double Ekin;
+    // TVector3 direction;
+    int trackID;
+    TLorentzVector p4; 
 };
 
 struct Cluster {

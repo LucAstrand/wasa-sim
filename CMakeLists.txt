@@ -34,7 +34,7 @@ add_executable(Analysis
     src/ParticleID.cpp
     src/Clustering.cpp
     src/PhotonMatch.cpp
-    src/Pi0Acceptance.cpp
+    src/Acceptance.cpp
     src/Pi0Efficiency.cpp
     src/PlotUtils.cpp
     src/TruePhotonCalc.cpp

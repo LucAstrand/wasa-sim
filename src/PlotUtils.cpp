@@ -37,6 +37,7 @@ void SetPrettyStyle() {
     gStyle->SetLegendBorderSize(0);
     gStyle->SetLegendFillColor(0);
     gStyle->SetPadLeftMargin(0.15);
+    gStyle->SetPadRightMargin(0.16);
     gStyle->SetPadBottomMargin(0.15);
 }
 
@@ -157,6 +158,7 @@ void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, cons
         return;
     }
     SetPrettyStyle();
+    gStyle->SetPalette(options.colorMap);
     gStyle->SetOptStat(options.showStats ? 1 : 0);
     auto c = PlotCreateCanvas("c1D_" + plotname);
     // Normalize if requested
@@ -214,7 +216,19 @@ void Plot2D(TH2* hist, const std::string& plotname, const PlotOptions& opts) {
     PlotOptions options = opts;
     SetPrettyStyle();
     gStyle->SetOptStat(options.showStats ? 1 : 0);
-    auto c = PlotCreateCanvas("c2D_" + plotname);
+    std::unique_ptr<TCanvas> c;
+    if (options.isHeatmap) {
+        // we want a square canvas --> cells are squares
+        c = PlotCreateCanvas("c2D_" + plotname, 800, 800);
+        // make sure the colorbar ticks are visible
+        c->cd();
+        gPad->SetRightMargin(0.16);
+        // gPad->SetLeftMargin(0.12);
+        // gPad->SetBottomMargin(0.12);
+    } else {
+        // default to width=800, height=600
+        c = PlotCreateCanvas("c2D_" + plotname);
+    }
     hist->SetLineColor(kBlack);
     hist->SetLineWidth(2);
     hist->Draw(options.drawOption.c_str());
@@ -281,6 +295,7 @@ void Plot2DOverlay(
     if (hists.empty() || !hists[0]) return;
 
     SetPrettyStyle();
+    gStyle->SetPalette(options.colorMap);
     auto c = PlotCreateCanvas("c2DOverlay_" + plotname);
 
     for (size_t i = 0; i < hists.size(); ++i) {
@@ -307,7 +322,6 @@ void Plot2DOverlay(
         AddTopLatex(c.get(), options.topLatex);
 
     c->SetLogx();
-    gStyle->SetPalette(options.colorMap);
     // TColor::InvertPalette();
     SavePlot(c.get(), plotname);
 }
