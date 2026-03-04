@@ -262,6 +262,45 @@ TEveElementList* DrawRecoCCluster(const ChargedCluster& c, int cid, Color_t col,
     return group;
 }
 
+void DrawPionsAsArrows(const std::vector<primaryChPi>& pions,
+                       double x0 = 0, double y0 = 0, double z0 = 0,
+                       double scale = 1.0)
+{
+  // Make sure TEve is running
+  if (!gEve) TEveManager::Create();
+
+  auto* list = new TEveElementList("Primary charged pions");
+  gEve->AddElement(list);
+
+  for (const auto& pi : pions) {
+    // Use momentum as arrow direction
+    const double px = pi.p4.Px();
+    const double py = pi.p4.Py();
+    const double pz = pi.p4.Pz();
+
+    // Normalize direction; use magnitude separately if you like
+    const double p = TMath::Sqrt(px*px + py*py + pz*pz);
+    if (p <= 0) continue;
+
+    const double dx = (px / p) * (p * scale);
+    const double dy = (py / p) * (p * scale);
+    const double dz = (pz / p) * (p * scale);
+
+    auto* a = new TEveArrow(dx, dy, dz, x0, y0, z0);
+    a->SetName(Form("pi trackID=%d", pi.trackID));
+
+    // Optional styling
+    a->SetMainColor(kRed);   // or color by charge/pT/etc.
+    a->SetTubeR(0.001);       // shaft radius (world units)
+    a->SetConeR(0.0001);
+    a->SetConeL(0.0001);
+
+    list->AddElement(a);
+  }
+
+  gEve->Redraw3D(kTRUE);
+}
+
 int main(int argc, char **argv) {
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " <data.root> <geometry.root>\n";
@@ -309,7 +348,7 @@ int main(int argc, char **argv) {
     // Primary vertex
     std::vector<double> *primaryX = nullptr, *primaryY = nullptr, *primaryZ = nullptr, *primaryEkin = nullptr;
     std::vector<double> *primaryPx = nullptr, *primaryPy = nullptr, *primaryPz = nullptr;
-    std::vector<int> *primaryPDG = nullptr;
+    std::vector<int> *primaryPDG = nullptr, *primaryTrackID = nullptr;
     SafeSetBranch(t, "PrimaryPosX", primaryX);
     SafeSetBranch(t, "PrimaryPosY", primaryY);
     SafeSetBranch(t, "PrimaryPosZ", primaryZ);
@@ -318,6 +357,7 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "PrimaryMomY", primaryPy);
     SafeSetBranch(t, "PrimaryMomZ", primaryPz);
     SafeSetBranch(t, "PrimaryPDG", primaryPDG);
+    SafeSetBranch(t, "PrimaryTrackID", primaryTrackID);
 
     // Truth info (photons)
     std::vector<double> *truePhotonPosX = nullptr, *truePhotonPosY = nullptr, *truePhotonPosZ = nullptr, *truePhotonE = nullptr;
@@ -361,7 +401,10 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
     SafeSetBranch(t, "TPC_pdg", TPC_pdg);
 
-    Long64_t nEvents = 10; // or: t->GetEntries();
+    Long64_t nEvents = 20; // or: t->GetEntries();
+
+    std::vector<primaryChPi> primaryChPis;
+
 
     for (Long64_t ev = 0; ev < nEvents; ev++) {
         t->GetEntry(ev);
@@ -430,6 +473,20 @@ int main(int argc, char **argv) {
         TVector3 vertex(0,0,0);
         if (primaryX && !primaryX->empty()) {
             vertex = TVector3((*primaryX)[0], (*primaryY)[0], (*primaryZ)[0]);
+        }
+
+        size_t nPrimaries = primaryPDG->size();
+        // reset the vetors as they are filled on an event level
+        primaryChPis.clear();
+        for (size_t i=0; i<nPrimaries; ++i) {
+            
+            //init event value
+            // chPi_per_event.push_back(0);
+
+            if (std::abs((*primaryPDG)[i]) == 211) { // pi+-
+                // chPi_per_event[ievt]++;
+                primaryChPis.push_back({(*primaryTrackID)[i], TLorentzVector(TVector3((*primaryPx)[i], (*primaryPy)[i], (*primaryPz)[i]), (*primaryEkin)[i])});
+            }
         }
 
         // ---------- Build chargedTracks ----------
@@ -531,6 +588,7 @@ int main(int argc, char **argv) {
         const bool drawBBox         = true;
         const bool drawHitBoxes     = false;    // heavy if many hits; try true for a few clusters
         const bool drawAllCClusters = true;
+        const bool drawPrimaryPions = true;
 
         if (drawAllNClusters) {
             // Draw every cluster with its own unique color
@@ -561,7 +619,11 @@ int main(int argc, char **argv) {
                 eventList->AddElement(chclEve);
             }
         }
-        
+
+        if (drawPrimaryPions) {
+
+            DrawPionsAsArrows(primaryChPis, vertex.X(), vertex.Y(), vertex.Z(), 1);
+        }        
 
 
         // Done with this event

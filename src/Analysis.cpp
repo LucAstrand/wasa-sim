@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "centerZ", centerZs);
     SafeSetBranch(t, "energy", energies);
 
-    // Primary vertex
+    // Primaries
     std::vector<double> *primaryX = nullptr, *primaryY = nullptr, *primaryZ = nullptr, *primaryEkin = nullptr;
     std::vector<double> *primaryPx = nullptr, *primaryPy = nullptr, *primaryPz = nullptr;
     std::vector<int> *primaryPDG = nullptr, *primaryTrackID = nullptr;
@@ -221,11 +221,11 @@ int main(int argc, char **argv) {
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
     // mcpl pre-processing to get the #Pi0s per event:
 
-    // std::vector<int> mcpl_pi0_per_event;
-    // std::vector<int> mcpl_chPi_per_event;
-    // std::map<int, double> Ekin_per_event;
-    // // std::unordered_map<int, std::vector<mcplPi0>> mcpl_Pi0s_per_event;
-    // // std::unordered_map<int, std::vector<mcplChPi>> mcpl_ChPis_per_event;
+    std::vector<int> mcpl_pi0_per_event;
+    std::vector<int> mcpl_chPi_per_event;
+    std::map<int, double> Ekin_per_event;
+    // std::unordered_map<int, std::vector<mcplPi0>> mcpl_Pi0s_per_event;
+    // std::unordered_map<int, std::vector<mcplChPi>> mcpl_ChPis_per_event;
     
     // mcpl_file_t mcplFile = mcpl_open_file(mcpl_inputfile.c_str());
     // int current_event = -1;
@@ -253,6 +253,9 @@ int main(int argc, char **argv) {
     //         // mcpl_Pi0s_per_event[current_event].push_back({p->ekin, TVector3(p->direction[0], p->direction[1], p->direction[2])});
     //     }
     //     if (std::abs(p->pdgcode) == 211) {
+    //         if (current_event == 18) {
+    //             std::cout << "[MEEP] Pion Direction: " << p->direction[0] << p->direction[1] << p->direction[2] << "Position: " << p->position << std::endl;
+    //         }
     //         mcpl_chPi_per_event[current_event]++;
     //         // mcpl_ChPis_per_event[current_event].push_back({p->ekin, TVector3(p->direction[0], p->direction[1], p->direction[2])});
     //     }
@@ -305,6 +308,9 @@ int main(int argc, char **argv) {
     TH2F  *hdEdxVsE_true_Pion            = nullptr;
     TH1F  *hdEdxTruePion                 = nullptr;
     TH1F  *hdEdxSmearPion                = nullptr;
+    TH1F  *hPionTheta                    = nullptr;
+    TH1F  *hPionCosTheta                 = nullptr;
+    TH1F  *hPionPhi                      = nullptr;
     //--> Protons
     TH1F  *hNSigmaProton                 = nullptr;
     TH2F  *hdEdxVsE_cluster_Proton       = nullptr;
@@ -379,6 +385,9 @@ int main(int argc, char **argv) {
     if (doChargedAnalysis) {
         //--> Pions
         hNSigmaPion             = new TH1F("hNSigmaPion", ";n#sigma;Counts", 100, -5, 5);
+        hPionTheta              = new TH1F("hPionTheta", ";#theta;Counts", 60, 0, TMath::Pi());
+        hPionCosTheta           = new TH1F("hPionCosTheta", ";cos #theta;Counts", 60, -1, 1);
+        hPionPhi                = new TH1F("hPionPhi", ";#phi;Counts", 60, 0, TMath::Pi());
         // hdEdxVsE_cluster_Pion   = new TH2F("hdEdxVsE_cluster_Pion",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
         hdEdxVsE_cluster_Pion   = new TH2F("hdEdxVsE_cluster_Pion",";E [MeV];dE/dx [MeV/cm]",100, 0, 500,100, 0, 0.1);
         hdEdxVsE_true_Pion      = new TH2F("hdEdxVsE_true_Pion",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
@@ -415,8 +424,8 @@ int main(int argc, char **argv) {
         hEvisVsEtrue            = new TH2F("hEvisVsEtrue","; E_{true} [MeV];E_{vis} [MeV]",100, 0, 3000, 100, 0, 3000);
         hDiffErecoEtrue         = new TH1F("hERecoVsETrue", "; E_{reco} - E_{true} [MEV]; Counts", 100,-1000, 1000);
         //--> Pion multiplicity related
-        hNPionMultiplicity      = new TH2I("hNPionMultiplicity", ";True (mcpl) #pi^0 Multiplicity; Reconstructed #pi^0 Multiplicity", 8, -0.5, 7.5, 8, -0.5, 7.5);
-        hChPionMultiplicity     = new TH2I("hChPionMultiplicity", ";True (mcpl) #pi^{#pm} Multiplicity; Reconstructed #pi^{#pm} Multiplicity", 9, -0.5, 8.5, 9, -0.5, 8.5);
+        hNPionMultiplicity      = new TH2I("hNPionMultiplicity", ";True (primary) #pi^0 Multiplicity; Reconstructed #pi^0 Multiplicity", 8, -0.5, 7.5, 8, -0.5, 7.5);
+        hChPionMultiplicity     = new TH2I("hChPionMultiplicity", ";True (primary) #pi^{#pm} Multiplicity; Reconstructed #pi^{#pm} Multiplicity", 9, -0.5, 8.5, 9, -0.5, 8.5);
     }
 
     ChargedKECalibration calibration("chargedKE.root");
@@ -707,6 +716,11 @@ int main(int argc, char **argv) {
                     reco.chPionMultiplicity += 1;
                 }
             }
+            for (primaryChPi chPi: primaryChPis) {
+                if (hPionTheta) hPionTheta->Fill(chPi.p4.Theta());
+                if (hPionCosTheta) hPionCosTheta->Fill(std::cos(chPi.p4.Theta()));
+                if (hPionPhi) hPionPhi->Fill(chPi.p4.Phi());
+            }
 
         }
 
@@ -894,6 +908,15 @@ int main(int argc, char **argv) {
         // std::vector<int> colors = {kRed+1, kGreen+1, kBlue+1};
         Plot1D(plots1D, colors, "Charged/nSigmaPlots.png", opts_nSigma);
 
+        PlotOptions opts_hPionTheta;
+        Plot1D({hPionTheta}, {kBlack}, "Charged/primaryChPionTheta.png", opts_hPionTheta);
+
+        PlotOptions opts_hPionCosTheta;
+        Plot1D({hPionCosTheta}, {kBlack}, "Charged/primaryChPionCosTheta.png", opts_hPionCosTheta);
+
+        PlotOptions opts_hPionPhi;
+        Plot1D({hPionPhi}, {kBlack}, "Charged/primaryChPionPhi.png", opts_hPionPhi);
+
         PlotOptions opts_hdEdxVsE_true;
         opts_hdEdxVsE_true.drawOption = "SCAT";
         opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}","p"};
@@ -972,6 +995,8 @@ int main(int argc, char **argv) {
         //CLEANUP
         delete hNSigmaPion;
         delete hNSigmaProton;
+        delete hPionTheta;
+        delete hPionPhi;
         delete hdEdxVsE_cluster_Pion;
         delete hdEdxVsE_true_Pion; 
         delete hdEdxVsE_cluster_Proton;

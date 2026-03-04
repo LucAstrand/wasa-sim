@@ -1352,9 +1352,9 @@ def main():
                         help="Max chi2/ndf. Set <0 to disable chi2 cut.")
     # parser.add_argument("--max-dca", dest="max_dca", type=float, default=-1.0,
     #                     help="Max DCA to fitted vertex [cm]. Set <0 to disable.")
-    parser.add_argument("--max-dca", dest="max_dca", type=float, default=0.5,
+    parser.add_argument("--max-dca", dest="max_dca", type=float, default=3,
                         help="Max DCA to fitted vertex [cm]. Set <0 to disable.")
-    parser.add_argument("--max-r-vertex", dest="max_r_vertex", type=float, default=-1.0,
+    parser.add_argument("--max-r-vertex", dest="max_r_vertex", type=float, default=20,
                         help="Max vertex radius in foil plane [cm]. Set <0 to disable.")
 
     parser.add_argument("--min-comb", dest="min_comb", type=int, default=2)
