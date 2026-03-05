@@ -81,7 +81,21 @@ void Acceptance::Pi0ProcessSignalEvent(const std::vector<TruePi0>& truePi0s, con
     }
 }
 
-void Acceptance::ChPiProcessSignalEvent(const std::vector<ChargedCluster>& chargedClusters, const std::vector<primaryChPi>& primaryChPis) {
+// void Acceptance::ChPiProcessSignalEvent(const std::vector<ChargedCluster>& chargedClusters, const std::vector<primaryChPi>& primaryChPis, int type) {
+ 
+//     for (const auto& p : primaryChPis) h_den_->Fill(p.p4.E());
+
+//     std::unordered_map<int, double> genEkin;
+//     genEkin.reserve(primaryChPis.size());
+//     for (const auto& p : primaryChPis) genEkin.emplace(p.trackID, p.p4.E());
+
+//     for (const auto& d : chargedClusters) {
+//         auto it = genEkin.find(d.trackID);
+//         if (it != genEkin.end()) h_num_->Fill(it->second);
+//     }
+// }
+
+void Acceptance::ChPiProcessSignalEvent(const std::vector<TrueChPiInCal>& ChPiInCal, const std::vector<primaryChPi>& primaryChPis, int type) {
  
     for (const auto& p : primaryChPis) h_den_->Fill(p.p4.E());
 
@@ -89,11 +103,24 @@ void Acceptance::ChPiProcessSignalEvent(const std::vector<ChargedCluster>& charg
     genEkin.reserve(primaryChPis.size());
     for (const auto& p : primaryChPis) genEkin.emplace(p.trackID, p.p4.E());
 
-    for (const auto& d : chargedClusters) {
-        auto it = genEkin.find(d.trackID);
-        if (it != genEkin.end()) h_num_->Fill(it->second);
+    for (const auto& d : ChPiInCal) {
+        if (type == 0) {
+            auto it = genEkin.find(d.trackID);
+            if (it != genEkin.end()) h_num_->Fill(it->second);
+        }
+        if (type == 1) {
+            if (!d.throughTPC) continue; // tricky logic here check not --> continue meaning we only do the ones that have d.throughTPC = true!!!
+            auto it = genEkin.find(d.trackID);
+            if (it != genEkin.end()) h_num_->Fill(it->second);
+        }
+        if (type == 2) {
+            if (d.throughTPC) continue;
+            auto it = genEkin.find(d.trackID);
+            if (it != genEkin.end()) h_num_->Fill(it->second);            
+        }
     }
 }
+
 
 void Acceptance::FinalizePlot(const std::string& outFileName, PlotOptions opts) {
 

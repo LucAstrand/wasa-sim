@@ -145,11 +145,31 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "TruePhotonTrackID", truePhotonTrackID);
     SafeSetBranch(t, "TruePhotonParentID", truePhotonParentID);
 
+    std::vector<double> *TrueChargedPionX = nullptr, *TrueChargedPionY = nullptr, *TrueChargedPionZ = nullptr, *TrueChargedPionE = nullptr, *TrueChargedPionTrackID = nullptr, *TrueChargedPionThroughTPC = nullptr;
+    std::vector<double> *TrueChargedPionCreationX = nullptr, *TrueChargedPionCreationY = nullptr, *TrueChargedPionCreationZ = nullptr, *TrueChargedPionEndX = nullptr, *TrueChargedPionEndY = nullptr, *TrueChargedPionEndZ = nullptr;
+    std::vector<double> *TrueChargedPionDecayedBeforeCal = nullptr, *TrueChargedPionDecayedBeforeTPC = nullptr, *TrueChargedPionDecayedTrackID = nullptr;
+    SafeSetBranch(t, "TrueChargedPionX", TrueChargedPionX);
+    SafeSetBranch(t, "TrueChargedPionY", TrueChargedPionY);
+    SafeSetBranch(t, "TrueChargedPionZ", TrueChargedPionZ);
+    SafeSetBranch(t, "TrueChargedPionE", TrueChargedPionE);
+    SafeSetBranch(t, "TrueChargedPionTrackID", TrueChargedPionTrackID);
+    SafeSetBranch(t, "TrueChargedPionThroughTPC", TrueChargedPionThroughTPC);
+    SafeSetBranch(t, "TrueChargedPionCreationX", TrueChargedPionCreationX);
+    SafeSetBranch(t, "TrueChargedPionCreationY", TrueChargedPionCreationY);
+    SafeSetBranch(t, "TrueChargedPionCreationZ", TrueChargedPionCreationZ);
+    SafeSetBranch(t, "TrueChargedPionEndX", TrueChargedPionEndX);
+    SafeSetBranch(t, "TrueChargedPionEndY", TrueChargedPionEndY);
+    SafeSetBranch(t, "TrueChargedPionEndZ", TrueChargedPionEndZ);
+    SafeSetBranch(t, "TrueChargedPionDecayedBeforeCal", TrueChargedPionDecayedBeforeCal);
+    SafeSetBranch(t, "TrueChargedPionDecayedBeforeTPC", TrueChargedPionDecayedBeforeTPC);
+    SafeSetBranch(t, "TrueChargedPionDecayedTrackID", TrueChargedPionDecayedTrackID);
+
     // TPC info
-    std::vector<double> *TPC_Edep = nullptr, *TPC_smearedEdep = nullptr;
+    std::vector<double> *TPC_trackID = nullptr, *TPC_Edep = nullptr, *TPC_smearedEdep = nullptr;
     std::vector<double> *TPC_firstPosX = nullptr, *TPC_firstPosY = nullptr, *TPC_firstPosZ = nullptr;
     std::vector<double> *TPC_lastPosX = nullptr, *TPC_lastPosY = nullptr, *TPC_lastPosZ = nullptr;
     std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_TrueKE = nullptr, *TPC_pdg = nullptr; // *TPC_Psm = nullptr,
+    SafeSetBranch(t, "TPC_trackID", TPC_trackID);
     SafeSetBranch(t, "TPC_Edep", TPC_Edep);
     SafeSetBranch(t, "TPC_smearedEdep", TPC_smearedEdep);
     SafeSetBranch(t, "TPC_firstPosX", TPC_firstPosX);
@@ -221,9 +241,9 @@ int main(int argc, char **argv) {
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
     // mcpl pre-processing to get the #Pi0s per event:
 
-    std::vector<int> mcpl_pi0_per_event;
-    std::vector<int> mcpl_chPi_per_event;
-    std::map<int, double> Ekin_per_event;
+    // std::vector<int> mcpl_pi0_per_event;
+    // std::vector<int> mcpl_chPi_per_event;
+    // std::map<int, double> Ekin_per_event;
     // std::unordered_map<int, std::vector<mcplPi0>> mcpl_Pi0s_per_event;
     // std::unordered_map<int, std::vector<mcplChPi>> mcpl_ChPis_per_event;
     
@@ -285,6 +305,8 @@ int main(int argc, char **argv) {
     std::vector<primaryChPi> primaryChPis;
     std::vector<int> pi0_per_event;
     std::vector<int> chPi_per_event;
+    std::vector<TrueChPiInCal> trueChPiInCals;
+    std::vector<TrueChPiDecayed> trueChPiDecayed;
 
 
     //Pi0 analysis objects
@@ -328,7 +350,9 @@ int main(int argc, char **argv) {
     TH1F *hClusterE                      = nullptr;
     PIDEfficiency  *pidEff               = nullptr;
     //--> Pi+- Acceptance and Efficiency 
-    Acceptance *chAccPlotter             = nullptr;
+    Acceptance *chAccPlotterGlobal       = nullptr;
+    Acceptance *chAccPlotterCondTPC      = nullptr;
+    Acceptance *chAccPlotterCondNoTPC    = nullptr;
     // Event level variables
     TH1F  *hEventInvariantMass           = nullptr; 
     TH1F  *hEventSphericity              = nullptr; 
@@ -411,7 +435,9 @@ int main(int argc, char **argv) {
         h2_Eres                 = new TH2F("h2_Eres", ";True KE [MeV];Energy Residual", 20, 0, 500, 100, -1.0, 1.0);
         hClusterE               = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
         //--> Pi+- Acceptance and Efficiency 
-        chAccPlotter            = new Acceptance("chPiE", 100, 1, 1000);
+        chAccPlotterGlobal      = new Acceptance("chPiEGlobal", 100, 1, 1000);
+        chAccPlotterCondTPC     = new Acceptance("chPiECondTPC", 100, 1, 1000);
+        chAccPlotterCondNoTPC   = new Acceptance("chPiECondNoTPC", 100, 1, 1000);
 
     }
     if (doEventVariables) {
@@ -491,12 +517,32 @@ int main(int argc, char **argv) {
         }
 
         if (doChargedAnalysis) {
+
+            trueChPiInCals.clear();
+            size_t nTrueChPiInCal = TrueChargedPionTrackID->size();
+            for (size_t i=0; i<nTrueChPiInCal; ++i) {
+                TrueChPiInCal chpi;
+                chpi.trackID = (*TrueChargedPionTrackID)[i];
+                chpi.throughTPC = (*TrueChargedPionThroughTPC)[i];
+                trueChPiInCals.push_back(chpi);
+            }
+
+            trueChPiDecayed.clear();
+            size_t nTrueChPiDecayed = TrueChargedPionDecayedTrackID->size();
+            for (size_t j=0; j<nTrueChPiDecayed; ++j) {
+                TrueChPiDecayed chpi;
+                chpi.trackID = (*TrueChargedPionDecayedTrackID)[j];
+                chpi.beforeCal = (*TrueChargedPionDecayedBeforeCal)[j];
+                chpi.beforeTPC = (*TrueChargedPionDecayedBeforeTPC)[j];
+                trueChPiDecayed.push_back(chpi);
+            }
+            
             chargedTracks.clear();
             size_t nChargedTracks = TPC_Edep->size();
             for (size_t k=0; k<nChargedTracks; ++k) {
                 if (!TPC_Edep || !TPC_firstPosX || !TPC_lastPosX) continue; 
                 chargedTracks.push_back(
-                    {k, 
+                    {(*TPC_trackID)[k], 
                     vertex, 
                     TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]), 
                     TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]) - TVector3((*TPC_firstPosX)[k], (*TPC_firstPosY)[k], (*TPC_firstPosZ)[k]),
@@ -708,7 +754,13 @@ int main(int argc, char **argv) {
 
         if (doChargedAnalysis) {
             pidEff->ProcessEvent(reco.chargedClusters);
-            chAccPlotter->ChPiProcessSignalEvent(reco.chargedClusters, primaryChPis);
+            // chAccPlotter->ChPiProcessSignalEvent(reco.chargedClusters, primaryChPis);
+
+            //new
+            chAccPlotterGlobal->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 0);
+            chAccPlotterCondTPC->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 1);
+            chAccPlotterCondNoTPC->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 2);
+
             
             // assign a charged pion multiplicity based on PID Guess --> TPC info
             for (ChargedCluster ch : reco.chargedClusters) {
@@ -983,14 +1035,32 @@ int main(int argc, char **argv) {
         Plot1D({hClusterE}, {kBlack}, "Charged/ClusterE_pion.png", opts_hClusterE);
 
         //--> Pi+- Acceptance and Efficiency 
-        PlotOptions opts_chAccPlotter;
-        opts_chAccPlotter.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
-        // opts_chAccPlotter.legendEntries = { "Acceptance" };
-        opts_chAccPlotter.infoLines = {"Signal dataset"};//{"GEANT4 #pi^{0} sample"};
-        opts_chAccPlotter.addInfoPave = true;
-        opts_chAccPlotter.xAxisTitle = "Signal #pi^{#pm} E_{kin} [MeV]";
-        opts_chAccPlotter.yAxisTitle = "Acceptance [%]";
-        chAccPlotter->FinalizePlot("Charged/chPi_acceptance_vs_Ekin.png", opts_chAccPlotter);
+        PlotOptions opts_chAccPlotterGlobal;
+        opts_chAccPlotterGlobal.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
+        // opts_chAccPlotterGlobal.legendEntries = { "Acceptance" };
+        opts_chAccPlotterGlobal.infoLines = {"Signal dataset"};//{"GEANT4 #pi^{0} sample"};
+        opts_chAccPlotterGlobal.addInfoPave = true;
+        opts_chAccPlotterGlobal.xAxisTitle = "Signal #pi^{#pm} E_{kin} [MeV]";
+        opts_chAccPlotterGlobal.yAxisTitle = "Acceptance [%]";
+        chAccPlotterGlobal->FinalizePlot("Charged/chPi_acceptance_vs_Ekin_Global.png", opts_chAccPlotterGlobal);
+
+        PlotOptions opts_chAccPlotterCondTPC;
+        opts_chAccPlotterCondTPC.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
+        // opts_chAccPlotterCondTPC.legendEntries = { "Acceptance" };
+        opts_chAccPlotterCondTPC.infoLines = {"Signal dataset"};//{"GEANT4 #pi^{0} sample"};
+        opts_chAccPlotterCondTPC.addInfoPave = true;
+        opts_chAccPlotterCondTPC.xAxisTitle = "Signal #pi^{#pm} E_{kin} [MeV]";
+        opts_chAccPlotterCondTPC.yAxisTitle = "Cond TPC Acceptance [%]";
+        chAccPlotterCondTPC->FinalizePlot("Charged/chPi_acceptance_vs_Ekin_CondTPC.png", opts_chAccPlotterCondTPC);
+
+        PlotOptions opts_chAccPlotterCondNoTPC;
+        opts_chAccPlotterCondNoTPC.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
+        // opts_chAccPlotterCondNoTPC.legendEntries = { "Acceptance" };
+        opts_chAccPlotterCondNoTPC.infoLines = {"Signal dataset"};//{"GEANT4 #pi^{0} sample"};
+        opts_chAccPlotterCondNoTPC.addInfoPave = true;
+        opts_chAccPlotterCondNoTPC.xAxisTitle = "Signal #pi^{#pm} E_{kin} [MeV]";
+        opts_chAccPlotterCondNoTPC.yAxisTitle = "Cond No TPC Acceptance [%]";
+        chAccPlotterCondNoTPC->FinalizePlot("Charged/chPi_acceptance_vs_Ekin_CondNoTPC.png", opts_chAccPlotterCondNoTPC);
 
         //CLEANUP
         delete hNSigmaPion;
@@ -1003,7 +1073,9 @@ int main(int argc, char **argv) {
         delete hdEdxVsE_true_Proton;
         delete hClusterE;
         delete pidEff;
-        delete chAccPlotter;
+        delete chAccPlotterGlobal;
+        delete chAccPlotterCondTPC;
+        delete chAccPlotterCondNoTPC;
     }
 
     if (doEventVariables) {

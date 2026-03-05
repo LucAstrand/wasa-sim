@@ -384,10 +384,11 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "TruePhotonEndZ", TruePhotonEndZ);
 
     // TPC info
-    std::vector<double> *TPC_Edep = nullptr, *TPC_smearedEdep = nullptr;
+    std::vector<double> *TPC_trackID = nullptr, *TPC_Edep = nullptr, *TPC_smearedEdep = nullptr;
     std::vector<double> *TPC_firstPosX = nullptr, *TPC_firstPosY = nullptr, *TPC_firstPosZ = nullptr;
     std::vector<double> *TPC_lastPosX = nullptr, *TPC_lastPosY = nullptr, *TPC_lastPosZ = nullptr;
     std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_TrueKE = nullptr, *TPC_pdg = nullptr;
+    SafeSetBranch(t, "TPC_trackID", TPC_trackID);
     SafeSetBranch(t, "TPC_Edep", TPC_Edep);
     SafeSetBranch(t, "TPC_smearedEdep", TPC_smearedEdep);
     SafeSetBranch(t, "TPC_firstPosX", TPC_firstPosX);
@@ -499,7 +500,7 @@ int main(int argc, char **argv) {
                 TVector3 dir = last - first;
 
                 chargedTracks.push_back({
-                    k,
+                    (*TPC_trackID)[k],
                     vertex,
                     last,
                     dir,

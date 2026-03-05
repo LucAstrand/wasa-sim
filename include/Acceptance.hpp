@@ -32,8 +32,12 @@ public:
     //                     int nChPis = 1 // For the GPS generally we shoot one particle per event. 
     //                     );
 
-    void ChPiProcessSignalEvent(const std::vector<ChargedCluster>& chargedClusters, 
-                                const std::vector<primaryChPi>& primaryChPis);
+    // void ChPiProcessSignalEvent(const std::vector<ChargedCluster>& chargedClusters, 
+    //                             const std::vector<primaryChPi>& primaryChPis);
+
+    void ChPiProcessSignalEvent(const std::vector<TrueChPiInCal>& ChPiInCal, 
+                                const std::vector<primaryChPi>& primaryChPis,
+                                int type /* 0 = global, 1 = cond TPC, 2 = cond NO TPC*/);
     
     // void ProcessEventTwoHist(const std::vector<Cluster>& clusters,
     //                          const std::vector<TruePhoton>& TruePhotons,

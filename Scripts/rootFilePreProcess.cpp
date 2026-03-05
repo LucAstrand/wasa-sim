@@ -111,6 +111,22 @@ int main(int argc, char** argv) {
     std::vector<double>* TruePhotonEndY = nullptr;
     std::vector<double>* TruePhotonEndZ = nullptr;
 
+    std::vector<double>* TrueChargedPionX = nullptr;
+    std::vector<double>* TrueChargedPionY = nullptr;
+    std::vector<double>* TrueChargedPionZ = nullptr;
+    std::vector<double>* TrueChargedPionE = nullptr;
+    std::vector<double>* TrueChargedPionTrackID = nullptr;
+    std::vector<double>* TrueChargedPionThroughTPC = nullptr;
+    std::vector<double>* TrueChargedPionCreationX = nullptr;
+    std::vector<double>* TrueChargedPionCreationY = nullptr;
+    std::vector<double>* TrueChargedPionCreationZ = nullptr;
+    std::vector<double>* TrueChargedPionEndX = nullptr;
+    std::vector<double>* TrueChargedPionEndY = nullptr;
+    std::vector<double>* TrueChargedPionEndZ = nullptr;
+    std::vector<double>* TrueChargedPionDecayedBeforeCal = nullptr;
+    std::vector<double>* TrueChargedPionDecayedBeforeTPC = nullptr;
+    std::vector<double>* TrueChargedPionDecayedTrackID = nullptr;
+
     std::vector<double>* TPC_firstPosX = nullptr;
     std::vector<double>* TPC_firstPosY = nullptr;
     std::vector<double>* TPC_firstPosZ = nullptr;
@@ -118,6 +134,7 @@ int main(int argc, char** argv) {
     std::vector<double>* TPC_lastPosY = nullptr;
     std::vector<double>* TPC_lastPosZ = nullptr;
 
+    std::vector<double>* TPC_trackID = nullptr;
     std::vector<double>* TPC_Edep = nullptr;
     std::vector<double>* TPC_smearedEdep = nullptr;
     std::vector<double>* TPC_dEdx = nullptr;
@@ -143,11 +160,11 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("PrimaryMomZ", &primaryMomZ);
     inTree->SetBranchAddress("PrimaryPDG", &primaryPDG);
     inTree->SetBranchAddress("PrimaryTrackID", &primaryTrackID);
+
     inTree->SetBranchAddress("TruePhotonX", &TruePhotonX);
     inTree->SetBranchAddress("TruePhotonY", &TruePhotonY);
     inTree->SetBranchAddress("TruePhotonZ", &TruePhotonZ);
     inTree->SetBranchAddress("TruePhotonE", &TruePhotonE);
-    
     inTree->SetBranchAddress("TruePhotonCreationX", &TruePhotonCreationX);
     inTree->SetBranchAddress("TruePhotonCreationY", &TruePhotonCreationY);
     inTree->SetBranchAddress("TruePhotonCreationZ", &TruePhotonCreationZ);
@@ -157,6 +174,22 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("TruePhotonTrackID", &TruePhotonTrackID);
     inTree->SetBranchAddress("TruePhotonParentID", &TruePhotonParentID);
 
+    inTree->SetBranchAddress("TrueChargedPionX", &TrueChargedPionX);
+    inTree->SetBranchAddress("TrueChargedPionY", &TrueChargedPionY);
+    inTree->SetBranchAddress("TrueChargedPionZ", &TrueChargedPionZ);
+    inTree->SetBranchAddress("TrueChargedPionE", &TrueChargedPionE);
+    inTree->SetBranchAddress("TrueChargedPionTrackID", &TrueChargedPionTrackID);
+    inTree->SetBranchAddress("TrueChargedPionThroughTPC", &TrueChargedPionThroughTPC);
+    inTree->SetBranchAddress("TrueChargedPionCreationX", &TrueChargedPionCreationX);
+    inTree->SetBranchAddress("TrueChargedPionCreationY", &TrueChargedPionCreationY);
+    inTree->SetBranchAddress("TrueChargedPionCreationZ", &TrueChargedPionCreationZ);
+    inTree->SetBranchAddress("TrueChargedPionEndX", &TrueChargedPionEndX);
+    inTree->SetBranchAddress("TrueChargedPionEndY", &TrueChargedPionEndY);
+    inTree->SetBranchAddress("TrueChargedPionEndZ", &TrueChargedPionEndZ);
+	inTree->SetBranchAddress("TrueChargedPionDecayedBeforeCal", &TrueChargedPionDecayedBeforeCal);
+	inTree->SetBranchAddress("TrueChargedPionDecayedBeforeTPC", &TrueChargedPionDecayedBeforeTPC);
+	inTree->SetBranchAddress("TrueChargedPionDecayedTrackID", &TrueChargedPionDecayedTrackID);
+
     inTree->SetBranchAddress("TPC_firstPosX", &TPC_firstPosX);
     inTree->SetBranchAddress("TPC_firstPosY", &TPC_firstPosY);
     inTree->SetBranchAddress("TPC_firstPosZ", &TPC_firstPosZ);
@@ -164,7 +197,7 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("TPC_lastPosY", &TPC_lastPosY);
     inTree->SetBranchAddress("TPC_lastPosZ", &TPC_lastPosZ);
 
-
+    inTree->SetBranchAddress("TPC_trackID", &TPC_trackID);
     inTree->SetBranchAddress("TPC_EDep", &TPC_Edep);
     inTree->SetBranchAddress("TPC_smearedEdep", &TPC_smearedEdep);
     inTree->SetBranchAddress("TPC_dEdx", &TPC_dEdx);
@@ -221,7 +254,10 @@ int main(int argc, char** argv) {
     std::vector<double> outTruePhotonEndX, outTruePhotonEndY, outTruePhotonEndZ;
     std::vector<double> outTPC_firstPosX, outTPC_firstPosY, outTPC_firstPosZ;
     std::vector<double> outTPC_lastPosX, outTPC_lastPosY, outTPC_lastPosZ;
-    std::vector<double> outTPC_Edep, outTPC_smearedEdep, outTPC_dEdx, outTPC_PathLength, outTPC_TrueKE, outTPC_pdg; // outTPC_Psm,
+    std::vector<double> outTPC_trackID, outTPC_Edep, outTPC_smearedEdep, outTPC_dEdx, outTPC_PathLength, outTPC_TrueKE, outTPC_pdg; // outTPC_Psm,
+    std::vector<double> outTrueChargedPionX, outTrueChargedPionY, outTrueChargedPionZ, outTrueChargedPionE, outTrueChargedPionTrackID, outTrueChargedPionThroughTPC;
+    std::vector<double> outTrueChargedPionCreationX, outTrueChargedPionCreationY, outTrueChargedPionCreationZ, outTrueChargedPionEndX, outTrueChargedPionEndY, outTrueChargedPionEndZ;
+    std::vector<double> outTrueChargedPionDecayedBeforeCal, outTrueChargedPionDecayedBeforeTPC, outTrueChargedPionDecayedTrackID;
     
     outTree->Branch("centerX", &centerXs);
     outTree->Branch("centerY", &centerYs);
@@ -252,6 +288,22 @@ int main(int argc, char** argv) {
     outTree->Branch("TruePhotonEndY", &outTruePhotonEndY);
     outTree->Branch("TruePhotonEndZ", &outTruePhotonEndZ);
 
+    outTree->Branch("TrueChargedPionX", &outTrueChargedPionX);
+    outTree->Branch("TrueChargedPionY", &outTrueChargedPionY);
+    outTree->Branch("TrueChargedPionZ", &outTrueChargedPionZ);
+    outTree->Branch("TrueChargedPionE", &outTrueChargedPionE);
+    outTree->Branch("TrueChargedPionTrackID", &outTrueChargedPionTrackID);
+    outTree->Branch("TrueChargedPionThroughTPC", &outTrueChargedPionThroughTPC);
+    outTree->Branch("TrueChargedPionCreationX", &outTrueChargedPionCreationX);
+    outTree->Branch("TrueChargedPionCreationY", &outTrueChargedPionCreationY);
+    outTree->Branch("TrueChargedPionCreationZ", &outTrueChargedPionCreationZ);
+    outTree->Branch("TrueChargedPionEndX", &outTrueChargedPionEndX);
+    outTree->Branch("TrueChargedPionEndY", &outTrueChargedPionEndY);
+    outTree->Branch("TrueChargedPionEndZ", &outTrueChargedPionEndZ);
+    outTree->Branch("TrueChargedPionDecayedBeforeCal", &outTrueChargedPionDecayedBeforeCal);
+    outTree->Branch("TrueChargedPionDecayedBeforeTPC", &outTrueChargedPionDecayedBeforeTPC);
+    outTree->Branch("TrueChargedPionDecayedTrackID", &outTrueChargedPionDecayedTrackID);
+
 
     outTree->Branch("TPC_firstPosX", &outTPC_firstPosX);
     outTree->Branch("TPC_firstPosY", &outTPC_firstPosY);
@@ -260,6 +312,7 @@ int main(int argc, char** argv) {
     outTree->Branch("TPC_lastPosY", &outTPC_lastPosY);
     outTree->Branch("TPC_lastPosZ", &outTPC_lastPosZ);
 
+    outTree->Branch("TPC_trackID", &TPC_trackID);
     outTree->Branch("TPC_Edep", &outTPC_Edep);
     outTree->Branch("TPC_smearedEdep", &outTPC_smearedEdep);
     outTree->Branch("TPC_dEdx", &outTPC_dEdx);
@@ -302,6 +355,22 @@ int main(int argc, char** argv) {
         outTruePhotonEndX = TruePhotonEndX ? *TruePhotonEndX : std::vector<double>();
         outTruePhotonEndY = TruePhotonEndY ? *TruePhotonEndY : std::vector<double>();
         outTruePhotonEndZ = TruePhotonEndZ ? *TruePhotonEndZ : std::vector<double>();
+
+        outTrueChargedPionX = TrueChargedPionX ? *TrueChargedPionX : std::vector<double>();
+        outTrueChargedPionY = TrueChargedPionY ? *TrueChargedPionY : std::vector<double>();
+        outTrueChargedPionZ = TrueChargedPionZ ? *TrueChargedPionZ : std::vector<double>();
+        outTrueChargedPionE = TrueChargedPionE ? *TrueChargedPionE : std::vector<double>();
+        outTrueChargedPionTrackID = TrueChargedPionTrackID ? *TrueChargedPionTrackID : std::vector<double>();
+        outTrueChargedPionThroughTPC = TrueChargedPionThroughTPC ? *TrueChargedPionThroughTPC : std::vector<double>();
+        outTrueChargedPionCreationX = TrueChargedPionCreationX ? *TrueChargedPionCreationX : std::vector<double>();
+        outTrueChargedPionCreationY = TrueChargedPionCreationY ? *TrueChargedPionCreationY : std::vector<double>();
+        outTrueChargedPionCreationZ = TrueChargedPionCreationZ ? *TrueChargedPionCreationZ : std::vector<double>();
+        outTrueChargedPionEndX = TrueChargedPionEndX ? *TrueChargedPionEndX : std::vector<double>();
+        outTrueChargedPionEndY = TrueChargedPionEndY ? *TrueChargedPionEndY : std::vector<double>();
+        outTrueChargedPionEndZ = TrueChargedPionEndZ ? *TrueChargedPionEndZ : std::vector<double>();
+        outTrueChargedPionDecayedBeforeCal = TrueChargedPionDecayedBeforeCal ? *TrueChargedPionDecayedBeforeCal : std::vector<double>();
+        outTrueChargedPionDecayedBeforeTPC = TrueChargedPionDecayedBeforeTPC ? *TrueChargedPionDecayedBeforeTPC : std::vector<double>();
+        outTrueChargedPionDecayedTrackID = TrueChargedPionDecayedTrackID ? *TrueChargedPionDecayedTrackID : std::vector<double>();
         
         outTPC_firstPosX = TPC_firstPosX ? *TPC_firstPosX : std::vector<double>();
         outTPC_firstPosY = TPC_firstPosY ? *TPC_firstPosY : std::vector<double>();
@@ -310,6 +379,7 @@ int main(int argc, char** argv) {
         outTPC_lastPosY = TPC_lastPosY ? *TPC_lastPosY : std::vector<double>();
         outTPC_lastPosZ = TPC_lastPosZ ? *TPC_lastPosZ : std::vector<double>();
 
+        outTPC_trackID = TPC_trackID ? *TPC_trackID : std::vector<double>();
         outTPC_Edep = TPC_Edep ? *TPC_Edep : std::vector<double>();
         outTPC_smearedEdep = TPC_smearedEdep ? *TPC_smearedEdep : std::vector<double>();
         outTPC_dEdx = TPC_dEdx ? *TPC_dEdx : std::vector<double>();

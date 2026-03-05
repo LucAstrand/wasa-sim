@@ -50,21 +50,23 @@ struct TruePi0 {
     std::vector<const TruePhoton*> photons;
 };
 
-// struct TrueChPi {
-//     int trackID;
-//     TLorentzVector p4;
-// };
+struct TrueChPiInCal {
+    int trackID;
+    bool throughTPC;
+};
+
+struct TrueChPiDecayed {
+    int trackID;
+    bool beforeCal;
+    bool beforeTPC;
+};
 
 struct primaryPi0 {
-    // double Ekin;
-    // TVector3 direction; 
     int trackID;
     TLorentzVector p4;
 };
 
 struct primaryChPi {
-    // double Ekin;
-    // TVector3 direction;
     int trackID;
     TLorentzVector p4; 
 };
@@ -93,7 +95,7 @@ struct RecoPi0 {
 };
 
 struct ChargedTrack {
-    size_t id;              // track ID // I might just build this dynamically not sure yet If I want to use GEANT4's TrackID --> Avoid Truth level stuff?
+    double id;              // track ID // I might just build this dynamically not sure yet If I want to use GEANT4's TrackID --> Avoid Truth level stuff?
     TVector3 vertex;
     TVector3 exitPoint;     // TPC exit
     TVector3 direction;     // cached (exit - entry).Unit()

@@ -1346,10 +1346,10 @@ def main():
     parser.add_argument("--tpc-sigma-z", dest="tpc_sigma_z", type=float, default=0.10)
 
     # Quality cuts
-    # parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=5.0,
-    #                     help="Max chi2/ndf. Set <0 to disable chi2 cut.")
-    parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=15.0,
+    parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=5.0,
                         help="Max chi2/ndf. Set <0 to disable chi2 cut.")
+    # parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=15.0,
+    #                     help="Max chi2/ndf. Set <0 to disable chi2 cut.")
     # parser.add_argument("--max-dca", dest="max_dca", type=float, default=-1.0,
     #                     help="Max DCA to fitted vertex [cm]. Set <0 to disable.")
     parser.add_argument("--max-dca", dest="max_dca", type=float, default=3,
