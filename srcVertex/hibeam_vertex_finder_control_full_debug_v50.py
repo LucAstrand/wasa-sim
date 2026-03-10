@@ -403,7 +403,8 @@ def compute_residuals(vtx: np.ndarray, tracks: List[Dict[str, Any]]) -> Tuple[Li
         dca_3d = float(np.linalg.norm(delta))
         dca_xy = float(math.hypot(delta[0], delta[1]))
 
-        chi2 += (delta[0] / sx) ** 2 + (delta[1] / sy) ** 2 + (delta[2] / sz) ** 2
+        # chi2 += (delta[0] / sx) ** 2 + (delta[1] / sy) ** 2 + (delta[2] / sz) ** 2
+        chi2 += (delta[0] / sx) ** 2 + (delta[1] / sy) ** 2
 
         residuals.append({
             "track_id": int(trk.get("track_id", -1)), #added this as it was used later but never included -Lucas 
@@ -426,7 +427,8 @@ def compute_residuals(vtx: np.ndarray, tracks: List[Dict[str, Any]]) -> Tuple[Li
             "is_signal": int(trk.get("is_signal", 1)),
         })
 
-    ndf = 3 * N - 2  # x,y,z for each track minus 2 free vertex coords (x,y)
+    # ndf = 3 * N - 2  # x,y,z for each track minus 2 free vertex coords (x,y)
+    ndf = 2 * N - 2
     return residuals, chi2, ndf
 
 
@@ -1341,15 +1343,23 @@ def main():
     parser.add_argument("--truth-z-col", dest="truth_z_col", default="vtx_z_cm")
 
     # TPC resolution
-    parser.add_argument("--tpc-sigma-x", dest="tpc_sigma_x", type=float, default=0.05)
-    parser.add_argument("--tpc-sigma-y", dest="tpc_sigma_y", type=float, default=0.05)
+    # parser.add_argument("--tpc-sigma-x", dest="tpc_sigma_x", type=float, default=0.05)
+    # parser.add_argument("--tpc-sigma-y", dest="tpc_sigma_y", type=float, default=0.05)
+    # parser.add_argument("--tpc-sigma-z", dest="tpc_sigma_z", type=float, default=0.10)
+
+    # parser.add_argument("--tpc-sigma-x", dest="tpc_sigma_x", type=float, default=0.78)
+    # parser.add_argument("--tpc-sigma-y", dest="tpc_sigma_y", type=float, default=1.06)
+    # parser.add_argument("--tpc-sigma-z", dest="tpc_sigma_z", type=float, default=0.10)
+
+    parser.add_argument("--tpc-sigma-x", dest="tpc_sigma_x", type=float, default=0.42)
+    parser.add_argument("--tpc-sigma-y", dest="tpc_sigma_y", type=float, default=0.58)
     parser.add_argument("--tpc-sigma-z", dest="tpc_sigma_z", type=float, default=0.10)
 
     # Quality cuts
-    parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=5.0,
-                        help="Max chi2/ndf. Set <0 to disable chi2 cut.")
-    # parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=15.0,
+    # parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=5.0,
     #                     help="Max chi2/ndf. Set <0 to disable chi2 cut.")
+    parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=15.0,
+                        help="Max chi2/ndf. Set <0 to disable chi2 cut.")
     # parser.add_argument("--max-dca", dest="max_dca", type=float, default=-1.0,
     #                     help="Max DCA to fitted vertex [cm]. Set <0 to disable.")
     parser.add_argument("--max-dca", dest="max_dca", type=float, default=3,

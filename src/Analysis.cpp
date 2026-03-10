@@ -239,13 +239,13 @@ int main(int argc, char **argv) {
             << " / " << bestVtx.size() << " events\n";
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-    // mcpl pre-processing to get the #Pi0s per event:
+    // // mcpl pre-processing to get the #Pi0s per event:
 
     // std::vector<int> mcpl_pi0_per_event;
     // std::vector<int> mcpl_chPi_per_event;
     // std::map<int, double> Ekin_per_event;
-    // std::unordered_map<int, std::vector<mcplPi0>> mcpl_Pi0s_per_event;
-    // std::unordered_map<int, std::vector<mcplChPi>> mcpl_ChPis_per_event;
+    // // std::unordered_map<int, std::vector<mcplPi0>> mcpl_Pi0s_per_event;
+    // // std::unordered_map<int, std::vector<mcplChPi>> mcpl_ChPis_per_event;
     
     // mcpl_file_t mcplFile = mcpl_open_file(mcpl_inputfile.c_str());
     // int current_event = -1;
@@ -260,7 +260,6 @@ int main(int argc, char **argv) {
     //         mcpl_chPi_per_event.push_back(0);
     //         // pi0_EKin_per_event.push_back(0);
     //     }
-        
     //     //guard
     //     if (current_event < 0) continue;
         

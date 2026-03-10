@@ -301,6 +301,100 @@ void DrawPionsAsArrows(const std::vector<primaryChPi>& pions,
   gEve->Redraw3D(kTRUE);
 }
 
+TEveElementList* MakePrimaryTracks(
+    const std::vector<double>* primaryX,
+    const std::vector<double>* primaryY,
+    const std::vector<double>* primaryZ,
+    const std::vector<double>* primaryPx,
+    const std::vector<double>* primaryPy,
+    const std::vector<double>* primaryPz,
+    const std::vector<double>* primaryEkin,
+    const std::vector<int>*    primaryPDG,
+    const std::vector<int>*    primaryTrackID,
+    double trackLength = 200.0  // cm, how far to draw the arrow
+)
+{
+    TEveElementList* group = new TEveElementList("Primary Tracks");
+
+    if (!primaryX || primaryX->empty()) return group;
+
+    int nPrimaries = primaryX->size();
+
+    for (int i = 0; i < nPrimaries; i++) {
+
+        double x0 = primaryX->at(i);
+        double y0 = primaryY->at(i);
+        double z0 = primaryZ->at(i);
+
+        double px = primaryPx->at(i);
+        double py = primaryPy->at(i);
+        double pz = primaryPz->at(i);
+        double pmag = std::sqrt(px*px + py*py + pz*pz);
+
+        int pdg = primaryPDG->at(i);
+        int tid = primaryTrackID->at(i);
+        double ekin = primaryEkin->at(i);
+
+        // Normalised direction
+        double dx = 0, dy = 0, dz = 0;
+        if (pmag > 0) {
+            dx = px / pmag;
+            dy = py / pmag;
+            dz = pz / pmag;
+        }
+
+        // End point of the drawn track segment
+        double x1 = x0 + dx * trackLength;
+        double y1 = y0 + dy * trackLength;
+        double z1 = z0 + dz * trackLength;
+
+        // Use TEveLine for the track
+        TEveLine* line = new TEveLine();
+        line->SetNextPoint(x0, y0, z0);
+        line->SetNextPoint(x1, y1, z1);
+        line->SetLineWidth(2);
+
+        // Color by PDG type
+        Color_t color = kGray;
+        std::string pname = "unknown";
+        if      (pdg ==  211) { color = kBlue;    pname = "pi+";     }
+        else if (pdg == -211) { color = kCyan;    pname = "pi-";     }
+        else if (pdg == 2212) { color = kRed;     pname = "proton";  }
+        else if (pdg ==   13) { color = kYellow;  pname = "mu-";     }
+        else if (pdg ==  -13) { color = kOrange;  pname = "mu+";     }
+        else if (pdg ==   11) { color = kMagenta; pname = "e-";      }
+        else if (pdg ==  -11) { color = kPink;    pname = "e+";      }
+        else if (pdg ==  111) { color = kGreen;   pname = "pi0";     }
+        else if (pdg == 2112) { color = kWhite;   pname = "neutron"; }
+
+        line->SetLineColor(color);
+
+        // Descriptive name shown in the Eve browser panel
+        char name[256];
+        snprintf(name, sizeof(name), 
+                 "%s [TID=%d] Ekin=%.1f MeV", 
+                 pname.c_str(), tid, ekin);
+        line->SetName(name);
+
+        // Optional: add a marker at the vertex position
+        TEvePointSet* vtxMarker = new TEvePointSet(1);
+        vtxMarker->SetNextPoint(x0, y0, z0);
+        vtxMarker->SetMarkerStyle(4);  // open circle
+        vtxMarker->SetMarkerSize(1.5);
+        vtxMarker->SetMarkerColor(color);
+        vtxMarker->SetName("vertex");
+
+        // Group the line and its vertex marker together
+        TEveElementList* trackGroup = new TEveElementList(name);
+        trackGroup->AddElement(line);
+        trackGroup->AddElement(vtxMarker);
+
+        group->AddElement(trackGroup);
+    }
+
+    return group;
+}
+
 int main(int argc, char **argv) {
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " <data.root> <geometry.root>\n";
@@ -402,7 +496,7 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
     SafeSetBranch(t, "TPC_pdg", TPC_pdg);
 
-    Long64_t nEvents = 20; // or: t->GetEntries();
+    Long64_t nEvents = 100; // or: t->GetEntries();
 
     std::vector<primaryChPi> primaryChPis;
 
@@ -626,6 +720,13 @@ int main(int argc, char **argv) {
             DrawPionsAsArrows(primaryChPis, vertex.X(), vertex.Y(), vertex.Z(), 1);
         }        
 
+        TEveElementList* primaries = MakePrimaryTracks(
+            primaryX, primaryY, primaryZ,
+            primaryPx, primaryPy, primaryPz,
+            primaryEkin, primaryPDG, primaryTrackID
+        );
+        gEve->AddElement(primaries);
+        // gEve->Redraw3D(kTRUE);
 
         // Done with this event
     }
