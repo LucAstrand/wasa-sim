@@ -354,6 +354,10 @@ int main(int argc, char **argv) {
     Acceptance *chAccPlotterGlobal       = nullptr;
     Acceptance *chAccPlotterCondTPC      = nullptr;
     Acceptance *chAccPlotterCondNoTPC    = nullptr;
+    //--> Cone angle diagnostics
+    TH1F* hHitAngle_matched              = nullptr;     
+    TH1F* hHitAngle_unmatched            = nullptr;       
+    TH2F* hHitAngleVsE                   = nullptr;
     // Event level variables
     TH1F  *hEventInvariantMass           = nullptr;
     TH1F  *hEventSphericity              = nullptr;
@@ -441,6 +445,10 @@ int main(int argc, char **argv) {
         chAccPlotterGlobal      = new Acceptance("chPiEGlobal", 100, 1, 1000);
         chAccPlotterCondTPC     = new Acceptance("chPiECondTPC", 100, 1, 1000);
         chAccPlotterCondNoTPC   = new Acceptance("chPiECondNoTPC", 100, 1, 1000);
+        //--> Cone angle diagnostics
+        hHitAngle_matched       = new TH1F("hHitAngle_matched", ";Angular distance from track [deg];Hits", 180, 0, 180);
+        hHitAngle_unmatched     = new TH1F("hHitAngle_unmatched", ";Angular distance from track [deg];Hits", 180, 0, 180);
+        hHitAngleVsE            = new TH2F("hHitAngleVsE", ";Hit Energy [MeV];Angular distance [deg]", 100, 0, 50, 180, 0, 180);
 
     }
     if (doEventVariables) {
@@ -579,6 +587,41 @@ int main(int argc, char **argv) {
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
 
+        // In main, after ReconstructEvent, add diagnostic:
+        if (doChargedAnalysis) {
+            for (const auto& cluster : reco.chargedClusters) {
+                if (std::abs(cluster.objectTruePDG) != 211 && 
+                    std::abs(cluster.objectTruePDG) != 2212) continue;
+
+                TVector3 exitPoint  = cluster.TPCExitPoint;
+                TVector3 dir        = cluster.direction;
+                if (dir.Mag2() < 1e-12) continue;
+
+                // Check all hits - both matched and unmatched
+                for (const auto& h : hits) {
+                    TVector3 hitPos(h.x, h.y, h.z);
+                    TVector3 delta = hitPos - exitPoint;
+                    if (delta.Mag2() < 1e-12) continue;
+
+                    double dot = dir.Unit().Dot(delta.Unit());
+                    dot = std::clamp(dot, -1.0, 1.0);
+                    if (dot < 0) continue;
+                    double theta_deg = std::acos(dot) * TMath::RadToDeg();
+
+                    bool isMatched = (h.owner == HitOwner::Charged);
+                    if (isMatched) {
+                        hHitAngle_matched->Fill(theta_deg);
+                        hHitAngleVsE->Fill(h.e, theta_deg);
+                    } else {
+                        hHitAngle_unmatched->Fill(theta_deg);
+                    }
+                }
+            }
+        }
+
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+
 
         // // Charged Object Clustering
 
@@ -593,8 +636,8 @@ int main(int argc, char **argv) {
 
                 //--> Pions
                 if (cluster.objectTruePDG == 211 || cluster.objectTruePDG == -211) {
-                // if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
-                if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
+                if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
+                // if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
                 if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
                 if (hdEdxVsE_true_Pion) hdEdxVsE_true_Pion->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
                 if (hdEdxTruePion) hdEdxTruePion->Fill(cluster.objectTruedEdx);
@@ -602,8 +645,8 @@ int main(int argc, char **argv) {
                 }
                 //--> Protons
                 if (cluster.objectTruePDG == 2212) {
-                // if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
-                if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
+                if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
+                // if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
                 if (hdEdxVsE_true_Proton) hdEdxVsE_true_Proton->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
                 if (hdEdxTrueProton) hdEdxTrueProton->Fill(cluster.objectTruedEdx);
                 if (hdEdxSmearProton) hdEdxSmearProton->Fill(cluster.clusterdEdx);
@@ -983,7 +1026,7 @@ int main(int argc, char **argv) {
         opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}", "e^{#pm}", "p"};
         opts_hdEdxVsE_true.legendDrawOpt = "P";
         // Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
-        Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Electron, hdEdxVsE_true_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_true.png", opts_hdEdxVsE_true);
+        Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Electron, hdEdxVsE_true_Proton}, {kBlack, kRed, kAquamarine},"Charged/dedx_vs_E_overlay_true.png", opts_hdEdxVsE_true);
 
         PlotOptions opts_hdEdxVsE_cluster;
         opts_hdEdxVsE_cluster.drawOption = "SCAT";
@@ -1071,6 +1114,22 @@ int main(int argc, char **argv) {
         opts_chAccPlotterCondNoTPC.xAxisTitle = "Signal #pi^{#pm} E_{kin} [MeV]";
         opts_chAccPlotterCondNoTPC.yAxisTitle = "Cond No TPC Acceptance [%]";
         chAccPlotterCondNoTPC->FinalizePlot("Charged/chPi_acceptance_vs_Ekin_CondNoTPC.png", opts_chAccPlotterCondNoTPC);
+
+        // After event loop
+        PlotOptions opts_cone;
+        opts_cone.addLegend = true;
+        opts_cone.legendEntries = {"Matched hits", "Unmatched hits"};
+        // Normalize to compare shapes
+        hHitAngle_matched->Scale(1.0 / hHitAngle_matched->Integral());
+        hHitAngle_unmatched->Scale(1.0 / hHitAngle_unmatched->Integral());
+        Plot1D({hHitAngle_matched, hHitAngle_unmatched}, 
+            {kBlack, kRed}, 
+            "Charged/HitAngleDiagnostic.png", opts_cone);
+
+        PlotOptions opts_hHitAngleVsE;
+        opts_hHitAngleVsE.addLegend = true;
+        opts_hHitAngleVsE.legendEntries = {"Hit angles vs E"};
+        Plot2D(hHitAngleVsE, "Charged/HitAngleVsE.png", opts_hHitAngleVsE);
 
         //CLEANUP
         delete hNSigmaPion;

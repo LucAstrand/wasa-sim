@@ -11,7 +11,7 @@ RecoEvent ReconstructEvent(
     evt.vertex = vertex;
 
     // evt.chargedClusters = MatchHitsToTracks(chargedTracks, hits, 25*TMath::DegToRad());
-    evt.chargedClusters = MatchHitsToTracks(chargedTracks, hits, 45*TMath::DegToRad(), dedxTable);
+    evt.chargedClusters = MatchHitsToTracks(chargedTracks, hits, 35*TMath::DegToRad(), dedxTable);
 
     // std::cout << "[ReconstructEvent] calling neutral clustering..." << std::endl;
 
