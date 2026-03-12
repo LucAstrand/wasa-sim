@@ -496,10 +496,10 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
     SafeSetBranch(t, "TPC_pdg", TPC_pdg);
 
-    Long64_t nEvents = 100; // or: t->GetEntries();
+    Long64_t nEvents = 10; // or: t->GetEntries();
 
     std::vector<primaryChPi> primaryChPis;
-
+    DEDXTable dedxTABLE("dedx_tables_Ar80CO2.root");
 
     for (Long64_t ev = 0; ev < nEvents; ev++) {
         t->GetEntry(ev);
@@ -610,7 +610,7 @@ int main(int argc, char **argv) {
         }
 
         // ---------- Reconstruct ----------
-        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex);
+        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex, dedxTABLE);
 
         // ---------- Draw ALL hits as gray background ----------
         {

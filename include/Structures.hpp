@@ -106,6 +106,7 @@ struct ChargedTrack {
     double pathLength;
     double dEdxTheory;
     double resolution;
+    int nSteps; 
 };
 
 struct ChargedCluster {
@@ -114,6 +115,7 @@ struct ChargedCluster {
     double totalEnergy = 0.0;
     TVector3 direction;
     TVector3 TPCExitPoint;
+    int nSteps;
     double objectTrueKE; // true info from sim for control plots 
     double objectTruedEdx; // true info from sim for control plots
     int objectTruePDG;
@@ -121,7 +123,7 @@ struct ChargedCluster {
     double EdepSmeared;
     double nSigmaPion;
     double nSigmaProton;
-    // double nSigmaElectron;
+    double nSigmaElectron;
     PIDLikelihoods pidL;
     PID pidGuess;
 };

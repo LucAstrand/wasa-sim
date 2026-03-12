@@ -226,31 +226,42 @@ std::vector<Cluster> clusterNeutralHits(std::vector<Hit>& hits,
 std::vector<ChargedCluster> MatchHitsToTracks(
     const std::vector<ChargedTrack>& tracks,
     std::vector<Hit>& hits,
-    double thetaMax
+    double thetaMax,
+    const DEDXTable& dedxTable
 ) {
     std::vector<ChargedCluster> clusters;
     PotentialGas tpcGas = PotentialGas::eArCO2_8020;
     for (size_t i = 0; i < tracks.size(); ++i) {
         const auto& trk = tracks[i];
 
-        if (std::abs(trk.TruePDG) == 11) std::cout << "electron Track!" << std::endl;
+        // if (std::abs(trk.TruePDG) == 11) std::cout << "electron Track!" << std::endl;
+
+        double KE = trk.TrueKE;  // MeV
+        double dedxTheory_pion     = dedxTable.Pion    (KE);
+        double dedxTheory_proton   = dedxTable.Proton  (KE);
+        double dedxTheory_muon     = dedxTable.Muon    (KE);
+        double dedxTheory_electron = dedxTable.Electron(KE);
 
         ChargedCluster c;
         c.trackID = trk.id;
         c.direction = trk.direction.Unit();
         c.TPCExitPoint = trk.exitPoint;
-        c.objectTrueKE = trk.TrueKE;
+        c.objectTrueKE = KE;
         c.objectTruePDG = trk.TruePDG;
-        c.objectTruedEdx = BetheBloch(trk.TruePDG, trk.TrueKE, tpcGas);
+        // c.objectTruedEdx = BetheBloch(trk.TruePDG, trk.TrueKE, tpcGas);
+        if (std::abs(trk.TruePDG) == 211) c.objectTruedEdx = dedxTheory_pion;
+        if (std::abs(trk.TruePDG) == 2212) c.objectTruedEdx = dedxTheory_proton;
+        if (std::abs(trk.TruePDG) == 13) c.objectTruedEdx = dedxTheory_muon;
+        if (std::abs(trk.TruePDG) == 11) c.objectTruedEdx = dedxTheory_electron;
         c.totalEnergy = 0.0;
         c.clusterdEdx = trk.clusterdEdx;
         c.EdepSmeared = trk.EdepSmeared;
-        c.nSigmaPion = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(211, trk.TrueKE, tpcGas), trk.resolution);
-        c.nSigmaProton = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(2212, trk.TrueKE, tpcGas), trk.resolution);
-        // c.nSigmaElectron = nSigmaCalc(trk.EdepSmeared, trk.pathLength, BetheBloch(11, trk.TrueKE, tpcGas), trk.resolution);
+        c.nSigmaPion = nSigmaCalc(trk.clusterdEdx, dedxTheory_pion, trk.resolution);
+        c.nSigmaProton = nSigmaCalc(trk.clusterdEdx, dedxTheory_proton, trk.resolution);
+        c.nSigmaElectron = nSigmaCalc(trk.clusterdEdx, dedxTheory_electron, trk.resolution);
         c.pidL = ComputePIDLikelihoods(
             c.nSigmaPion,
-            // c.nSigmaElectron,
+            c.nSigmaElectron,
             c.nSigmaProton
 
         );

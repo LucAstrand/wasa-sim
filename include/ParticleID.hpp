@@ -5,11 +5,12 @@
 #include <math.h>
 
 double nSigmaCalc(
-    double EdepSmeared, 
-    double pathLength,
+    double dEdxSmeared, 
     double dEdxTheory,
     double resolution
 );
+
+
 
 enum class PotentialGas { eArCO2_9010, eArCO2_8020, eAir };
 
@@ -25,27 +26,27 @@ inline double PDGMassMeV(int pdg)
     }
 }
 
-double BetheBloch(
-    int pdg,
-    double kineticE_MeV,
-    PotentialGas gas
-);
+// double BetheBloch(
+//     int pdg,
+//     double kineticE_MeV,
+//     PotentialGas gas
+// );
 
 inline double LikelihoodFromNSigma(double nSigma);
 
 struct PIDLikelihoods {
     double Lpi;
     double Lp;
-    // double Le;
+    double Le;
 
     double Ppi;
     double Pp;
-    // double Pe;
+    double Pe;
 };
 
 PIDLikelihoods ComputePIDLikelihoods(
     double nSigmaPi,
-    // double nSigmaE,
+    double nSigmaE,
     double nSigmaP
 );
 

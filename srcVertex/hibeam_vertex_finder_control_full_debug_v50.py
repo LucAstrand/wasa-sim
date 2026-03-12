@@ -1367,7 +1367,8 @@ def main():
     parser.add_argument("--max-r-vertex", dest="max_r_vertex", type=float, default=20,
                         help="Max vertex radius in foil plane [cm]. Set <0 to disable.")
 
-    parser.add_argument("--min-comb", dest="min_comb", type=int, default=2)
+    # parser.add_argument("--min-comb", dest="min_comb", type=int, default=2)
+    parser.add_argument("--min-comb", dest="min_comb", type=int, default=3)
     parser.add_argument("--max-comb", dest="max_comb", type=int, default=4)
 
     parser.add_argument("--z-constraint", dest="z_constraint", type=float, default=0.0)

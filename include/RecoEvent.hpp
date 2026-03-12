@@ -18,7 +18,8 @@ struct RecoEvent {
 RecoEvent ReconstructEvent(
     std::vector<Hit>& hits,
     const std::vector<ChargedTrack>& chargedTracks,
-    const TVector3& vertex
+    const TVector3& vertex,
+    const DEDXTable& dedxTable
 );
 
 #endif

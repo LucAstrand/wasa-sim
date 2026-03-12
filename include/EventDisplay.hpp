@@ -61,14 +61,15 @@
 
 #include "Clustering.hpp"
 #include "RecoEvent.hpp"
+#include "DEDXTable.hpp"
 
-TEveElementList* DrawCluster(const Cluster& c, int id, Color_t color);
+// TEveElementList* DrawCluster(const Cluster& c, int id, Color_t color);
 
-TEveElementList* BuildClusterBoundingBox(const Cluster& c,
-                                 const std::vector<double>& centerX,
-                                 const std::vector<double>& centerY,
-                                 const std::vector<double>& centerZ,
-                                 Color_t col);
+// TEveElementList* BuildClusterBoundingBox(const Cluster& c,
+//                                  const std::vector<double>& centerX,
+//                                  const std::vector<double>& centerY,
+//                                  const std::vector<double>& centerZ,
+//                                  Color_t col);
 
 
 #endif

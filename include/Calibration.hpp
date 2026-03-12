@@ -44,10 +44,12 @@ void DoCalibration(
     const std::vector<double>* TPC_lastPosY,
     const std::vector<double>* TPC_lastPosZ,
     const std::vector<double>* TPC_TrueKE,
-    const std::vector<double>*    TPC_pdg,
+    const std::vector<double>* TPC_pdg,
+    const std::vector<int>*    TPC_nSteps,
     const std::vector<double>* TPC_dEdx,
     const std::vector<double>* TPC_smearedEdep,
     const std::vector<double>* TPC_PathLength,
+    const DEDXTable& dedxTable,
     const std::string& outFile
 );
 

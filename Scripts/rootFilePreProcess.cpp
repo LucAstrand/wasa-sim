@@ -146,6 +146,7 @@ int main(int argc, char** argv) {
     // std::vector<double>* TPC_eff = nullptr;
     // std::vector<double>* TPC_Time = nullptr;
     std::vector<double>* TPC_pdg = nullptr;
+    std::vector<int>* TPC_nSteps = nullptr;
 
     if (!inTree->GetBranch("PrimaryPosX") || !inTree->GetBranch("PrimaryPosY") || !inTree->GetBranch("PrimaryPosZ")) {
         std::cerr << "Missing one or more PrimaryPos* branches—check tree structure." << std::endl;
@@ -209,6 +210,7 @@ int main(int argc, char** argv) {
     // inTree->SetBranchAddress("TPC_eff", &TPC_eff);
     // inTree->SetBranchAddress("TPC_Time", &TPC_Time);
     inTree->SetBranchAddress("TPC_pdg", &TPC_pdg);
+    inTree->SetBranchAddress("TPC_nSteps", &TPC_nSteps);
 
 
     // Quick test read of first entry to catch issues early
@@ -255,6 +257,7 @@ int main(int argc, char** argv) {
     std::vector<double> outTPC_firstPosX, outTPC_firstPosY, outTPC_firstPosZ;
     std::vector<double> outTPC_lastPosX, outTPC_lastPosY, outTPC_lastPosZ;
     std::vector<double> outTPC_trackID, outTPC_Edep, outTPC_smearedEdep, outTPC_dEdx, outTPC_PathLength, outTPC_TrueKE, outTPC_pdg; // outTPC_Psm,
+    std::vector<int> outTPC_nSteps;
     std::vector<double> outTrueChargedPionX, outTrueChargedPionY, outTrueChargedPionZ, outTrueChargedPionE, outTrueChargedPionTrackID, outTrueChargedPionThroughTPC;
     std::vector<double> outTrueChargedPionCreationX, outTrueChargedPionCreationY, outTrueChargedPionCreationZ, outTrueChargedPionEndX, outTrueChargedPionEndY, outTrueChargedPionEndZ;
     std::vector<double> outTrueChargedPionDecayedBeforeCal, outTrueChargedPionDecayedBeforeTPC, outTrueChargedPionDecayedTrackID;
@@ -320,6 +323,7 @@ int main(int argc, char** argv) {
     // outTree->Branch("TPC_Psm", &outTPC_Psm);
     outTree->Branch("TPC_TrueKE", &outTPC_TrueKE);
     outTree->Branch("TPC_pdg", &outTPC_pdg);
+    outTree->Branch("TPC_nSteps", &outTPC_nSteps);
 
     // Process each entry (event)
     Long64_t nEntries = inTree->GetEntries();
@@ -387,6 +391,7 @@ int main(int argc, char** argv) {
         // outTPC_Psm = TPC_Psm ? *TPC_Psm : std::vector<double>();
         outTPC_TrueKE = TPC_TrueKE ? *TPC_TrueKE : std::vector<double>();
         outTPC_pdg = TPC_pdg ? *TPC_pdg : std::vector<double>();
+        outTPC_nSteps = TPC_nSteps ? *TPC_nSteps : std::vector<int>();
 
         // Clear vectors for this event
         centerXs.clear();

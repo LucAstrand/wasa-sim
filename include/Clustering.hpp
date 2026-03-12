@@ -14,6 +14,8 @@
 #include "Structures.hpp"
 #include "Utils.hpp"
 #include "ParticleID.hpp"
+#include "DEDXTable.hpp"
+
 
 
 void finalizeNeutralCluster(Cluster& cl, const TVector3 &vtx);
@@ -35,7 +37,8 @@ std::vector<Cluster> SlidingWindowClusterHits(
 std::vector<ChargedCluster> MatchHitsToTracks(
     const std::vector<ChargedTrack>& tracks,
     std::vector<Hit>& hits, // Not const anymore -> We can assign ownership!
-    double thetaMax
+    double thetaMax, 
+    const DEDXTable& dedxTable
 );
 
 

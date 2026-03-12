@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
             return 1;
         }
     SetErrorHandler(MyErrorHandler);
-    
+
     std::string root_inputfile = argv[1];
     std::string mcpl_inputfile = argv[2];
     std::string vertices_inputfile = argv[3];
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
         if (arg == "--charged-analysis") doChargedAnalysis = true;
         if (arg == "--truth-analysis") doTruthAnalysis = true;
         if (arg == "--truth-mix-analysis") {
-            doTruthAndMixPlots = true; 
+            doTruthAndMixPlots = true;
             doTruthAnalysis = true;
         }
             if (arg == "--event-variables") doEventVariables = true;
@@ -169,6 +169,7 @@ int main(int argc, char **argv) {
     std::vector<double> *TPC_firstPosX = nullptr, *TPC_firstPosY = nullptr, *TPC_firstPosZ = nullptr;
     std::vector<double> *TPC_lastPosX = nullptr, *TPC_lastPosY = nullptr, *TPC_lastPosZ = nullptr;
     std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_TrueKE = nullptr, *TPC_pdg = nullptr; // *TPC_Psm = nullptr,
+    std::vector<int> *TPC_nSteps = nullptr;
     SafeSetBranch(t, "TPC_trackID", TPC_trackID);
     SafeSetBranch(t, "TPC_Edep", TPC_Edep);
     SafeSetBranch(t, "TPC_smearedEdep", TPC_smearedEdep);
@@ -183,14 +184,15 @@ int main(int argc, char **argv) {
     // SafeSetBranch(t, "TPC_Psm", TPC_Psm);
     SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
     SafeSetBranch(t, "TPC_pdg", TPC_pdg);
+    SafeSetBranch(t, "TPC_nSteps", TPC_nSteps);
 
     Long64_t nentries = t->GetEntries();
 
-    TFile *vtxFile = TFile::Open(vertices_inputfile.c_str());
-    if (!vtxFile || vtxFile->IsZombie()) return 1;
+    // // // TFile *vtxFile = TFile::Open(vertices_inputfile.c_str());
+    // // // if (!vtxFile || vtxFile->IsZombie()) return 1;
 
-    TTree *vtxTree = (TTree *)vtxFile->Get("vertices");
-    if (!vtxTree) {std::cerr << "Tree vertices not found" << std::endl; return 1;}
+    // // // TTree *vtxTree = (TTree *)vtxFile->Get("vertices");
+    // // // if (!vtxTree) {std::cerr << "Tree vertices not found" << std::endl; return 1;}
 
     std::vector<Vtx> bestVtx;  // size = nentries
     bestVtx.resize(nentries);
@@ -200,43 +202,43 @@ int main(int argc, char **argv) {
     Long64_t n_tracks = 0;
     double vtx_x = 0, vtx_y = 0, vtx_z = 0;
     double chi2ndf = 0;
-    UChar_t accepted = 0;   
+    UChar_t accepted = 0;
 
-    vtxTree->SetBranchAddress("event_id", &event_id);
-    vtxTree->SetBranchAddress("vertex_index", &vertex_index);
-    vtxTree->SetBranchAddress("n_tracks", &n_tracks);
-    vtxTree->SetBranchAddress("vtx_x", &vtx_x);
-    vtxTree->SetBranchAddress("vtx_y", &vtx_y);
-    vtxTree->SetBranchAddress("vtx_z", &vtx_z);
-    vtxTree->SetBranchAddress("chi2ndf", &chi2ndf);
-    vtxTree->SetBranchAddress("accepted", &accepted);
+    // // // vtxTree->SetBranchAddress("event_id", &event_id);
+    // // // vtxTree->SetBranchAddress("vertex_index", &vertex_index);
+    // // // vtxTree->SetBranchAddress("n_tracks", &n_tracks);
+    // // // vtxTree->SetBranchAddress("vtx_x", &vtx_x);
+    // // // vtxTree->SetBranchAddress("vtx_y", &vtx_y);
+    // // // vtxTree->SetBranchAddress("vtx_z", &vtx_z);
+    // // // vtxTree->SetBranchAddress("chi2ndf", &chi2ndf);
+    // // // vtxTree->SetBranchAddress("accepted", &accepted);
 
-    // Loop over all vertex candidates and keep the "best" accepted one per event.
-    // Best = highest n_tracks, tie-breaker lowest chi2ndf (matches the Python greedy preference)
-    const Long64_t nv = vtxTree->GetEntries();
-    for (Long64_t i = 0; i < nv; ++i) {
-    vtxTree->GetEntry(i);
-    if (accepted == 0) continue;
+    // // // // Loop over all vertex candidates and keep the "best" accepted one per event.
+    // // // // Best = highest n_tracks, tie-breaker lowest chi2ndf (matches the Python greedy preference)
+    // // // const Long64_t nv = vtxTree->GetEntries();
+    // // // for (Long64_t i = 0; i < nv; ++i) {
+    // // // vtxTree->GetEntry(i);
+    // // // if (accepted == 0) continue;
 
-    if (event_id < 0 || event_id >= (Long64_t)bestVtx.size()) continue;
+    // // // if (event_id < 0 || event_id >= (Long64_t)bestVtx.size()) continue;
 
-    Vtx& cur = bestVtx[event_id];
-    const bool better =
-        (!cur.has) ||
-        (n_tracks > cur.n_tracks) ||
-        (n_tracks == cur.n_tracks && chi2ndf < cur.chi2ndf);
+    // // // Vtx& cur = bestVtx[event_id];
+    // // // const bool better =
+    // // //     (!cur.has) ||
+    // // //     (n_tracks > cur.n_tracks) ||
+    // // //     (n_tracks == cur.n_tracks && chi2ndf < cur.chi2ndf);
 
-    if (better) {
-        cur.has = true;
-        cur.x = vtx_x; cur.y = vtx_y; cur.z = vtx_z;
-        cur.n_tracks = n_tracks;
-        cur.chi2ndf = chi2ndf;
-    }
-    }
+    // // // if (better) {
+    // // //     cur.has = true;
+    // // //     cur.x = vtx_x; cur.y = vtx_y; cur.z = vtx_z;
+    // // //     cur.n_tracks = n_tracks;
+    // // //     cur.chi2ndf = chi2ndf;
+    // // // }
+    // // // }
 
-    std::cout << "Loaded accepted vertices for " 
-            << std::count_if(bestVtx.begin(), bestVtx.end(), [](const Vtx& v){return v.has;})
-            << " / " << bestVtx.size() << " events\n";
+    // // // std::cout << "Loaded accepted vertices for "
+    // // //         << std::count_if(bestVtx.begin(), bestVtx.end(), [](const Vtx& v){return v.has;})
+    // // //         << " / " << bestVtx.size() << " events\n";
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
     // // mcpl pre-processing to get the #Pi0s per event:
@@ -246,15 +248,15 @@ int main(int argc, char **argv) {
     // std::map<int, double> Ekin_per_event;
     // // std::unordered_map<int, std::vector<mcplPi0>> mcpl_Pi0s_per_event;
     // // std::unordered_map<int, std::vector<mcplChPi>> mcpl_ChPis_per_event;
-    
+
     // mcpl_file_t mcplFile = mcpl_open_file(mcpl_inputfile.c_str());
     // int current_event = -1;
     // const mcpl_particle_t* p;
     // while ((p = mcpl_read(mcplFile))) {
-        
+
     //     // we might miss one if we proceed like this... because if it starts on 0 then the second event will be the first 1...
     //     // NOTE here it is fine with the userflags of "cleaned_HIBEAM_WASA_rwag_signal_GBL_jbar_100k_9012_newUF.mcpl" as they start on a 1...
-    //     if (p->userflags == 1) { 
+    //     if (p->userflags == 1) {
     //         ++current_event;
     //         mcpl_pi0_per_event.push_back(0);
     //         mcpl_chPi_per_event.push_back(0);
@@ -262,7 +264,7 @@ int main(int argc, char **argv) {
     //     }
     //     //guard
     //     if (current_event < 0) continue;
-        
+
     //     if (abs(p->pdgcode) == 211 || p->pdgcode == 111 || p->pdgcode == 22) {
     //         Ekin_per_event[current_event] += p->ekin; // Only primary mesons and photons (pi0, pi+- and gammas)
     //     }
@@ -286,8 +288,8 @@ int main(int argc, char **argv) {
     // Reminder: This gives us pi0_per_event[ievt] --> # Pi0s in MCPL ievt & corresponding EKin in other vector with same indexing.
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-    
-    //Containers used throughout the analysis 
+
+    //Containers used throughout the analysis
     std::vector<Hit> hits;
     std::vector<TruePhotonHit> trueHits;
     // std::vector<Cluster> clusters;
@@ -317,7 +319,7 @@ int main(int argc, char **argv) {
     //-->//--> Truth-Reco
     TH1F *h_mass_truthE_recoAngle        = nullptr;
     TH1F *h_mass_recoE_truthAngle        = nullptr;
-    //--> Pi0 Acceptance and Efficiency 
+    //--> Pi0 Acceptance and Efficiency
     Pi0Efficiency  *effPlotter           = nullptr;
     Acceptance  *accPlotter              = nullptr;
     Acceptance  *pi0AcceptanceVsEta      = nullptr;
@@ -339,25 +341,25 @@ int main(int argc, char **argv) {
     TH1F  *hdEdxTrueProton               = nullptr;
     TH1F  *hdEdxSmearProton              = nullptr;
     //--> Electrons
-    // TH1F  *hNSigmaElectron               = nullptr;
-    // TH2F  *hdEdxVsE_cluster_Electron     = nullptr;
-    // TH2F  *hdEdxVsE_true_Electron        = nullptr;
-    // TH1F  *hdEdxTrueElectron             = nullptr;
-    // TH1F  *hdEdxSmearElectron            = nullptr;
+    TH1F  *hNSigmaElectron               = nullptr;
+    TH2F  *hdEdxVsE_cluster_Electron     = nullptr;
+    TH2F  *hdEdxVsE_true_Electron        = nullptr;
+    TH1F  *hdEdxTrueElectron             = nullptr;
+    TH1F  *hdEdxSmearElectron            = nullptr;
     //--> Global Charged / PID related
     TH2F  *h2_Eres                       = nullptr;
     TH1F *hClusterE                      = nullptr;
     PIDEfficiency  *pidEff               = nullptr;
-    //--> Pi+- Acceptance and Efficiency 
+    //--> Pi+- Acceptance and Efficiency
     Acceptance *chAccPlotterGlobal       = nullptr;
     Acceptance *chAccPlotterCondTPC      = nullptr;
     Acceptance *chAccPlotterCondNoTPC    = nullptr;
     // Event level variables
-    TH1F  *hEventInvariantMass           = nullptr; 
-    TH1F  *hEventSphericity              = nullptr; 
+    TH1F  *hEventInvariantMass           = nullptr;
+    TH1F  *hEventSphericity              = nullptr;
     //--> Total energy related
     TH1F  *hEvis                         = nullptr;
-    TH1F  *hEventCorrectedTotE           = nullptr; 
+    TH1F  *hEventCorrectedTotE           = nullptr;
     TH2F  *hErecoVsEtrue                 = nullptr;
     TH2F  *hEvisVsEtrue                  = nullptr;
     TH1F  *hDiffErecoEtrue               = nullptr;
@@ -366,6 +368,7 @@ int main(int argc, char **argv) {
     TH2I *hChPionMultiplicity            = nullptr;
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+    DEDXTable dedxTABLE("dedx_tables_Ar80CO2.root");
 
     //Calibration procedure
     if (doCalibration) {
@@ -377,8 +380,9 @@ int main(int argc, char **argv) {
             primaryX, primaryY, primaryZ, primaryEkin,
             TPC_firstPosX, TPC_firstPosY, TPC_firstPosZ,
             TPC_lastPosX,  TPC_lastPosY,  TPC_lastPosZ,
-            TPC_TrueKE, TPC_pdg, TPC_dEdx,
+            TPC_TrueKE, TPC_pdg, TPC_nSteps, TPC_dEdx,
             TPC_smearedEdep, TPC_PathLength,
+            dedxTABLE,
             "chargedKE.root"
         );
 
@@ -392,16 +396,16 @@ int main(int argc, char **argv) {
         hPi0ppM_pre             = new TH2F("hPi0ppM_pre",";M_{#gamma #gamma} [MeV];#theta_{#gamma #gamma} [rad]",200, 0, 250,200, 0, 4);
         hPi0ppM_post            = new TH2F("hPi0ppM_post",";M_{#gamma #gamma} [MeV];#theta_{#gamma #gamma} [rad]",200, 0, 250,200, 0, 4);
         // Pi0 Acceptance and Efficiency
-        //Reminder Order: nbins, xmin, xmax 
+        //Reminder Order: nbins, xmin, xmax
         effPlotter              = new Pi0Efficiency(4, 1, 500);
         // accPlotter              = new Acceptance("E", 4, 1, 550);
         accPlotter              = new Acceptance("nPiE", 100, 1, 1000);
         pi0AcceptanceVsEta      = new Acceptance("nPiEta", 100,-10, 10);
-        pi0AcceptanceVsTheta    = new Acceptance("nPiTheta", 60, 0, TMath::Pi());    
+        pi0AcceptanceVsTheta    = new Acceptance("nPiTheta", 60, 0, TMath::Pi());
     }
     if (doTruthAnalysis) {
         hPi0TrueMass            = new TH1F("hPi0TrueMass",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
-        //-->//--> Truth-Reco Mix Plots 
+        //-->//--> Truth-Reco Mix Plots
         h_mass_truthE_recoAngle = new TH1F("h_tE_rA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
         h_mass_recoE_truthAngle = new TH1F("h_rE_tA",";M_{#gamma#gamma} [MeV];Events",100,1.5,301.5);
     }
@@ -414,26 +418,26 @@ int main(int argc, char **argv) {
         // hdEdxVsE_cluster_Pion   = new TH2F("hdEdxVsE_cluster_Pion",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
         hdEdxVsE_cluster_Pion   = new TH2F("hdEdxVsE_cluster_Pion",";E [MeV];dE/dx [MeV/cm]",100, 0, 500,100, 0, 0.1);
         hdEdxVsE_true_Pion      = new TH2F("hdEdxVsE_true_Pion",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
-        hdEdxTruePion           = new TH1F("hdEdxTruePion", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
-        hdEdxSmearPion          = new TH1F("hdEdxSmearPion", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
+        hdEdxTruePion           = new TH1F("hdEdxTruePion", ";dE / dx [MeV/cm];Counts", 100, 0, 0.025);
+        hdEdxSmearPion          = new TH1F("hdEdxSmearPion", ";dE / dx [MeV/cm];Counts", 100, 0, 0.025);
         //--> Protons
         hNSigmaProton           = new TH1F("hNSigmaProton", ";n#sigma;Counts", 100, -5, 5);
         // hdEdxVsE_cluster_Proton = new TH2F("hdEdxVsE_cluster_Proton",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
         hdEdxVsE_cluster_Proton = new TH2F("hdEdxVsE_cluster_Proton",";E [MeV];dE/dx [MeV/cm]",100, 0, 500,100, 0, 0.1);
-        hdEdxVsE_true_Proton    = new TH2F("hdEdxVsE_true_Proton",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1); 
-        hdEdxTrueProton         = new TH1F("hdEdxTrueProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
-        hdEdxSmearProton        = new TH1F("hdEdxSmearProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
+        hdEdxVsE_true_Proton    = new TH2F("hdEdxVsE_true_Proton",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
+        hdEdxTrueProton         = new TH1F("hdEdxTrueProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.025);
+        hdEdxSmearProton        = new TH1F("hdEdxSmearProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.025);
         //--> Electrons
-        // hNSigmaElectron         = new TH1F("hNSigmaElectron", ";n#sigma;Counts", 100, -5, 5);
-        // hdEdxVsE_cluster_Electron = new TH2F("hdEdxVsE_cluster_Electron",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.2);
-        // hdEdxVsE_true_Electron    = new TH2F("hdEdxVsE_true_Electron",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.2);   
-        // hdEdxTrueElectron       = new TH1F("hdEdxTrueElectron", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
-        // hdEdxSmearElectron      = new TH1F("hdEdxSmearElectron", ";dE / dx [MeV/cm];Counts", 100, 0, 0.04);
+        hNSigmaElectron         = new TH1F("hNSigmaElectron", ";n#sigma;Counts", 100, -5, 5);
+        hdEdxVsE_cluster_Electron = new TH2F("hdEdxVsE_cluster_Electron",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.2);
+        hdEdxVsE_true_Electron    = new TH2F("hdEdxVsE_true_Electron",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.2);
+        hdEdxTrueElectron       = new TH1F("hdEdxTrueElectron", ";dE / dx [MeV/cm];Counts", 100, 0, 0.25);
+        hdEdxSmearElectron      = new TH1F("hdEdxSmearElectron", ";dE / dx [MeV/cm];Counts", 100, 0, 0.25);
         //--> Global Charged / PID related
         pidEff                  = new PIDEfficiency(20, 0, 500);
         h2_Eres                 = new TH2F("h2_Eres", ";True KE [MeV];Energy Residual", 20, 0, 500, 100, -1.0, 1.0);
         hClusterE               = new TH1F("hClusterE",";Cluster E [MeV];Count",100,0,500);
-        //--> Pi+- Acceptance and Efficiency 
+        //--> Pi+- Acceptance and Efficiency
         chAccPlotterGlobal      = new Acceptance("chPiEGlobal", 100, 1, 1000);
         chAccPlotterCondTPC     = new Acceptance("chPiECondTPC", 100, 1, 1000);
         chAccPlotterCondNoTPC   = new Acceptance("chPiECondNoTPC", 100, 1, 1000);
@@ -455,12 +459,12 @@ int main(int argc, char **argv) {
 
     ChargedKECalibration calibration("chargedKE.root");
 
-    progressbar bar(nentries); 
+    progressbar bar(nentries);
 
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
-        bar.update(); // Visual feedback on loop progress. 
+        bar.update(); // Visual feedback on loop progress.
         t->GetEntry(ievt);
-        
+
         int nPi0 = 0;
         if (ievt < (Long64_t)pi0_per_event.size()) {
             nPi0 = pi0_per_event[ievt];
@@ -481,8 +485,8 @@ int main(int argc, char **argv) {
             vertex = tVertex;
         }
 
-        // if (!primaryEkin || primaryEkin->empty()) continue; 
-        // double genEkin = primaryEkin->at(0); 
+        // if (!primaryEkin || primaryEkin->empty()) continue;
+        // double genEkin = primaryEkin->at(0);
 
         // build true pi0s and Pi+-
         size_t nPrimaries = primaryPDG->size();
@@ -490,7 +494,7 @@ int main(int argc, char **argv) {
         primaryPi0s.clear();
         primaryChPis.clear();
         for (size_t i=0; i<nPrimaries; ++i) {
-            
+
             //init event value
             pi0_per_event.push_back(0);
             chPi_per_event.push_back(0);
@@ -535,17 +539,18 @@ int main(int argc, char **argv) {
                 chpi.beforeTPC = (*TrueChargedPionDecayedBeforeTPC)[j];
                 trueChPiDecayed.push_back(chpi);
             }
-            
+
             chargedTracks.clear();
             size_t nChargedTracks = TPC_Edep->size();
             for (size_t k=0; k<nChargedTracks; ++k) {
-                if (!TPC_Edep || !TPC_firstPosX || !TPC_lastPosX) continue; 
+                // std::cout << "PDG NUMBER of Track: " << (*TPC_pdg)[k] << std::endl;
+                if (!TPC_Edep || !TPC_firstPosX || !TPC_lastPosX) continue;
                 chargedTracks.push_back(
-                    {(*TPC_trackID)[k], 
-                    vertex, 
-                    TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]), 
+                    {(*TPC_trackID)[k],
+                    vertex,
+                    TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]),
                     TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]) - TVector3((*TPC_firstPosX)[k], (*TPC_firstPosY)[k], (*TPC_firstPosZ)[k]),
-                    (*TPC_TrueKE)[k], (*TPC_pdg)[k], (*TPC_dEdx)[k], (*TPC_smearedEdep)[k], (*TPC_PathLength)[k], 0 /* Placeholder */, 0.15});
+                    (*TPC_TrueKE)[k], (*TPC_pdg)[k], (*TPC_dEdx)[k], (*TPC_smearedEdep)[k], (*TPC_PathLength)[k], 0 /* Placeholder */, 0.15, (*TPC_nSteps)[k]});
             }
         }
 
@@ -556,7 +561,7 @@ int main(int argc, char **argv) {
             for (size_t k=0; k<nTrueHits; ++k) {
                 trueHits.push_back({(*truePhotonPosX)[k], (*truePhotonPosY)[k], (*truePhotonPosZ)[k], (*truePhotonE)[k], (*truePhotonTrackID)[k], (*truePhotonParentID)[k]});
             }
-            
+
             truePhotons = TruePhotonBuilder(trueHits, vertex);
             truePi0s = TruePi0Builder(truePhotons);
 
@@ -569,7 +574,7 @@ int main(int argc, char **argv) {
 
         // Reconstruct Event
 
-        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex);
+        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex, dedxTABLE);
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -584,12 +589,12 @@ int main(int argc, char **argv) {
                 // n-Sigma plots
                 if (hNSigmaPion) hNSigmaPion->Fill(cluster.nSigmaPion);
                 if (hNSigmaProton) hNSigmaProton->Fill(cluster.nSigmaProton);
-                // if (hNSigmaElectron) hNSigmaElectron->Fill(cluster.nSigmaElectron);
+                if (hNSigmaElectron) hNSigmaElectron->Fill(cluster.nSigmaElectron);
 
                 //--> Pions
                 if (cluster.objectTruePDG == 211 || cluster.objectTruePDG == -211) {
-                if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
-                // if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y 
+                // if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
+                if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
                 if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
                 if (hdEdxVsE_true_Pion) hdEdxVsE_true_Pion->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
                 if (hdEdxTruePion) hdEdxTruePion->Fill(cluster.objectTruedEdx);
@@ -597,26 +602,30 @@ int main(int argc, char **argv) {
                 }
                 //--> Protons
                 if (cluster.objectTruePDG == 2212) {
-                if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
-                // if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y 
+                // if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
+                if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
                 if (hdEdxVsE_true_Proton) hdEdxVsE_true_Proton->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
                 if (hdEdxTrueProton) hdEdxTrueProton->Fill(cluster.objectTruedEdx);
-                if (hdEdxSmearProton) hdEdxSmearProton->Fill(cluster.clusterdEdx);            
+                if (hdEdxSmearProton) hdEdxSmearProton->Fill(cluster.clusterdEdx);
                 }
                 //--> Electrons
-                // if (cluster.objectTruePDG == 11 || cluster.objectTruePDG == -11) {
-                // if (hdEdxVsE_cluster_Electron) hdEdxVsE_cluster_Electron->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y 
+                if (cluster.objectTruePDG == 11 || cluster.objectTruePDG == -11) {
+                    // std::cout << "electron KE: " << cluster.objectTrueKE << std::endl;
+                // if (hdEdxVsE_cluster_Electron) hdEdxVsE_cluster_Electron->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
+                if (hdEdxVsE_cluster_Electron) hdEdxVsE_cluster_Electron->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
                 // if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
-                // if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y 
-                // if (hdEdxVsE_true_Electron) hdEdxVsE_true_Electron->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
-                // if (hdEdxTrueElectron) hdEdxTrueElectron->Fill(cluster.objectTruedEdx);
-                // if (hdEdxSmearElectron) hdEdxSmearElectron->Fill(cluster.clusterdEdx);
-                // }
+                // std::cout << "Electron Ekin: " << cluster.objectTrueKE << std::endl;
+                if (hdEdxVsE_true_Electron) hdEdxVsE_true_Electron->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
+                if (hdEdxTrueElectron) hdEdxTrueElectron->Fill(cluster.objectTruedEdx);
+                if (hdEdxSmearElectron) hdEdxSmearElectron->Fill(cluster.clusterdEdx);
+                }
 
                 // E res plots
-                double Eres = (cluster.totalEnergy - cluster.objectTrueKE) / cluster.objectTrueKE;
+                double totalRecoE = cluster.totalEnergy + cluster.EdepSmeared;
+                // double Eres = (cluster.totalEnergy - cluster.objectTrueKE) / cluster.objectTrueKE;
+                double Eres = (totalRecoE - cluster.objectTrueKE) / cluster.objectTrueKE;
                 if (h2_Eres) h2_Eres->Fill(cluster.objectTrueKE, Eres);
-            }            
+            }
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -649,7 +658,7 @@ int main(int argc, char **argv) {
                     if (hPi0ppM_pre) hPi0ppM_pre->Fill(mgg, theta);
 
                     relipse = pow((mgg-param_h),2)/pow(param_a,2) + pow( (theta - param_k), 2)/pow(param_b,2);
-                    if (relipse > 1) continue;                    
+                    if (relipse > 1) continue;
 
                     Pi0Candidate cand;
                     // cand.i = a;
@@ -667,7 +676,7 @@ int main(int argc, char **argv) {
             std::sort(candidates.begin(), candidates.end(), [](const Pi0Candidate& a, const Pi0Candidate& b) {
                 return a.score < b.score;
             });
-                
+
             std::unordered_set<const Cluster*> used;
             for (const auto& cand : candidates) {
                 if (used.count(cand.c1) || used.count(cand.c2))
@@ -691,7 +700,7 @@ int main(int argc, char **argv) {
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-        // Truth level + reco level plots 
+        // Truth level + reco level plots
 
         if (doTruthAndMixPlots) {
             std::vector<int> clusterToTrue = matchClustersToTruth(reco.clusters, truePhotons, 10);
@@ -724,7 +733,7 @@ int main(int argc, char **argv) {
             };
 
             if (h_mass_truthE_recoAngle) fillPairs(photons_tE_rA, h_mass_truthE_recoAngle);
-            if (h_mass_recoE_truthAngle) fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);  
+            if (h_mass_recoE_truthAngle) fillPairs(photons_rE_tA, h_mass_recoE_truthAngle);
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -732,7 +741,7 @@ int main(int argc, char **argv) {
         if (doPi0Analysis) {
             if (effPlotter) effPlotter->ProcessEvent(truePi0s, selected, reco.clusters);
             if (accPlotter) accPlotter->Pi0ProcessSignalEvent(truePi0s, primaryPi0s);
-            
+
 
             // double px = primaryPx->at(0);
             // double py = primaryPy->at(0);
@@ -740,7 +749,7 @@ int main(int argc, char **argv) {
             // double p = sqrt(px*px + py*py + pz*pz);
 
             // double eta = 0.5 * log((p + pz) / (p - pz)); // pseudorapidity
-            // double theta = acos(pz / p); // theta 
+            // double theta = acos(pz / p); // theta
 
             // pi0AcceptanceVsEta.ProcessEvent(clusters, truePhotons, eta);
             // pi0AcceptanceVsTheta.ProcessEvent(clusters, truePhotons, theta);
@@ -760,7 +769,7 @@ int main(int argc, char **argv) {
             chAccPlotterCondTPC->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 1);
             chAccPlotterCondNoTPC->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 2);
 
-            
+
             // assign a charged pion multiplicity based on PID Guess --> TPC info
             for (ChargedCluster ch : reco.chargedClusters) {
                 if (ch.pidGuess == PID::Pion) {
@@ -778,24 +787,24 @@ int main(int argc, char **argv) {
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
         if (doEventVariables) {
-            
+
             double eVis = reco.EM_energy; // this is the sum of all the hit energies in the calorimeter, from any source.
             double eTrue = 0.0;
             size_t n = primaryEkin->size();
             for (size_t i = 0; i < n; ++i) {
                 eTrue += (*primaryEkin)[i];
-            }            
+            }
             double calibratedKE = calibration.GetMeanKE(reco.chargedClusters.size(), eVis);
             double eReco = eVis + calibratedKE;
-            
+
             if (hEvisVsEtrue) hEvisVsEtrue->Fill(eTrue, eVis);
             if (hErecoVsEtrue) hErecoVsEtrue->Fill(eTrue, eReco);
             if (hDiffErecoEtrue) hDiffErecoEtrue->Fill(eReco - eTrue);
             if (hEvis) hEvis->Fill(eVis);
             if (hEventCorrectedTotE) hEventCorrectedTotE->Fill(eReco);
 
-            if (hNPionMultiplicity) hNPionMultiplicity->Fill(pi0_per_event[ievt], reco.nPionMultiplicity); 
-            if (hChPionMultiplicity) hChPionMultiplicity->Fill(chPi_per_event[ievt], reco.chPionMultiplicity); 
+            if (hNPionMultiplicity) hNPionMultiplicity->Fill(pi0_per_event[ievt], reco.nPionMultiplicity);
+            if (hChPionMultiplicity) hChPionMultiplicity->Fill(chPi_per_event[ievt], reco.chPionMultiplicity);
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
             //OLD STUFF WHICH PROBS IS WRONG
@@ -835,7 +844,7 @@ int main(int argc, char **argv) {
             //     S(1,1) += w * p.Y() * p.Y();
             //     S(1,2) += w * p.Y() * p.Z();
             //     S(2,2) += w * p.Z() * p.Z();
-                
+
             //     norm += w * p.Mag2();
             // }
 
@@ -860,7 +869,7 @@ int main(int argc, char **argv) {
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-    }    
+    }
 
     if (doPi0Analysis) {
         // Pi0 analysis
@@ -872,16 +881,16 @@ int main(int argc, char **argv) {
         optsPi0InvMass.infoLines = {"Signal Dataset", Form("%d Events", nentries)}; //.infoLines = {"GEANT4 pi0 sample", "5000 events", "E_{kin} #in", "[50, 150, 300,", "450, 500] MeV"};
         // PrettyPi0MassPlot(hPi0Mass, "Pi0Mass_Clustered.png", 100.0, 170.0);
         Plot1D({hPi0Mass}, {kBlack}, "Neutral/Pi0InvMass.png", optsPi0InvMass);
-    
+
         PlotOptions optsPi0ppM;
         optsPi0ppM.overlayProfileX = false;
         optsPi0ppM.infoLines = {"Signal Dataset", Form("%d Events", nentries)};
         Plot2D(hPi0ppM_pre, "Neutral/Pi0ppM_pre.png", optsPi0ppM);
         Plot2D(hPi0ppM_post, "Neutral/Pi0ppM_post.png", optsPi0ppM);
 
-        //--> Pi0 Acceptance and Efficiency 
+        //--> Pi0 Acceptance and Efficiency
         effPlotter->FinalizePlot("Neutral/Pi0_efficiency_vs_Ekin.png");
-        
+
         PlotOptions opts_accPlotter;
         opts_accPlotter.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
         // opts_accPlotter.legendEntries = { "Acceptance" };
@@ -894,13 +903,13 @@ int main(int argc, char **argv) {
         // pi0AcceptanceVsTheta.FinalizePlot("plots/Pi0_acceptance_vs_Theta_50_500.png");
 
         //CLEANUP
-        delete hPi0Mass; 
+        delete hPi0Mass;
         delete hPi0ppM_pre;
         delete hPi0ppM_post;
         delete effPlotter;
         delete accPlotter;
-        delete pi0AcceptanceVsEta; 
-        delete pi0AcceptanceVsTheta; 
+        delete pi0AcceptanceVsEta;
+        delete pi0AcceptanceVsTheta;
     }
 
     if (doTruthAnalysis) {
@@ -933,11 +942,11 @@ int main(int argc, char **argv) {
         // TruthPi0MassPlot(h_mass_recoE_truthAngle, "Pi0Mass_recoE_truthAngle.png");
         if (h_mass_recoE_truthAngle) Plot1D({h_mass_recoE_truthAngle}, {kBlack}, "Truth/Pi0InvMassTruthAngle.png", optsPi0InvMassTruthAngle);
 
-        delete h_mass_truthE_recoAngle; 
-        delete h_mass_recoE_truthAngle; 
+        delete h_mass_truthE_recoAngle;
+        delete h_mass_recoE_truthAngle;
     }
 
-    // PID Plots 
+    // PID Plots
 
 
     if (doChargedAnalysis) {
@@ -948,15 +957,15 @@ int main(int argc, char **argv) {
         "#pi^{#pm} hypothesis",
         "p hypothesis"
         };
-        std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaProton};
-        std::vector<int> colors = {kRed+1, kBlue+1};
-        // opts_nSigma.legendEntries = {
-        // "#pi^{#pm} hypothesis",
-        // "e^{#pm} hypothesis",
-        // "p hypothesis"
-        // };
-        // std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaElectron, hNSigmaProton};
-        // std::vector<int> colors = {kRed+1, kGreen+1, kBlue+1};
+        // std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaProton};
+        // std::vector<int> colors = {kRed+1, kBlue+1};
+        opts_nSigma.legendEntries = {
+        "#pi^{#pm} hypothesis",
+        "e^{#pm} hypothesis",
+        "p hypothesis"
+        };
+        std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaElectron, hNSigmaProton};
+        std::vector<int> colors = {kRed+1, kGreen+1, kBlue+1};
         Plot1D(plots1D, colors, "Charged/nSigmaPlots.png", opts_nSigma);
 
         PlotOptions opts_hPionTheta;
@@ -970,29 +979,31 @@ int main(int argc, char **argv) {
 
         PlotOptions opts_hdEdxVsE_true;
         opts_hdEdxVsE_true.drawOption = "SCAT";
-        opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}","p"};
+        // opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}","p"};
+        opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}", "e^{#pm}", "p"};
         opts_hdEdxVsE_true.legendDrawOpt = "P";
-        Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
+        // Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
+        Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Electron, hdEdxVsE_true_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_true.png", opts_hdEdxVsE_true);
 
         PlotOptions opts_hdEdxVsE_cluster;
         opts_hdEdxVsE_cluster.drawOption = "SCAT";
-        opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}","p"};
-        // opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}", "e^{#pm}","p"};
+        // opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}","p"};
+        opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}", "e^{#pm}","p"};
         opts_hdEdxVsE_cluster.legendDrawOpt = "P";
-        // Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Electron, hdEdxVsE_cluster_Proton}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
-        Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
+        Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Electron, hdEdxVsE_cluster_Proton}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
+        // Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
 
-        // PlotOptions opts_hdEdxVsE_true;
-        // opts_hdEdxVsE_true.drawOption = "SCAT";
-        // opts_hdEdxVsE_true.legendEntries = {"e^{#pm}"};
-        // opts_hdEdxVsE_true.legendDrawOpt = "P";
-        // Plot2DOverlay({hdEdxVsE_true_Electron}, {kGreen},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
+        // PlotOptions opts_hdEdxVsE_true_Electron;
+        // opts_hdEdxVsE_true_Electron.drawOption = "SCAT";
+        // opts_hdEdxVsE_true_Electron.legendEntries = {"e^{#pm}"};
+        // opts_hdEdxVsE_true_Electron.legendDrawOpt = "P";
+        // Plot2DOverlay({hdEdxVsE_true_Electron}, {kGreen},"Charged/dedx_vs_E_overlay_true_Electron.png",opts_hdEdxVsE_true_Electron);
 
-        // PlotOptions opts_hdEdxVsE_cluster;
-        // opts_hdEdxVsE_cluster.drawOption = "SCAT";
-        // opts_hdEdxVsE_cluster.legendEntries = {"e^{#pm}"};
-        // opts_hdEdxVsE_cluster.legendDrawOpt = "P";
-        // Plot2DOverlay({ hdEdxVsE_cluster_Electron}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
+        // PlotOptions opts_hdEdxVsE_cluster_Electron;
+        // opts_hdEdxVsE_cluster_Electron.drawOption = "SCAT";
+        // opts_hdEdxVsE_cluster_Electron.legendEntries = {"e^{#pm}"};
+        // opts_hdEdxVsE_cluster_Electron.legendDrawOpt = "P";
+        // Plot2DOverlay({ hdEdxVsE_cluster_Electron}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster_Electron.png",opts_hdEdxVsE_cluster_Electron);
 
         PlotOptions opts_h2_Eres;
         TProfile* pEres = h2_Eres->ProfileX(Form("pEres_%s", h2_Eres->GetName()));
@@ -1000,30 +1011,30 @@ int main(int argc, char **argv) {
 
         PlotOptions opts_dEdxPlots;
         opts_dEdxPlots.addLegend = true;
-        // opts_dEdxPlots.legendEntries = {"True #pi^{#pm}", "Smeared #pi^{#pm}", "True e^{#pm}", "Smeared e^{#pm}", "True p", "Smeared p"};
-        // std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueElectron, hdEdxSmearElectron, hdEdxTrueProton, hdEdxSmearProton};
-        // std::vector<int> colors_dEdx = {
-        //     kBlack,
-        //     kBlack+1,
-        //     kGreen,
-        //     kGreen+1,
-        //     kRed,
-        //     kRed+1
-        // };
-        opts_dEdxPlots.legendEntries = {"True #pi^{#pm}", "Smeared #pi^{#pm}", "True p", "Smeared p"};
-        std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueProton, hdEdxSmearProton};
-        // std::vector<int> colors_dEdx = {
-        //     kBlack,
-        //     kBlack+1,
-        //     kRed,
-        //     kRed+1
-        // };
+        opts_dEdxPlots.legendEntries = {"True #pi^{#pm}", "Smeared #pi^{#pm}", "True e^{#pm}", "Smeared e^{#pm}", "True p", "Smeared p"};
+        std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueElectron, hdEdxSmearElectron, hdEdxTrueProton, hdEdxSmearProton};
         std::vector<int> colors_dEdx = {
             kBlack,
-            kBlue,
+            kGray,
+            kGreen,
+            kGreen+1,
             kRed,
-            kGreen
+            kRed+1
         };
+        // opts_dEdxPlots.legendEntries = {"True #pi^{#pm}", "Smeared #pi^{#pm}", "True p", "Smeared p"};
+        // std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueProton, hdEdxSmearProton};
+        // std::vector<int> colors_dEdx = {
+        //     kBlack,
+        //     kBlack+1,
+        //     kRed,
+        //     kRed+1
+        // };
+        // std::vector<int> colors_dEdx = {
+        //     kBlack,
+        //     kBlue,
+        //     kRed,
+        //     kGreen
+        // };
         Plot1D(plots1D_dEdx, colors_dEdx, "Charged/dEdxPlots.png", opts_dEdxPlots);
 
         pidEff->FinalizePlot("plots/Charged/PIDEfficiency", 211);
@@ -1033,7 +1044,7 @@ int main(int argc, char **argv) {
         opts_hClusterE.legendEntries = {"#pi"};
         Plot1D({hClusterE}, {kBlack}, "Charged/ClusterE_pion.png", opts_hClusterE);
 
-        //--> Pi+- Acceptance and Efficiency 
+        //--> Pi+- Acceptance and Efficiency
         PlotOptions opts_chAccPlotterGlobal;
         opts_chAccPlotterGlobal.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
         // opts_chAccPlotterGlobal.legendEntries = { "Acceptance" };
@@ -1067,7 +1078,7 @@ int main(int argc, char **argv) {
         delete hPionTheta;
         delete hPionPhi;
         delete hdEdxVsE_cluster_Pion;
-        delete hdEdxVsE_true_Pion; 
+        delete hdEdxVsE_true_Pion;
         delete hdEdxVsE_cluster_Proton;
         delete hdEdxVsE_true_Proton;
         delete hClusterE;
@@ -1089,7 +1100,7 @@ int main(int argc, char **argv) {
         // opts_hEventSphericity.legendEntries = {"Event sphericity"};
         // opts_hEventSphericity.addInfoPave = true;
         // Plot1D({hEventSphericity}, {kBlack}, "EventVar/eventSphericity.png", opts_hEventSphericity);
-        
+
         //--> Total energy related
         PlotOptions opts_hEventTotE;
         opts_hEventTotE.addLegend = true;
@@ -1105,7 +1116,7 @@ int main(int argc, char **argv) {
         opts_hEvisVsEtrue.overlayProfileX = true;
         opts_hEvisVsEtrue.profileColor = kRed;
         Plot2D(hEvisVsEtrue, "EventVar/EvisVsEtrue.png", opts_hEvisVsEtrue);
-        
+
         PlotOptions opts_hErecoVsEtrue;
         opts_hErecoVsEtrue.addLegend = true;
         opts_hErecoVsEtrue.legendEntries = {"E_{true} vs E_{reco}"};
@@ -1114,7 +1125,7 @@ int main(int argc, char **argv) {
         opts_hErecoVsEtrue.overlayProfileX = true;
         opts_hErecoVsEtrue.profileColor = kRed;
         Plot2D(hErecoVsEtrue, "EventVar/ErecoVsEtrue.png", opts_hErecoVsEtrue);
-        
+
         PlotOptions opts_hDiffErecoEtrue;
         opts_hDiffErecoEtrue.addLegend = true;
         opts_hDiffErecoEtrue.legendEntries = {"E_{reco} - E_{true}"};

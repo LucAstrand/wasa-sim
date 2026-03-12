@@ -78,10 +78,12 @@ void DoCalibration(
     const std::vector<double>* TPC_lastPosY,
     const std::vector<double>* TPC_lastPosZ,
     const std::vector<double>* TPC_TrueKE,
-    const std::vector<double>*    TPC_pdg,
+    const std::vector<double>* TPC_pdg,
+    const std::vector<int>*    TPC_nSteps,
     const std::vector<double>* TPC_dEdx,
     const std::vector<double>* TPC_smearedEdep,
     const std::vector<double>* TPC_PathLength,
+    const DEDXTable& dedxTable,
     const std::string& outFile
 ) {
     ChargedKECalibration calibration;
@@ -97,7 +99,7 @@ void DoCalibration(
                  ? pi0_per_event[ievt]
                  : 0;
 
-        // --- Vertex ---
+        // --- Vertex --- /////////////////////// HAVETOFIXTHIS!!!!!!!!!!
         if (!primaryX || primaryX->empty()) continue;
         TVector3 vertex((*primaryX)[0],
                          (*primaryY)[0],
@@ -138,12 +140,12 @@ void DoCalibration(
             trk.pathLength    = (*TPC_PathLength)[k];
             trk.dEdxTheory    = 0.0;
             trk.resolution    = 0.15;
-
+            trk.nSteps        = (*TPC_nSteps)[k];
             chargedTracks.push_back(trk);
         }
 
         // --- Reconstruct ---
-        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex);
+        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex, dedxTable);
 
         // --- True charged pion KE ---
         // double KEtrue = 0.0;
