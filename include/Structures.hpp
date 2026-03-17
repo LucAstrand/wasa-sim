@@ -75,6 +75,7 @@ struct Cluster {
     std::vector<Hit*> hits; // Pointer now! use -> to access the quantities!
     TVector3 centroid;
     TLorentzVector p4;
+    bool isFromConversion = false;
 };
 
 struct Pi0Candidate {
@@ -126,12 +127,23 @@ struct ChargedCluster {
     double nSigmaElectron;
     PIDLikelihoods pidL;
     PID pidGuess;
+    bool isOrphanElectron = false;
+    bool isUsedInConversion = false;
 };
 
 struct ChargedObject {
     int trackID;
     TLorentzVector p4; 
     const ChargedCluster* c; // For any reconstruction detail
+};
+
+struct ConversionCandidate {
+    TVector3 conversionVertex;  // where the pair originated
+    TLorentzVector p4;          // reconstructed photon 4-vector
+    int track1_idx;
+    int track2_idx;
+    double openingAngle;
+    double invMass;
 };
 
 struct EtaPhiTowerKey {

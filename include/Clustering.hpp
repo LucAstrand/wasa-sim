@@ -33,6 +33,21 @@ std::vector<Cluster> SlidingWindowClusterHits(
     int winSize = 7
 );
 
+void MatchHitsElectron(ChargedCluster& cluster,
+    std::vector<Hit>& hits,
+    double moliereRadius
+);
+                       
+void MatchHitsHadron(ChargedCluster& cluster,
+    std::vector<Hit>& hits,
+    double thetaMax    
+);
+
+void MatchHitsMuon(ChargedCluster& cluster,
+    std::vector<Hit>& hits,
+    double thetaMax
+);
+
 
 std::vector<ChargedCluster> MatchHitsToTracks(
     const std::vector<ChargedTrack>& tracks,
@@ -41,5 +56,9 @@ std::vector<ChargedCluster> MatchHitsToTracks(
     const DEDXTable& dedxTable
 );
 
+std::vector<ConversionCandidate> FindConversions(
+    const std::vector<ChargedCluster>& clusters,
+    const TVector3& primaryVertex
+);
 
 #endif

@@ -340,12 +340,12 @@ int main(int argc, char **argv) {
     TH2F  *hdEdxVsE_true_Proton          = nullptr;
     TH1F  *hdEdxTrueProton               = nullptr;
     TH1F  *hdEdxSmearProton              = nullptr;
-    //--> Electrons
-    TH1F  *hNSigmaElectron               = nullptr;
-    TH2F  *hdEdxVsE_cluster_Electron     = nullptr;
-    TH2F  *hdEdxVsE_true_Electron        = nullptr;
-    TH1F  *hdEdxTrueElectron             = nullptr;
-    TH1F  *hdEdxSmearElectron            = nullptr;
+    // //--> Electrons
+    // TH1F  *hNSigmaElectron               = nullptr;
+    // TH2F  *hdEdxVsE_cluster_Electron     = nullptr;
+    // TH2F  *hdEdxVsE_true_Electron        = nullptr;
+    // TH1F  *hdEdxTrueElectron             = nullptr;
+    // TH1F  *hdEdxSmearElectron            = nullptr;
     //--> Global Charged / PID related
     TH2F  *h2_Eres                       = nullptr;
     TH1F *hClusterE                      = nullptr;
@@ -431,12 +431,12 @@ int main(int argc, char **argv) {
         hdEdxVsE_true_Proton    = new TH2F("hdEdxVsE_true_Proton",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.1);
         hdEdxTrueProton         = new TH1F("hdEdxTrueProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.025);
         hdEdxSmearProton        = new TH1F("hdEdxSmearProton", ";dE / dx [MeV/cm];Counts", 100, 0, 0.025);
-        //--> Electrons
-        hNSigmaElectron         = new TH1F("hNSigmaElectron", ";n#sigma;Counts", 100, -5, 5);
-        hdEdxVsE_cluster_Electron = new TH2F("hdEdxVsE_cluster_Electron",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.2);
-        hdEdxVsE_true_Electron    = new TH2F("hdEdxVsE_true_Electron",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.2);
-        hdEdxTrueElectron       = new TH1F("hdEdxTrueElectron", ";dE / dx [MeV/cm];Counts", 100, 0, 0.25);
-        hdEdxSmearElectron      = new TH1F("hdEdxSmearElectron", ";dE / dx [MeV/cm];Counts", 100, 0, 0.25);
+        // //--> Electrons
+        // hNSigmaElectron         = new TH1F("hNSigmaElectron", ";n#sigma;Counts", 100, -5, 5);
+        // hdEdxVsE_cluster_Electron = new TH2F("hdEdxVsE_cluster_Electron",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.2);
+        // hdEdxVsE_true_Electron    = new TH2F("hdEdxVsE_true_Electron",";E [MeV];dE/dx [MeV/cm]",200, 0, 500,200, 0, 0.2);
+        // hdEdxTrueElectron       = new TH1F("hdEdxTrueElectron", ";dE / dx [MeV/cm];Counts", 100, 0, 0.25);
+        // hdEdxSmearElectron      = new TH1F("hdEdxSmearElectron", ";dE / dx [MeV/cm];Counts", 100, 0, 0.25);
         //--> Global Charged / PID related
         pidEff                  = new PIDEfficiency(20, 0, 500);
         h2_Eres                 = new TH2F("h2_Eres", ";True KE [MeV];Energy Residual", 20, 0, 500, 100, -1.0, 1.0);
@@ -621,58 +621,6 @@ int main(int argc, char **argv) {
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-
-
-        // // Charged Object Clustering
-
-        if (doChargedAnalysis) {
-
-            for (const ChargedCluster& cluster : reco.chargedClusters) {
-
-                // n-Sigma plots
-                if (hNSigmaPion) hNSigmaPion->Fill(cluster.nSigmaPion);
-                if (hNSigmaProton) hNSigmaProton->Fill(cluster.nSigmaProton);
-                if (hNSigmaElectron) hNSigmaElectron->Fill(cluster.nSigmaElectron);
-
-                //--> Pions
-                if (cluster.objectTruePDG == 211 || cluster.objectTruePDG == -211) {
-                if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
-                // if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
-                if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
-                if (hdEdxVsE_true_Pion) hdEdxVsE_true_Pion->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
-                if (hdEdxTruePion) hdEdxTruePion->Fill(cluster.objectTruedEdx);
-                if (hdEdxSmearPion) hdEdxSmearPion->Fill(cluster.clusterdEdx);
-                }
-                //--> Protons
-                if (cluster.objectTruePDG == 2212) {
-                if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
-                // if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
-                if (hdEdxVsE_true_Proton) hdEdxVsE_true_Proton->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
-                if (hdEdxTrueProton) hdEdxTrueProton->Fill(cluster.objectTruedEdx);
-                if (hdEdxSmearProton) hdEdxSmearProton->Fill(cluster.clusterdEdx);
-                }
-                //--> Electrons
-                if (cluster.objectTruePDG == 11 || cluster.objectTruePDG == -11) {
-                    // std::cout << "electron KE: " << cluster.objectTrueKE << std::endl;
-                // if (hdEdxVsE_cluster_Electron) hdEdxVsE_cluster_Electron->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
-                if (hdEdxVsE_cluster_Electron) hdEdxVsE_cluster_Electron->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
-                // if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
-                // std::cout << "Electron Ekin: " << cluster.objectTrueKE << std::endl;
-                if (hdEdxVsE_true_Electron) hdEdxVsE_true_Electron->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
-                if (hdEdxTrueElectron) hdEdxTrueElectron->Fill(cluster.objectTruedEdx);
-                if (hdEdxSmearElectron) hdEdxSmearElectron->Fill(cluster.clusterdEdx);
-                }
-
-                // E res plots
-                double totalRecoE = cluster.totalEnergy + cluster.EdepSmeared;
-                // double Eres = (cluster.totalEnergy - cluster.objectTrueKE) / cluster.objectTrueKE;
-                double Eres = (totalRecoE - cluster.objectTrueKE) / cluster.objectTrueKE;
-                if (h2_Eres) h2_Eres->Fill(cluster.objectTrueKE, Eres);
-            }
-        }
-
-        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
-
         // Invariant mass plot (neutral pion / double photon)
 
         if (doPi0Analysis) {
@@ -685,6 +633,45 @@ int main(int argc, char **argv) {
             double relipse = 0;
 
             std::vector<Pi0Candidate> candidates;
+
+            if (doChargedAnalysis) {
+                // add photons built from conversions!
+                std::vector<ConversionCandidate> conversions = FindConversions(reco.chargedClusters, vertex);
+                reco.clusters.reserve(reco.clusters.size() + conversions.size());
+
+                for (const auto& conv : conversions) {
+                    Cluster neutralCluster;
+                    neutralCluster.p4       = conv.p4;
+                    neutralCluster.centroid = conv.conversionVertex;
+                    neutralCluster.isFromConversion = true;
+                    reco.clusters.push_back(neutralCluster);
+                }
+                // After FindConversions:
+                for (size_t i = 0; i < reco.chargedClusters.size(); ++i) {
+                    auto& cluster = reco.chargedClusters[i];
+                    
+                    if (std::abs(cluster.objectTruePDG) != 11) continue;
+                    
+                    // Check if this electron was claimed by a conversion
+                    bool usedInConversion = false;
+                    for (const auto& conv : conversions) {
+                        if (conv.track1_idx == (int)i || 
+                            conv.track2_idx == (int)i) {
+                            usedInConversion = true;
+                            break;
+                        }
+                    }
+                    if (usedInConversion) {
+                        cluster.isUsedInConversion = true;
+                    } else {
+                        // Orphan electron - not part of a conversion pair
+                        // Flag it so downstream code ignores it for PID/pi0 reco
+                        cluster.isOrphanElectron = true;
+                        // Its calorimeter energy is already counted in EM_energy
+                        // via the hits loop - nothing else needed
+                    }
+                }
+            }
 
             for (size_t a = 0; a < reco.clusters.size(); ++a) {
                 for (size_t b = a + 1; b < reco.clusters.size(); ++b) {
@@ -704,8 +691,6 @@ int main(int argc, char **argv) {
                     if (relipse > 1) continue;
 
                     Pi0Candidate cand;
-                    // cand.i = a;
-                    // cand.j = b;
                     cand.c1 = &reco.clusters[a];
                     cand.c2 = &reco.clusters[b];
                     cand.mgg = mgg;
@@ -739,6 +724,58 @@ int main(int argc, char **argv) {
 
             reco.nPionMultiplicity = selected.size();
 
+        }
+        
+        //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+        // // Charged Object Clustering
+
+        if (doChargedAnalysis) {
+
+            for (const ChargedCluster& cluster : reco.chargedClusters) {
+                if (cluster.isOrphanElectron) continue;  // skip orphan electrons
+                if (cluster.isUsedInConversion) continue; // skip electrons used in conversion reco
+
+                // n-Sigma plots
+                if (hNSigmaPion) hNSigmaPion->Fill(cluster.nSigmaPion);
+                if (hNSigmaProton) hNSigmaProton->Fill(cluster.nSigmaProton);
+                // if (hNSigmaElectron) hNSigmaElectron->Fill(cluster.nSigmaElectron);
+
+                //--> Pions
+                if (cluster.objectTruePDG == 211 || cluster.objectTruePDG == -211) {
+                if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
+                // if (hdEdxVsE_cluster_Pion) hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
+                if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
+                if (hdEdxVsE_true_Pion) hdEdxVsE_true_Pion->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
+                if (hdEdxTruePion) hdEdxTruePion->Fill(cluster.objectTruedEdx);
+                if (hdEdxSmearPion) hdEdxSmearPion->Fill(cluster.clusterdEdx);
+                }
+                //--> Protons
+                if (cluster.objectTruePDG == 2212) {
+                if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
+                // if (hdEdxVsE_cluster_Proton) hdEdxVsE_cluster_Proton->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
+                if (hdEdxVsE_true_Proton) hdEdxVsE_true_Proton->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
+                if (hdEdxTrueProton) hdEdxTrueProton->Fill(cluster.objectTruedEdx);
+                if (hdEdxSmearProton) hdEdxSmearProton->Fill(cluster.clusterdEdx);
+                }
+                // //--> Electrons
+                // if (cluster.objectTruePDG == 11 || cluster.objectTruePDG == -11) {
+                //     // std::cout << "electron KE: " << cluster.objectTrueKE << std::endl;
+                // if (hdEdxVsE_cluster_Electron) hdEdxVsE_cluster_Electron->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
+                // // if (hdEdxVsE_cluster_Electron) hdEdxVsE_cluster_Electron->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
+                // // if (hClusterE) hClusterE->Fill(cluster.totalEnergy);
+                // // std::cout << "Electron Ekin: " << cluster.objectTrueKE << std::endl;
+                // if (hdEdxVsE_true_Electron) hdEdxVsE_true_Electron->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
+                // if (hdEdxTrueElectron) hdEdxTrueElectron->Fill(cluster.objectTruedEdx);
+                // if (hdEdxSmearElectron) hdEdxSmearElectron->Fill(cluster.clusterdEdx);
+                // }
+
+                // E res plots
+                double totalRecoE = cluster.totalEnergy + cluster.EdepSmeared;
+                // double Eres = (cluster.totalEnergy - cluster.objectTrueKE) / cluster.objectTrueKE;
+                double Eres = (totalRecoE - cluster.objectTrueKE) / cluster.objectTrueKE;
+                if (h2_Eres) h2_Eres->Fill(cluster.objectTrueKE, Eres);
+            }
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
@@ -816,6 +853,9 @@ int main(int argc, char **argv) {
             // assign a charged pion multiplicity based on PID Guess --> TPC info
             for (ChargedCluster ch : reco.chargedClusters) {
                 if (ch.pidGuess == PID::Pion) {
+                    //safeguards for electrons they should not happen but still...
+                    if (ch.isOrphanElectron) continue;
+                    if (ch.isUsedInConversion) continue;
                     reco.chPionMultiplicity += 1;
                 }
             }
@@ -1000,15 +1040,15 @@ int main(int argc, char **argv) {
         "#pi^{#pm} hypothesis",
         "p hypothesis"
         };
-        // std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaProton};
-        // std::vector<int> colors = {kRed+1, kBlue+1};
-        opts_nSigma.legendEntries = {
-        "#pi^{#pm} hypothesis",
-        "e^{#pm} hypothesis",
-        "p hypothesis"
-        };
-        std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaElectron, hNSigmaProton};
-        std::vector<int> colors = {kRed+1, kGreen+1, kBlue+1};
+        std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaProton};
+        std::vector<int> colors = {kRed+1, kBlue+1};
+        // opts_nSigma.legendEntries = {
+        // "#pi^{#pm} hypothesis",
+        // "e^{#pm} hypothesis",
+        // "p hypothesis"
+        // };
+        // std::vector<TH1*> plots1D = {hNSigmaPion, hNSigmaElectron, hNSigmaProton};
+        // std::vector<int> colors = {kRed+1, kGreen+1, kBlue+1};
         Plot1D(plots1D, colors, "Charged/nSigmaPlots.png", opts_nSigma);
 
         PlotOptions opts_hPionTheta;
@@ -1022,19 +1062,19 @@ int main(int argc, char **argv) {
 
         PlotOptions opts_hdEdxVsE_true;
         opts_hdEdxVsE_true.drawOption = "SCAT";
-        // opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}","p"};
-        opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}", "e^{#pm}", "p"};
+        opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}","p"};
+        // opts_hdEdxVsE_true.legendEntries = {"#pi^{#pm}", "e^{#pm}", "p"};
         opts_hdEdxVsE_true.legendDrawOpt = "P";
-        // Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
-        Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Electron, hdEdxVsE_true_Proton}, {kBlack, kRed, kAquamarine},"Charged/dedx_vs_E_overlay_true.png", opts_hdEdxVsE_true);
+        Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_true.png",opts_hdEdxVsE_true);
+        // Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Electron, hdEdxVsE_true_Proton}, {kBlack, kRed, kAquamarine},"Charged/dedx_vs_E_overlay_true.png", opts_hdEdxVsE_true);
 
         PlotOptions opts_hdEdxVsE_cluster;
         opts_hdEdxVsE_cluster.drawOption = "SCAT";
-        // opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}","p"};
-        opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}", "e^{#pm}","p"};
+        opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}","p"};
+        // opts_hdEdxVsE_cluster.legendEntries = {"#pi^{#pm}", "e^{#pm}","p"};
         opts_hdEdxVsE_cluster.legendDrawOpt = "P";
-        Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Electron, hdEdxVsE_cluster_Proton}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
-        // Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
+        Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton}, {kBlack, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
+        // Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Electron, hdEdxVsE_cluster_Proton}, {kBlack, kGreen, kRed},"Charged/dedx_vs_E_overlay_cluster.png",opts_hdEdxVsE_cluster);
 
         // PlotOptions opts_hdEdxVsE_true_Electron;
         // opts_hdEdxVsE_true_Electron.drawOption = "SCAT";
@@ -1054,24 +1094,24 @@ int main(int argc, char **argv) {
 
         PlotOptions opts_dEdxPlots;
         opts_dEdxPlots.addLegend = true;
-        opts_dEdxPlots.legendEntries = {"True #pi^{#pm}", "Smeared #pi^{#pm}", "True e^{#pm}", "Smeared e^{#pm}", "True p", "Smeared p"};
-        std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueElectron, hdEdxSmearElectron, hdEdxTrueProton, hdEdxSmearProton};
-        std::vector<int> colors_dEdx = {
-            kBlack,
-            kGray,
-            kGreen,
-            kGreen+1,
-            kRed,
-            kRed+1
-        };
-        // opts_dEdxPlots.legendEntries = {"True #pi^{#pm}", "Smeared #pi^{#pm}", "True p", "Smeared p"};
-        // std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueProton, hdEdxSmearProton};
+        // opts_dEdxPlots.legendEntries = {"True #pi^{#pm}", "Smeared #pi^{#pm}", "True e^{#pm}", "Smeared e^{#pm}", "True p", "Smeared p"};
+        // std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueElectron, hdEdxSmearElectron, hdEdxTrueProton, hdEdxSmearProton};
         // std::vector<int> colors_dEdx = {
         //     kBlack,
-        //     kBlack+1,
+        //     kGray,
+        //     kGreen,
+        //     kGreen+1,
         //     kRed,
         //     kRed+1
         // };
+        opts_dEdxPlots.legendEntries = {"True #pi^{#pm}", "Smeared #pi^{#pm}", "True p", "Smeared p"};
+        std::vector<TH1*> plots1D_dEdx = {hdEdxTruePion, hdEdxSmearPion, hdEdxTrueProton, hdEdxSmearProton};
+        std::vector<int> colors_dEdx = {
+            kBlack,
+            kGray,
+            kRed,
+            kRed+1
+        };
         // std::vector<int> colors_dEdx = {
         //     kBlack,
         //     kBlue,

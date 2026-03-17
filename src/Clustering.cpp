@@ -223,6 +223,63 @@ std::vector<Cluster> clusterNeutralHits(std::vector<Hit>& hits,
 //   CHARGED OBJECT CLUSTERING (Angular acceptance based)
 // =========================================================
 
+
+void MatchHitsElectron(ChargedCluster& cluster,
+    std::vector<Hit>& hits,
+    double moliereRadius
+) {
+    for (auto& hit : hits) {
+        if (hit.owner != HitOwner::None) continue;
+        TVector3 hitPos(hit.x, hit.y, hit.z);
+        TVector3 delta = hitPos - cluster.TPCExitPoint;
+
+        //transverse distance from track axis
+        double parallel = delta.Dot(cluster.direction.Unit());
+        if (parallel < 0) continue;
+        TVector3 transverse = delta - parallel * cluster.direction.Unit();
+        double transverseDist = transverse.Mag();
+
+        if (transverseDist < moliereRadius) {
+            cluster.hits.push_back(&hit);
+            cluster.totalEnergy += hit.e;
+            hit.owner = HitOwner::Charged;
+        }
+    }
+}
+
+void MatchHitsHadron(ChargedCluster& cluster,
+    std::vector<Hit>& hits,
+    double thetaMax    
+) {
+    for (auto& hit : hits) {
+        if (hit.owner != HitOwner::None) continue;
+        TVector3 hitPos(hit.x, hit.y, hit.z);
+        TVector3 delta = hitPos - cluster.TPCExitPoint;
+        if (delta.Mag2() < 1e-12) continue;
+        double dot = cluster.direction.Unit().Dot(delta.Unit());
+        dot = std::clamp(dot, -1.0, 1.0);
+        if (dot < 0) continue;
+        double theta = std::acos(dot);
+        if (theta < thetaMax) {
+            cluster.hits.push_back(&hit);
+            cluster.totalEnergy += hit.e;
+            hit.owner = HitOwner::Charged;
+        }
+    }
+}
+
+// in case we want a separate one for muons...
+void MatchHitsMuon(ChargedCluster& cluster,
+                   std::vector<Hit>& hits,
+                   double thetaMax)
+{
+    // Same as hadron but narrow cone
+    // Energy from TPC dEdx is more reliable anyway
+    MatchHitsHadron(cluster, hits, thetaMax);
+    // Note: for muon KE estimation prefer:
+    // KE_muon ~ dEdx * pathLength from TPC rather than cluster.totalEnergy
+}
+
 std::vector<ChargedCluster> MatchHitsToTracks(
     const std::vector<ChargedTrack>& tracks,
     std::vector<Hit>& hits,
@@ -267,51 +324,206 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         );
         c.pidGuess = AssignPIDFromLikelihood(c.pidL, 0.7);
 
-        double dirMag = trk.direction.Mag();
+        // double dirMag = trk.direction.Mag();
 
         clusters.push_back(c);
     }
 
-    int nMatchedHits = 0;
-
-    for (size_t h = 0; h < hits.size(); ++h) {
-        auto& hit = hits[h];
-
-        if (hit.owner != HitOwner::None)
-            continue;
-
-        TVector3 hitPos(hit.x, hit.y, hit.z);
-        double bestAngle = std::numeric_limits<double>::max();
-        double bestDot   = -999.0;
-        int bestTrack    = -1;
-
-        for (size_t i = 0; i < tracks.size(); ++i) {
-            TVector3 delta = hitPos - tracks[i].exitPoint; //hitPos - tracks[i].vertex;
-            // double deltaMag = delta.Mag();
-            if (delta.Mag2() < 1e-12) {
-                bestAngle = 0.0;
-                bestTrack = static_cast<int>(i);
-                break; // can't do better than 0
-            }
-            TVector3 hitDir = delta.Unit();
-            double dot = tracks[i].direction.Unit().Dot(hitDir);
-            dot = std::clamp(dot, -1.0, 1.0);
-            if (dot < 0) continue;
-            double theta = std::acos(dot);
-
-            if (theta < bestAngle) {
-                bestAngle = theta;
-                bestTrack = static_cast<int>(i);
-                bestDot   = dot;
-            }
-        }
-
-        if (bestTrack >= 0 && bestAngle < thetaMax) {
-            clusters[bestTrack].hits.push_back(&hit);
-            clusters[bestTrack].totalEnergy += hit.e;
-            hit.owner = HitOwner::Charged;
-            ++nMatchedHits;
+    for (size_t i = 0; i < clusters.size(); ++i) {
+        switch (clusters[i].pidGuess)
+        {
+        case PID::Electron:
+            MatchHitsElectron(clusters[i], hits, 3.0 /* ~moliere radius in cm TUNE THIS!*/);
+            break;
+        // in case we want to implement separate for muons
+        // case PID::Muon:
+        //     MatchHitsMuon(clusters[i], hits, 5*TMath::DegToRad());
+        //     break;
+        case PID::Pion:
+        case PID::Proton:
+        default:
+            MatchHitsHadron(clusters[i], hits, thetaMax /* wide cone TUNE THIS!*/);
+            break;
         }
     }
     return clusters;
 }
+
+std::vector<ConversionCandidate> FindConversions(
+    const std::vector<ChargedCluster>& clusters,
+    const TVector3& primaryVertex)
+{
+    std::vector<ConversionCandidate> conversions;
+
+    for (size_t i = 0; i < clusters.size(); ++i) {
+        for (size_t j = i+1; j < clusters.size(); ++j) {
+            const auto& c1 = clusters[i];
+            const auto& c2 = clusters[j];
+
+            // Both must be electron-like from PID
+            if (c1.pidGuess != PID::Electron) continue;
+            if (c2.pidGuess != PID::Electron) continue;
+
+            // Both must be short tracks (low nSteps)
+            // conversions produce low energy electrons
+            // if (c1.nSteps > 10 || c2.nSteps > 10) continue;
+
+            // Directions from TPC entry to exit
+            TVector3 dir1 = c1.direction.Unit();
+            TVector3 dir2 = c2.direction.Unit();
+
+            // Opening angle between the two tracks
+            double cosAngle = dir1.Dot(dir2);
+            cosAngle = std::clamp(cosAngle, -1.0, 1.0);
+            double openingAngle = std::acos(cosAngle);
+
+            // Small opening angle cut - conversions are collinear
+            if (openingAngle > 0.3) continue;  // ~17 degrees, tune this
+
+            // Find approximate conversion vertex - point of closest
+            // approach between the two track lines
+            // Each track: P(t) = entryPoint + t * direction
+            TVector3 entry1 = c1.TPCExitPoint - 
+                              c1.direction.Unit() * 10.0; // approximate
+            TVector3 entry2 = c2.TPCExitPoint - 
+                              c2.direction.Unit() * 10.0;
+
+            // Conversion vertex must be AWAY from primary vertex
+            // (if it were at primary vertex it would just be a primary e+e-)
+            TVector3 midpoint = 0.5 * (entry1 + entry2);
+            double distFromPrimary = (midpoint - primaryVertex).Mag();
+            if (distFromPrimary < 5.0) continue;  // cm, tune this
+
+            // Reconstruct photon 4-vector from the pair
+            // Treat both as massless electrons for the photon reconstruction
+            double E1 = c1.objectTrueKE;  // or use cluster energy
+            double E2 = c2.objectTrueKE;
+            TVector3 photonDir = (E1 * dir1 + E2 * dir2).Unit();
+            double photonE = E1 + E2;
+
+            TLorentzVector photonP4;
+            photonP4.SetPxPyPzE(
+                photonE * photonDir.X(),
+                photonE * photonDir.Y(),
+                photonE * photonDir.Z(),
+                photonE
+            );
+
+            // Invariant mass of pair should be ~0 for real conversion
+            TLorentzVector p4_1, p4_2;
+            double me = 0.511;  // MeV
+            p4_1.SetPxPyPzE(E1*dir1.X(), E1*dir1.Y(), E1*dir1.Z(),
+                             std::sqrt(E1*E1 + me*me));
+            p4_2.SetPxPyPzE(E2*dir2.X(), E2*dir2.Y(), E2*dir2.Z(),
+                             std::sqrt(E2*E2 + me*me));
+            double invMass = (p4_1 + p4_2).M();
+
+            // Real conversions have invMass near 0
+            if (invMass > 5.0) continue;  // MeV, tune this
+
+            ConversionCandidate conv;
+            conv.conversionVertex = midpoint;
+            conv.p4               = photonP4;
+            conv.track1_idx       = static_cast<int>(i);
+            conv.track2_idx       = static_cast<int>(j);
+            conv.openingAngle     = openingAngle;
+            conv.invMass          = invMass;
+            conversions.push_back(conv);
+        }
+    }
+    return conversions;
+}
+
+
+// std::vector<ChargedCluster> MatchHitsToTracks(
+//     const std::vector<ChargedTrack>& tracks,
+//     std::vector<Hit>& hits,
+//     double thetaMax,
+//     const DEDXTable& dedxTable
+// ) {
+//     std::vector<ChargedCluster> clusters;
+//     PotentialGas tpcGas = PotentialGas::eArCO2_8020;
+//     for (size_t i = 0; i < tracks.size(); ++i) {
+//         const auto& trk = tracks[i];
+
+//         // if (std::abs(trk.TruePDG) == 11) std::cout << "electron Track!" << std::endl;
+
+//         double KE = trk.TrueKE;  // MeV
+//         double dedxTheory_pion     = dedxTable.Pion    (KE);
+//         double dedxTheory_proton   = dedxTable.Proton  (KE);
+//         double dedxTheory_muon     = dedxTable.Muon    (KE);
+//         double dedxTheory_electron = dedxTable.Electron(KE);
+
+//         ChargedCluster c;
+//         c.trackID = trk.id;
+//         c.direction = trk.direction.Unit();
+//         c.TPCExitPoint = trk.exitPoint;
+//         c.objectTrueKE = KE;
+//         c.objectTruePDG = trk.TruePDG;
+//         // c.objectTruedEdx = BetheBloch(trk.TruePDG, trk.TrueKE, tpcGas);
+//         if (std::abs(trk.TruePDG) == 211) c.objectTruedEdx = dedxTheory_pion;
+//         if (std::abs(trk.TruePDG) == 2212) c.objectTruedEdx = dedxTheory_proton;
+//         if (std::abs(trk.TruePDG) == 13) c.objectTruedEdx = dedxTheory_muon;
+//         if (std::abs(trk.TruePDG) == 11) c.objectTruedEdx = dedxTheory_electron;
+//         c.totalEnergy = 0.0;
+//         c.clusterdEdx = trk.clusterdEdx;
+//         c.EdepSmeared = trk.EdepSmeared;
+//         c.nSigmaPion = nSigmaCalc(trk.clusterdEdx, dedxTheory_pion, trk.resolution);
+//         c.nSigmaProton = nSigmaCalc(trk.clusterdEdx, dedxTheory_proton, trk.resolution);
+//         c.nSigmaElectron = nSigmaCalc(trk.clusterdEdx, dedxTheory_electron, trk.resolution);
+//         c.pidL = ComputePIDLikelihoods(
+//             c.nSigmaPion,
+//             c.nSigmaElectron,
+//             c.nSigmaProton
+
+//         );
+//         c.pidGuess = AssignPIDFromLikelihood(c.pidL, 0.7);
+
+//         double dirMag = trk.direction.Mag();
+
+//         clusters.push_back(c);
+//     }
+
+//     int nMatchedHits = 0;
+
+//     for (size_t h = 0; h < hits.size(); ++h) {
+//         auto& hit = hits[h];
+
+//         if (hit.owner != HitOwner::None)
+//             continue;
+
+//         TVector3 hitPos(hit.x, hit.y, hit.z);
+//         double bestAngle = std::numeric_limits<double>::max();
+//         double bestDot   = -999.0;
+//         int bestTrack    = -1;
+
+//         for (size_t i = 0; i < tracks.size(); ++i) {
+//             TVector3 delta = hitPos - tracks[i].exitPoint; //hitPos - tracks[i].vertex;
+//             // double deltaMag = delta.Mag();
+//             if (delta.Mag2() < 1e-12) {
+//                 bestAngle = 0.0;
+//                 bestTrack = static_cast<int>(i);
+//                 break; // can't do better than 0
+//             }
+//             TVector3 hitDir = delta.Unit();
+//             double dot = tracks[i].direction.Unit().Dot(hitDir);
+//             dot = std::clamp(dot, -1.0, 1.0);
+//             if (dot < 0) continue;
+//             double theta = std::acos(dot);
+
+//             if (theta < bestAngle) {
+//                 bestAngle = theta;
+//                 bestTrack = static_cast<int>(i);
+//                 bestDot   = dot;
+//             }
+//         }
+
+//         if (bestTrack >= 0 && bestAngle < thetaMax) {
+//             clusters[bestTrack].hits.push_back(&hit);
+//             clusters[bestTrack].totalEnergy += hit.e;
+//             hit.owner = HitOwner::Charged;
+//             ++nMatchedHits;
+//         }
+//     }
+//     return clusters;
+// }
