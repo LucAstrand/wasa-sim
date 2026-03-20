@@ -40,11 +40,30 @@ struct SelectionHistograms {
         hVertexRadius  ->Fill(ev.vertexRadius);
         hNPi0          ->Fill(ev.nPi0Candidates);
     }
+    
+    void PlotOverlay(const SelectionHistograms& bkg, 
+                     const std::string& outDir) {
+        PlotOptions opts;
+        opts.addLegend = true;
+        opts.legendEntries = {"Signal", "Background (cosmic)"};
+    
+        auto overlay = [&](TH1F* hS, TH1F* hB, const std::string& name) {
+            if (!hS || !hB) return;
+            TH1F* hSn = (TH1F*)hS->Clone(); hSn->Scale(1.0/hS->Integral());
+            TH1F* hBn = (TH1F*)hB->Clone(); hBn->Scale(1.0/hB->Integral());
+            Plot1D({hSn, hBn}, {kBlue+1, kRed+1}, outDir + name, opts);
+            delete hSn; delete hBn;
+        };
+    
+        overlay(hNCharged,      bkg.hNCharged,      "nCharged.png");
+        overlay(hNNeutral,      bkg.hNNeutral,       "nNeutral.png");
+        overlay(hEtotal,        bkg.hEtotal,         "Etotal.png");
+        overlay(hSphericity,    bkg.hSphericity,     "Sphericity.png");
+        overlay(hMaxTrackAngle, bkg.hMaxTrackAngle,  "MaxTrackAngle.png");
+        overlay(hVertexRadius,  bkg.hVertexRadius,   "VertexRadius.png");
+        overlay(hNPi0,          bkg.hNPi0,           "NPi0.png");
+    }
 };
 
-// In analysis main file we would call it like this! 
-// SelectionHistograms hSig, hBkg;
-// hSig.Book("sig");
-// hBkg.Book("bkg");
 
 #endif

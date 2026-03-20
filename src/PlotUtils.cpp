@@ -20,6 +20,7 @@ void SetPrettyStyle() {
     std::filesystem::create_directories("plots/Charged");
     std::filesystem::create_directories("plots/Truth");
     std::filesystem::create_directories("plots/EventVar");
+    std::filesystem::create_directories("plots/Selection");
     // std::filesystem::create_directories("plots/EventVar/ClosureTest");
     gROOT->SetStyle("Plain");
     gStyle->SetOptStat(0);

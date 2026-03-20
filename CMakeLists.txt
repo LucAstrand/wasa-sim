@@ -33,6 +33,7 @@ add_executable(Analysis
     src/Analysis.cpp
     src/ParticleID.cpp
     src/Clustering.cpp
+    src/EventLoop.cpp
     src/PhotonMatch.cpp
     src/Acceptance.cpp
     src/Pi0Efficiency.cpp

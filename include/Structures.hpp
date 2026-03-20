@@ -41,7 +41,7 @@ struct TruePhotonHit {
 struct TruePhoton {
     TVector3 dir;
     TLorentzVector p4;
-    int parentID;
+    double parentID;
 };
 
 struct TruePi0 {
