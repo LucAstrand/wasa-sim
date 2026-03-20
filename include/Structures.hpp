@@ -33,8 +33,8 @@ struct Hit {
 struct TruePhotonHit {
     double x, y, z;
     double e;
-    int truePhotonTrackID;
-    int truePhotonParentID;
+    double truePhotonTrackID;
+    double truePhotonParentID;
     HitOwner owner = HitOwner::None;
 };
 
@@ -153,6 +153,29 @@ struct EtaPhiTowerKey {
         if (iEta != o.iEta) return iEta < o.iEta;
         return iPhi < o.iPhi;
     }
+};
+
+struct EventVariables {
+    // Multiplicity
+    int nChargedTracks       = 0;   // TPC track count (excl electrons)
+    int nNeutralClusters     = 0;   // neutral cluster count
+    int nTotalObjects        = 0;   // nCharged + nNeutral
+    
+    // Energy
+    double EM_energy         = 0.0; // total calorimeter energy
+    double chargedEnergy     = 0.0; // sum of charged cluster energies
+    double totalRecoEnergy   = 0.0; // EM_energy + charged TPC edep
+    
+    // Topology
+    double sphericity        = 0.0; // 0=pencil-like, 1=isotropic
+    double maxTrackAngle     = 0.0; // largest opening angle between any two tracks
+    double vertexRadius      = 0.0; // transverse distance of vertex from beam axis
+    double meanDCA           = 0.0; // mean distance of closest approach of tracks to vertex
+    
+    // PID based
+    int nPionCandidates      = 0;   // tracks with pidGuess == Pion
+    int nProtonCandidates    = 0;
+    int nPi0Candidates       = 0;   // reconstructed pi0s
 };
 
 #endif

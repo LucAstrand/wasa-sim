@@ -41,6 +41,7 @@ add_executable(Analysis
     src/PIDEfficiency.cpp
     src/RecoEvent.cpp 
     src/Calibration.cpp 
+    src/EventVariables.cpp
 )
 
 target_include_directories(Analysis PRIVATE include)
