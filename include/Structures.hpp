@@ -164,7 +164,8 @@ struct EventVariables {
     // Energy
     double EM_energy         = 0.0; // total calorimeter energy
     double chargedEnergy     = 0.0; // sum of charged cluster energies
-    double totalRecoEnergy   = 0.0; // EM_energy + charged TPC edep
+    double totalRecoEnergy   = 0.0; // EM_energy //not this + charged TPC edep
+    double correctedEnergy   = 0.0; // EM_energy + calibratedKE (Calibrated missing EKin)
     
     // Topology
     double sphericity        = 0.0; // 0=pencil-like, 1=isotropic

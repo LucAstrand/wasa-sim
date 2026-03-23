@@ -413,13 +413,13 @@ void RunSignalLoop(
             if (hEvt->hNPionMult) hEvt->hNPionMult->Fill(pi0_per_event[ievt], reco.nPionMultiplicity);
             if (hEvt->hChPionMult) hEvt->hChPionMult->Fill(chPi_per_event[ievt], reco.chPionMultiplicity);
 
-            EventVariables ev = ComputeEventVariables(reco, vertex);
-            if (ievt < 5) {  // print first 5 events
-                std::cout << "[EventVars] nCharged=" << ev.nChargedTracks
-                        << " nNeutral=" << ev.nNeutralClusters
-                        << " Etotal=" << ev.totalRecoEnergy
-                        << " sphericity=" << ev.sphericity << std::endl;
-            }
+            EventVariables ev = ComputeEventVariables(reco, vertex, calibration);
+            // if (ievt < 5) {  // print first 5 events
+            //     std::cout << "[EventVars] nCharged=" << ev.nChargedTracks
+            //             << " nNeutral=" << ev.nNeutralClusters
+            //             << " Etotal=" << ev.totalRecoEnergy
+            //             << " sphericity=" << ev.sphericity << std::endl;
+            // }
 
             hSel->Fill(ev);
 
@@ -434,6 +434,7 @@ void RunSignalLoop(
 void RunBackgroundLoop(
     TTree* tree,
     const DEDXTable& dedxTable,
+    const ChargedKECalibration& calibration,
     SelectionHistograms& hSel)
 {
     BranchManagerInput br;
@@ -478,7 +479,7 @@ void RunBackgroundLoop(
 
         RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex, dedxTable);
 
-        EventVariables ev = ComputeEventVariables(reco, vertex);
+        EventVariables ev = ComputeEventVariables(reco, vertex, calibration);
         if (ievt < 5) {  // print first 5 events
             std::cout << "[EventVars] nCharged=" << ev.nChargedTracks
                     << " nNeutral=" << ev.nNeutralClusters

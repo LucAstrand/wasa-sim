@@ -62,7 +62,7 @@ void ChargedKECalibration::Save(const std::string& filename) const {
 void DoCalibration(
     TTree* t,
     Long64_t nentries,
-    const std::vector<int>& pi0_per_event,
+    // const std::vector<int>& pi0_per_event,
     const std::vector<double>* centerXs,
     const std::vector<double>* centerYs,
     const std::vector<double>* centerZs,
@@ -95,9 +95,9 @@ void DoCalibration(
         t->GetEntry(ievt);
 
         // --- Pi0 count (optional but kept) ---
-        int nPi0 = (ievt < (Long64_t)pi0_per_event.size())
-                 ? pi0_per_event[ievt]
-                 : 0;
+        // int nPi0 = (ievt < (Long64_t)pi0_per_event.size())
+        //          ? pi0_per_event[ievt]
+        //          : 0;
 
         // --- Vertex --- /////////////////////// HAVETOFIXTHIS!!!!!!!!!!
         if (!primaryX || primaryX->empty()) continue;

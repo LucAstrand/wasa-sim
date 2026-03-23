@@ -9,6 +9,7 @@ struct SelectionHistograms {
     TH1F* hNCharged       = nullptr;
     TH1F* hNNeutral       = nullptr;
     TH1F* hEtotal         = nullptr;
+    TH1F* hECorrected     = nullptr;
     TH1F* hSphericity     = nullptr;
     TH1F* hMaxTrackAngle  = nullptr;
     TH1F* hVertexRadius   = nullptr;
@@ -21,6 +22,8 @@ struct SelectionHistograms {
                             ";N neutral clusters;Events", 10, -0.5, 9.5);
         hEtotal        = new TH1F((prefix+"_Etotal").c_str(),
                             ";Total reco energy [MeV];Events", 100, 0, 3000);
+        hECorrected    = new TH1F((prefix+"hECorrected").c_str(),
+                            ";Total Corrected Energy [MeV];Events", 100, 0, 3000);
         hSphericity    = new TH1F((prefix+"_sphericity").c_str(),
                             ";Sphericity;Events", 50, 0, 1);
         hMaxTrackAngle = new TH1F((prefix+"_maxAngle").c_str(),
@@ -35,6 +38,7 @@ struct SelectionHistograms {
         hNCharged      ->Fill(ev.nChargedTracks);
         hNNeutral      ->Fill(ev.nNeutralClusters);
         hEtotal        ->Fill(ev.totalRecoEnergy);
+        hECorrected    ->Fill(ev.correctedEnergy);
         hSphericity    ->Fill(ev.sphericity);
         hMaxTrackAngle ->Fill(ev.maxTrackAngle);
         hVertexRadius  ->Fill(ev.vertexRadius);
@@ -58,6 +62,7 @@ struct SelectionHistograms {
         overlay(hNCharged,      bkg.hNCharged,      "nCharged.png");
         overlay(hNNeutral,      bkg.hNNeutral,       "nNeutral.png");
         overlay(hEtotal,        bkg.hEtotal,         "Etotal.png");
+        overlay(hECorrected,    bkg.hECorrected,     "ECorrected.png");
         overlay(hSphericity,    bkg.hSphericity,     "Sphericity.png");
         overlay(hMaxTrackAngle, bkg.hMaxTrackAngle,  "MaxTrackAngle.png");
         overlay(hVertexRadius,  bkg.hVertexRadius,   "VertexRadius.png");

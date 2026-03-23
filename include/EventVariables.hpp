@@ -3,12 +3,15 @@
 
 #include "Structures.hpp"
 #include "RecoEvent.hpp"
+#include "Calibration.hpp"
+
 #include "TMatrixDSym.h"
 #include "TVectorD.h"
 
 EventVariables ComputeEventVariables(
     const RecoEvent& reco,
-    const TVector3 vertex
+    const TVector3 vertex, 
+    const ChargedKECalibration& calibration
 );
 
 #endif

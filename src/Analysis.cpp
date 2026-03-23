@@ -134,17 +134,18 @@ int main(int argc, char **argv) {
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
-    std::vector<int> pi0_per_event;
+    // std::vector<int> pi0_per_event;
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
     DEDXTable dedxTABLE("dedx_tables_Ar80CO2.root");
 
     //Calibration procedure ----->>>> HAVE TO DOUBLE CHECK THIS LOGIC. A lot has changed SINCE THEN!!!!!
+    // 2026-03-23: removed the unused pi0_per event. The only other change is vertex related, but since this is jsut an energy counting thing does it even matter?
     if (doCalibration) {
         DoCalibration(
             t,
             static_cast<int>(nentries * 0.7),
-            pi0_per_event,
+            // pi0_per_event,
             br.centerXs, br.centerYs, br.centerZs, br.energies,
             br.primaryX, br.primaryY, br.primaryZ, br.primaryEkin,
             br.TPC_firstPosX, br.TPC_firstPosY, br.TPC_firstPosZ,
@@ -185,7 +186,7 @@ int main(int argc, char **argv) {
             return 1; 
         }
         std::cout << "Processing background..." << std::endl;
-        RunBackgroundLoop(tBkg, dedxTABLE, hSelBkg);
+        RunBackgroundLoop(tBkg, dedxTABLE, calibration, hSelBkg);
         fBkg->Close();
 
         // Plot overlaid

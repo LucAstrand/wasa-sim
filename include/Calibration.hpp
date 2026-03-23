@@ -28,7 +28,7 @@ private:
 void DoCalibration(
     TTree* t,
     Long64_t nentries,
-    const std::vector<int>& pi0_per_event,
+    // const std::vector<int>& pi0_per_event,
     const std::vector<double>* centerXs,
     const std::vector<double>* centerYs,
     const std::vector<double>* centerZs,

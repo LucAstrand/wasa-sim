@@ -2,7 +2,8 @@
 
 EventVariables ComputeEventVariables(
     const RecoEvent& reco,
-    const TVector3 vertex
+    const TVector3 vertex,
+    const ChargedKECalibration& calibration
 ) {
     EventVariables ev;
 
@@ -17,6 +18,8 @@ EventVariables ComputeEventVariables(
     ev.nNeutralClusters = reco.clusters.size();
     ev.nTotalObjects = ev.nChargedTracks + ev.nNeutralClusters;
     ev.EM_energy = reco.EM_energy;
+    double calibratedKE = calibration.GetMeanKE(reco.chargedClusters.size(), ev.EM_energy);
+    ev.correctedEnergy = ev.EM_energy + calibratedKE;
     ev.totalRecoEnergy = reco.EM_energy + ev.chargedEnergy; // this is just not correct... charged energy is included in EM energy
     ev.nPi0Candidates = reco.nPionMultiplicity;
 
