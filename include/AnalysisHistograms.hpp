@@ -38,19 +38,19 @@ struct Pi0Histograms {
         accVsTheta = new Acceptance("nPiTheta", 60, 0, TMath::Pi());
     }
 
-    void Plot(int nentries) {
+    void Plot(int nentries, const std::string& outDir) {
         PlotOptions opts;
         opts.doFit = true; opts.fitMin = 100; opts.fitMax = 170;
         opts.addInfoPave = true;
         opts.infoLines = {"Signal Dataset", Form("%d Events", nentries)};
-        Plot1D({hMass}, {kBlack}, "Neutral/Pi0InvMass.png", opts);
+        Plot1D({hMass}, {kBlack}, outDir + "Neutral/Pi0InvMass.png", opts);
 
         PlotOptions opts2D;
         opts2D.infoLines = {"Signal Dataset", Form("%d Events", nentries)};
         Plot2D(hppM_pre,  "Neutral/Pi0ppM_pre.png",  opts2D);
         Plot2D(hppM_post, "Neutral/Pi0ppM_post.png", opts2D);
 
-        effPlotter->FinalizePlot("Neutral/Pi0_efficiency_vs_Ekin.png");
+        effPlotter->FinalizePlot(outDir + "Neutral/Pi0_efficiency_vs_Ekin.png");
 
         PlotOptions optsAcc;
         optsAcc.topLatex    = "#bf{Hibeam}  #it{Wasa full simulation}";
@@ -58,7 +58,7 @@ struct Pi0Histograms {
         optsAcc.addInfoPave = true;
         optsAcc.xAxisTitle  = "Signal #pi^{0} E_{kin} [MeV]";
         optsAcc.yAxisTitle  = "Acceptance [%]";
-        accPlotter->FinalizePlot("Neutral/Pi0_acceptance_vs_Ekin.png", optsAcc);
+        accPlotter->FinalizePlot(outDir + "Neutral/Pi0_acceptance_vs_Ekin.png", optsAcc);
     }
 
     void Cleanup() {
@@ -83,22 +83,22 @@ struct TruthHistograms {
             ";M_{#gamma#gamma} [MeV];Events", 100, 1.5, 301.5);
     }
 
-    void Plot() {
+    void Plot(const std::string& outDir) {
         PlotOptions opts;
         opts.addInfoPave = true;
         opts.legendEntries = {"Truth-level Invariant Mass"};
         if (hTrueMass) Plot1D({hTrueMass}, {kBlack}, 
-                               "Truth/Pi0InvMassTT.png", opts);
+                               outDir + "Truth/Pi0InvMassTT.png", opts);
 
         PlotOptions optsRA;
         optsRA.doFit = true; optsRA.fitMin = 80; optsRA.fitMax = 180;
         if (h_tE_rA) Plot1D({h_tE_rA}, {kBlack}, 
-                             "Truth/Pi0InvMassRecoAngle.png", optsRA);
+                             outDir + "Truth/Pi0InvMassRecoAngle.png", optsRA);
 
         PlotOptions optsTA;
         optsTA.legendEntries = {"Truth-level Invariant Mass"};
         if (h_rE_tA) Plot1D({h_rE_tA}, {kBlack},
-                             "Truth/Pi0InvMassTruthAngle.png", optsTA);
+                             outDir + "Truth/Pi0InvMassTruthAngle.png", optsTA);
     }
 
     void Cleanup() {
@@ -180,17 +180,17 @@ struct ChargedHistograms {
         chAccCondNoTPC = new Acceptance("chPiECondNoTPC", 100, 1, 1000);
     }
 
-    void Plot() {
+    void Plot(const std::string& outDir) {
         PlotOptions opts_nSigma;
         opts_nSigma.doFit = true;
         opts_nSigma.addLegend = true;
         opts_nSigma.legendEntries = {"#pi^{#pm} hypothesis", "p hypothesis"};
         Plot1D({hNSigmaPion, hNSigmaProton}, {kRed+1, kBlue+1},
-               "Charged/nSigmaPlots.png", opts_nSigma);
+               outDir + "Charged/nSigmaPlots.png", opts_nSigma);
 
-        Plot1D({hPionTheta},    {kBlack}, "Charged/primaryChPionTheta.png",    {});
-        Plot1D({hPionCosTheta}, {kBlack}, "Charged/primaryChPionCosTheta.png", {});
-        Plot1D({hPionPhi},      {kBlack}, "Charged/primaryChPionPhi.png",      {});
+        Plot1D({hPionTheta},    {kBlack}, outDir + "Charged/primaryChPionTheta.png",    {});
+        Plot1D({hPionCosTheta}, {kBlack}, outDir + "Charged/primaryChPionCosTheta.png", {});
+        Plot1D({hPionPhi},      {kBlack}, outDir + "Charged/primaryChPionPhi.png",      {});
 
         PlotOptions opts2D;
         opts2D.drawOption  = "SCAT";
@@ -198,14 +198,14 @@ struct ChargedHistograms {
         opts2D.legendDrawOpt = "P";
         Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Proton},
                       {kBlack, kRed},
-                      "Charged/dedx_vs_E_overlay_true.png", opts2D);
+                      outDir + "Charged/dedx_vs_E_overlay_true.png", opts2D);
         Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton},
                       {kBlack, kRed},
-                      "Charged/dedx_vs_E_overlay_cluster.png", opts2D);
+                      outDir + "Charged/dedx_vs_E_overlay_cluster.png", opts2D);
 
         TProfile* pEres = h2_Eres->ProfileX(
             Form("pEres_%s", h2_Eres->GetName()));
-        Plot1D({pEres}, {kBlack}, "Charged/energy_residual.png", {});
+        Plot1D({pEres}, {kBlack}, outDir + "Charged/energy_residual.png", {});
 
         PlotOptions opts_dEdx;
         opts_dEdx.addLegend = true;
@@ -213,11 +213,11 @@ struct ChargedHistograms {
                                    "True p",         "Smeared p"};
         Plot1D({hdEdxTruePion, hdEdxSmearPion, hdEdxTrueProton, hdEdxSmearProton},
                {kBlack, kGray, kRed, kRed+1},
-               "Charged/dEdxPlots.png", opts_dEdx);
+               outDir + "Charged/dEdxPlots.png", opts_dEdx);
 
-        pidEff->FinalizePlot("plots/Charged/PIDEfficiency", 211);
+        pidEff->FinalizePlot(outDir + "plots/Charged/PIDEfficiency", 211);
 
-        Plot1D({hClusterE}, {kBlack}, "Charged/ClusterE_pion.png", {});
+        Plot1D({hClusterE}, {kBlack}, outDir + "Charged/ClusterE_pion.png", {});
 
         PlotOptions optsAcc;
         optsAcc.topLatex    = "#bf{Hibeam}  #it{Wasa full simulation}";
@@ -225,9 +225,9 @@ struct ChargedHistograms {
         optsAcc.addInfoPave = true;
         optsAcc.xAxisTitle  = "Signal #pi^{#pm} E_{kin} [MeV]";
         optsAcc.yAxisTitle  = "Acceptance [%]";
-        chAccGlobal   ->FinalizePlot("Charged/chPi_acceptance_Global.png",    optsAcc);
-        chAccCondTPC  ->FinalizePlot("Charged/chPi_acceptance_CondTPC.png",   optsAcc);
-        chAccCondNoTPC->FinalizePlot("Charged/chPi_acceptance_CondNoTPC.png", optsAcc);
+        chAccGlobal   ->FinalizePlot(outDir + "Charged/chPi_acceptance_Global.png",    optsAcc);
+        chAccCondTPC  ->FinalizePlot(outDir + "Charged/chPi_acceptance_CondTPC.png",   optsAcc);
+        chAccCondNoTPC->FinalizePlot(outDir + "Charged/chPi_acceptance_CondNoTPC.png", optsAcc);
 
         PlotOptions opts_cone;
         opts_cone.addLegend = true;
@@ -235,8 +235,8 @@ struct ChargedHistograms {
         hAngle_matched  ->Scale(1.0 / hAngle_matched  ->Integral());
         hAngle_unmatched->Scale(1.0 / hAngle_unmatched->Integral());
         Plot1D({hAngle_matched, hAngle_unmatched}, {kBlack, kRed},
-               "Charged/HitAngleDiagnostic.png", opts_cone);
-        Plot2D(hAngleVsE, "Charged/HitAngleVsE.png", {});
+               outDir + "Charged/HitAngleDiagnostic.png", opts_cone);
+        Plot2D(hAngleVsE, outDir + "Charged/HitAngleVsE.png", {});
     }
 
     void Cleanup() {
@@ -292,26 +292,26 @@ struct EventVarHistograms {
         if (hChPionMult)     hChPionMult    ->Fill(trueChPiMult, recoChPiMult);
     }
 
-    void Plot() {
+    void Plot(const std::string& outDir) {
         PlotOptions opts;
         opts.addLegend = true;
         opts.legendEntries = {"E_{reco}", "E_{vis}"};
         Plot1D({hEcorrected, hEvis}, {kBlack, kRed},
-               "EventVar/EventTotE.png", opts);
+               outDir + "EventVar/EventTotE.png", opts);
 
         PlotOptions opts2D;
         opts2D.overlayProfileX = true;
         opts2D.profileColor    = kRed;
-        Plot2D(hEvisVsEtrue,  "EventVar/EvisVsEtrue.png",  opts2D);
-        Plot2D(hErecoVsEtrue, "EventVar/ErecoVsEtrue.png", opts2D);
+        Plot2D(hEvisVsEtrue,  outDir + "EventVar/EvisVsEtrue.png",  opts2D);
+        Plot2D(hErecoVsEtrue, outDir + "EventVar/ErecoVsEtrue.png", opts2D);
 
-        Plot1D({hDiffErecoEtrue}, {kBlack}, "EventVar/DiffErecoEtrue.png", {});
+        Plot1D({hDiffErecoEtrue}, {kBlack}, outDir + "EventVar/DiffErecoEtrue.png", {});
 
         PlotOptions optsHeatmap;
         optsHeatmap.drawOption = "COLZ";
         optsHeatmap.isHeatmap  = true;
-        Plot2D(hNPionMult,  "EventVar/NPionMultiplicity.png",  optsHeatmap);
-        Plot2D(hChPionMult, "EventVar/ChPionMultiplicity.png", optsHeatmap);
+        Plot2D(hNPionMult,  outDir + "EventVar/NPionMultiplicity.png",  optsHeatmap);
+        Plot2D(hChPionMult, outDir + "EventVar/ChPionMultiplicity.png", optsHeatmap);
     }
 
     void Cleanup() {

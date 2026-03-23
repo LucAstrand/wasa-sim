@@ -59,7 +59,7 @@ struct SelectionHistograms {
             delete hSn; delete hBn;
         };
     
-        overlay(hNCharged,      bkg.hNCharged,      "nCharged.png");
+        overlay(hNCharged,      bkg.hNCharged,       "nCharged.png");
         overlay(hNNeutral,      bkg.hNNeutral,       "nNeutral.png");
         overlay(hEtotal,        bkg.hEtotal,         "Etotal.png");
         overlay(hECorrected,    bkg.hECorrected,     "ECorrected.png");

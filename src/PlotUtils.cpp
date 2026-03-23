@@ -16,12 +16,17 @@
 
 void SetPrettyStyle() {
     std::filesystem::create_directories("plots");
-    std::filesystem::create_directories("plots/Neutral");
-    std::filesystem::create_directories("plots/Charged");
-    std::filesystem::create_directories("plots/Truth");
-    std::filesystem::create_directories("plots/EventVar");
+    std::filesystem::create_directories("plots/preSelection");
+    std::filesystem::create_directories("plots/postSelection");
+    std::filesystem::create_directories("plots/preSelection/plots/Neutral");
+    std::filesystem::create_directories("plots/preSelection/plots/Charged");
+    std::filesystem::create_directories("plots/preSelection/plots/Truth");
+    std::filesystem::create_directories("plots/preSelection/plots/EventVar");
+    std::filesystem::create_directories("plots/postSelection/plots/Neutral");
+    std::filesystem::create_directories("plots/postSelection/plots/Charged");
+    std::filesystem::create_directories("plots/postSelection/plots/Truth");
+    std::filesystem::create_directories("plots/postSelection/plots/EventVar");
     std::filesystem::create_directories("plots/Selection");
-    // std::filesystem::create_directories("plots/EventVar/ClosureTest");
     gROOT->SetStyle("Plain");
     gStyle->SetOptStat(0);
     gStyle->SetCanvasColor(0);

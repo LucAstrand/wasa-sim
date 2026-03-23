@@ -449,9 +449,13 @@ void RunBackgroundLoop(
     for (Long64_t ievt = 0; ievt < nentries; ++ievt) {
         bar.update();
         tree->GetEntry(ievt);
+        
+        // Skip empty events - these occur when MCPL ran out of 
+        // particles before GEANT4 finished its requested events
+        if (!br.primaryPDG || br.primaryPDG->empty()) continue;
+        if (!br.energies   || br.energies->empty())   continue;
 
-        // For cosmics we have no meaningful vertex
-        // Use origin as fallback - cosmics don't originate from a point anyway
+        // Have to fix vertexing for the background! 
         TVector3 vertex(0, 0, 0);
 
         // Build hits

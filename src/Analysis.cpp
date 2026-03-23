@@ -34,6 +34,7 @@
 #include "RecoEvent.hpp"
 #include "Calibration.hpp"
 #include "EventVariables.hpp"
+#include "SelectionCuts.hpp"
 
 void MyErrorHandler(int level, Bool_t abort, const char* location, const char* msg)
 {
@@ -98,12 +99,11 @@ int main(int argc, char **argv) {
 
     SetPrettyStyle();
 
+    //Open Signal input file and branch setup
     TFile *f = TFile::Open(root_inputfile.c_str());
     if (!f || f->IsZombie()) return 1;
-
     TTree *t = (TTree *)f->Get("digitizedHits");
     if (!t) { std::cerr << "Tree digitizedHits not found" << std::endl; return 1;}
-    // Branch setup
     BranchManagerInput br;
     br.SetBranches(t);
 
@@ -120,23 +120,20 @@ int main(int argc, char **argv) {
 
     Long64_t nentries = t->GetEntries();
 
+    //Open Vertex input file and branch setup
     TFile *vtxFile = TFile::Open(vertices_inputfile.c_str());
     if (!vtxFile || vtxFile->IsZombie()) return 1;
-
     TTree *vtxTree = (TTree *)vtxFile->Get("vertices");
     if (!vtxTree) {std::cerr << "Tree vertices not found" << std::endl; return 1;}
-
     BranchManagerVertex brVtx;   
     brVtx.SetBranches(vtxTree);
     brVtx.LoadVertices(vtxTree, nentries);
 
-    vtxFile->Close();
+    vtxFile->Close(); delete vtxFile;
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+    // Calibration & Theory dEdx tables
 
-    // std::vector<int> pi0_per_event;
-
-    //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
     DEDXTable dedxTABLE("dedx_tables_Ar80CO2.root");
 
     //Calibration procedure ----->>>> HAVE TO DOUBLE CHECK THIS LOGIC. A lot has changed SINCE THEN!!!!!
@@ -175,8 +172,9 @@ int main(int argc, char **argv) {
                 doSelection ? &hSelSig : nullptr);
 
     if (doSelection) {
+        //Open Background input file and branch setup
         TFile* fBkg = TFile::Open(background_inputfile.c_str());
-        if (!fBkg || fBkg->IsZombie()) { 
+        if (!fBkg || fBkg->IsZombie()) {
             std::cerr << "Cannot open background file" << std::endl; 
             return 1; 
         }
@@ -187,20 +185,18 @@ int main(int argc, char **argv) {
         }
         std::cout << "Processing background..." << std::endl;
         RunBackgroundLoop(tBkg, dedxTABLE, calibration, hSelBkg);
-        fBkg->Close();
+        fBkg->Close(); delete fBkg;
 
-        // Plot overlaid
+        // Selection plots Signal-Background(cosmic) overlaid
         hSelSig.PlotOverlay(hSelBkg, "Selection/");
     }
 
-    // Plotting 
+    // Other Analysis-related plotting 
 
-    if (cfg.doPi0Analysis)     { hPi0.Plot(nentries);   hPi0.Cleanup();     }
-    if (cfg.doTruthAnalysis)   { hTruth.Plot();         hTruth.Cleanup();   }
-    if (cfg.doChargedAnalysis) { hCharged.Plot();       hCharged.Cleanup(); }
-    if (cfg.doEventVariables)  { hEvt.Plot();           hEvt.Cleanup();     }
-
-    hSelSig.PlotOverlay(hSelBkg, "Selection/");
+    if (cfg.doPi0Analysis)     { hPi0.Plot(nentries, "preSelection/"); hPi0.Cleanup();     }
+    if (cfg.doTruthAnalysis)   { hTruth.Plot("preSelection/");         hTruth.Cleanup();   }
+    if (cfg.doChargedAnalysis) { hCharged.Plot("preSelection/");       hCharged.Cleanup(); }
+    if (cfg.doEventVariables)  { hEvt.Plot("preSelection/");           hEvt.Cleanup();     }
 
     f->Close(); delete f;
     return 0;
