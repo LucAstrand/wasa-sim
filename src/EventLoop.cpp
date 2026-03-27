@@ -10,7 +10,8 @@ void RunSignalLoop(
     TruthHistograms* hTruth,
     ChargedHistograms* hCharged,
     EventVarHistograms* hEvt,
-    SelectionHistograms* hSel)
+    SelectionHistograms* hSel,
+    CorrelationMatrix* hCorr)
 {
     BranchManagerInput br;
     br.SetBranches(tree);
@@ -422,6 +423,7 @@ void RunSignalLoop(
             // }
 
             hSel->Fill(ev);
+            hCorr->FillCorrelation(ev);
 
         }
         
@@ -435,7 +437,8 @@ void RunBackgroundLoop(
     TTree* tree,
     const DEDXTable& dedxTable,
     const ChargedKECalibration& calibration,
-    SelectionHistograms& hSel)
+    SelectionHistograms& hSel,
+    CorrelationMatrix& hCorr)
 {
     BranchManagerInput br;
     br.SetBranches(tree);
@@ -484,13 +487,14 @@ void RunBackgroundLoop(
         RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex, dedxTable);
 
         EventVariables ev = ComputeEventVariables(reco, vertex, calibration);
-        if (ievt < 5) {  // print first 5 events
-            std::cout << "[EventVars] nCharged=" << ev.nChargedTracks
-                    << " nNeutral=" << ev.nNeutralClusters
-                    << " Etotal=" << ev.totalRecoEnergy
-                    << " sphericity=" << ev.sphericity << std::endl;
-        }
+        // if (ievt < 5) {  // print first 5 events
+        //     std::cout << "[EventVars] nCharged=" << ev.nChargedTracks
+        //             << " nNeutral=" << ev.nNeutralClusters
+        //             << " Etotal=" << ev.totalRecoEnergy
+        //             << " sphericity=" << ev.sphericity << std::endl;
+        // }
         hSel.Fill(ev);
+        hCorr.FillCorrelation(ev);
     }
     std::cout << std::endl;
 }

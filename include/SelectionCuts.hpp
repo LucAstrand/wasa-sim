@@ -5,7 +5,7 @@
 
 struct SelectionCuts {
     // for now some placeholders
-    int minChargedTracks      = 2.0;
+    int minChargedTracks      = 2;
     double minTotalEnergy     = 300.0; //--> MeV
     double minCorrectedEnergy = 300.0; 
     int minNeutralClusters    = 2;
@@ -23,7 +23,7 @@ bool PassesSelection(const EventVariables& ev,
     if (ev.correctedEnergy  < cuts.minCorrectedEnergy) return false;
     if (ev.nNeutralClusters < cuts.minNeutralClusters) return false;
     if (ev.sphericity       < cuts.minSphericity) return false;
-    if (ev.vertexRadius     < cuts.maxVertexRadius) return false;
+    if (ev.vertexRadius     > cuts.maxVertexRadius) return false;
     if (ev.nPi0Candidates   < cuts.minPi0Candidates) return false;
     return true;
 }

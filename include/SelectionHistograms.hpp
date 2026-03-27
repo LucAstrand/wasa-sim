@@ -2,7 +2,10 @@
 #define SELECTIONHISTOGRAMS_H
 
 #include "TH1F.h"
+#include "TH2F.h"
 #include "EventVariables.hpp"
+
+#include <vector>
 
 
 struct SelectionHistograms {
@@ -70,5 +73,81 @@ struct SelectionHistograms {
     }
 };
 
+struct CorrelationMatrix {
+
+    TH2F* hCorrelationMatrix = nullptr;
+    std::vector<std::string> varNames = {
+        "nCharged", "nNeutral", "Etotal", "Ecorrected",
+        "sphericity", "maxTrackAngle", "vertexRadius", "nPi0"
+    };
+    std::vector<std::vector<double>> varValues;
+
+    void BookCorrelation(const std::string& prefix) {
+        int nVars = varNames.size();
+        hCorrelationMatrix = new TH2F((prefix + "CorrelMatrix").c_str(), ";Variable;Variable", nVars,0,nVars, nVars,0,nVars);
+        for (int i=0; i<nVars; ++i) {
+            hCorrelationMatrix->GetXaxis()->SetBinLabel(i+1, varNames[i].c_str());
+            hCorrelationMatrix->GetYaxis()->SetBinLabel(i+1, varNames[i].c_str());
+        }
+        varValues.resize(nVars);
+        // hCorrelationMatrix->GetXaxis()->SetLabelOffset(-0.01);
+        // hCorrelationMatrix->GetYaxis()->SetLabelOffset(0.001);
+        // hCorrelationMatrix->GetXaxis()->LabelsOption("c");  // c = centered
+        // hCorrelationMatrix->GetYaxis()->LabelsOption("c");
+    }
+
+    void FillCorrelation(const EventVariables& ev) {
+        varValues[0].push_back(ev.nChargedTracks);
+        varValues[1].push_back(ev.nNeutralClusters);
+        varValues[2].push_back(ev.totalRecoEnergy);
+        varValues[3].push_back(ev.correctedEnergy);
+        varValues[4].push_back(ev.sphericity);
+        varValues[5].push_back(ev.maxTrackAngle);
+        varValues[6].push_back(ev.vertexRadius);
+        varValues[7].push_back(ev.nPi0Candidates);
+    }
+
+    void ComputeAndPlotCorrelations(const std::string& outDir, const std::string& label) {
+
+        int nVars = varNames.size();
+        int nEvents = varValues[0].size();
+        if (nEvents == 0) return;
+
+        // Pearson correlation coefficient
+        for (int i=0; i<nVars; ++i) {
+            for(int j=0; j<nVars; ++j) {
+                double meanI = 0, meanJ = 0;
+                for (int e=0; e<nEvents; ++e) {
+                    meanI += varValues[i][e];
+                    meanJ += varValues[j][e];
+                }
+                meanI /= nEvents;
+                meanJ /= nEvents;
+
+                double cov = 0, varI = 0, varJ = 0;
+                for (int e=0; e<nEvents; ++e) {
+                    double di = varValues[i][e] - meanI;
+                    double dj = varValues[j][e] - meanJ;
+                    cov  += di * dj;
+                    varI += di * di;
+                    varJ += dj * dj;
+                }
+
+                double corr = 0.0;
+                if (varI > 0 && varJ > 0) corr = cov / std::sqrt(varI*varJ);
+                hCorrelationMatrix->SetBinContent(i+1, j+1, corr);
+            }
+        }
+        // plot 
+        PlotOptions opts;
+        opts.drawOption = "COLZ TEXT"; // this draws the values in the cells, we shall see if it looks good :) 
+        opts.isHeatmap = true;
+        hCorrelationMatrix->SetMinimum(-1.0);
+        hCorrelationMatrix->SetMaximum(1.0);
+        Plot2D(hCorrelationMatrix, outDir + label + "_correlations.png", opts);
+        delete hCorrelationMatrix;
+    }
+
+};
 
 #endif

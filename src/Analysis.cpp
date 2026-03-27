@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
     DEDXTable dedxTABLE("dedx_tables_Ar80CO2.root");
 
     //Calibration procedure ----->>>> HAVE TO DOUBLE CHECK THIS LOGIC. A lot has changed SINCE THEN!!!!!
-    // 2026-03-23: removed the unused pi0_per event. The only other change is vertex related, but since this is jsut an energy counting thing does it even matter?
+    // 2026-03-23: removed the unused pi0_per event. The only other thing to change is vertex related, but since this is jsut an energy counting thing does it even matter?
     if (doCalibration) {
         DoCalibration(
             t,
@@ -160,16 +160,20 @@ int main(int argc, char **argv) {
     ChargedKECalibration calibration("chargedKE.root");
 
     SelectionHistograms hSelSig, hSelBkg;
+    CorrelationMatrix hCorrSig, hCorrBkg;
 
     if (doSelection) {
         hSelSig.Book("Sig");
         hSelBkg.Book("Bkg");
+        hCorrSig.BookCorrelation("Sig");
+        hCorrBkg.BookCorrelation("Bkg");
     }
 
     std::cout << "Processing signal..." << std::endl;
     RunSignalLoop(t, brVtx, dedxTABLE, calibration, cfg,
-                &hPi0, &hTruth, &hCharged, &hEvt,
-                doSelection ? &hSelSig : nullptr);
+                  &hPi0, &hTruth, &hCharged, &hEvt,
+                  doSelection ? &hSelSig  : nullptr,
+                  doSelection ? &hCorrSig : nullptr);
 
     if (doSelection) {
         //Open Background input file and branch setup
@@ -184,11 +188,13 @@ int main(int argc, char **argv) {
             return 1; 
         }
         std::cout << "Processing background..." << std::endl;
-        RunBackgroundLoop(tBkg, dedxTABLE, calibration, hSelBkg);
+        RunBackgroundLoop(tBkg, dedxTABLE, calibration, hSelBkg, hCorrBkg);
         fBkg->Close(); delete fBkg;
 
         // Selection plots Signal-Background(cosmic) overlaid
         hSelSig.PlotOverlay(hSelBkg, "Selection/");
+        hCorrSig.ComputeAndPlotCorrelations("Selection/", "Sig");
+        hCorrBkg.ComputeAndPlotCorrelations("Selection/", "Bkg");
     }
 
     // Other Analysis-related plotting 

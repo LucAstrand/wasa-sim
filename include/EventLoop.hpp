@@ -31,14 +31,16 @@ void RunSignalLoop(
     TruthHistograms* hTruth,
     ChargedHistograms* hCharged,
     EventVarHistograms* hEvt,
-    SelectionHistograms* hSel
+    SelectionHistograms* hSel,
+    CorrelationMatrix* hCorr
 );
 
 void RunBackgroundLoop(
     TTree* tree,
     const DEDXTable& dedxTable,
     const ChargedKECalibration& calibration,
-    SelectionHistograms& hSel
+    SelectionHistograms& hSel,
+    CorrelationMatrix& hCorr
 );
 
 #endif

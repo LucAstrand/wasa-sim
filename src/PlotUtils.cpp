@@ -18,14 +18,15 @@ void SetPrettyStyle() {
     std::filesystem::create_directories("plots");
     std::filesystem::create_directories("plots/preSelection");
     std::filesystem::create_directories("plots/postSelection");
-    std::filesystem::create_directories("plots/preSelection/plots/Neutral");
-    std::filesystem::create_directories("plots/preSelection/plots/Charged");
-    std::filesystem::create_directories("plots/preSelection/plots/Truth");
-    std::filesystem::create_directories("plots/preSelection/plots/EventVar");
-    std::filesystem::create_directories("plots/postSelection/plots/Neutral");
-    std::filesystem::create_directories("plots/postSelection/plots/Charged");
-    std::filesystem::create_directories("plots/postSelection/plots/Truth");
-    std::filesystem::create_directories("plots/postSelection/plots/EventVar");
+    std::filesystem::create_directories("plots/preSelection/Neutral");
+    std::filesystem::create_directories("plots/preSelection/Charged");
+    std::filesystem::create_directories("plots/preSelection/Truth");
+    std::filesystem::create_directories("plots/preSelection/EventVar");
+
+    std::filesystem::create_directories("plots/postSelection/Neutral");
+    std::filesystem::create_directories("plots/postSelection/Charged");
+    std::filesystem::create_directories("plots/postSelection/Truth");
+    std::filesystem::create_directories("plots/postSelection/EventVar");
     std::filesystem::create_directories("plots/Selection");
     gROOT->SetStyle("Plain");
     gStyle->SetOptStat(0);
