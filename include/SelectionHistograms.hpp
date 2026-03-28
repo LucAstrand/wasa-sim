@@ -18,6 +18,9 @@ struct SelectionHistograms {
     TH1F* hVertexRadius   = nullptr;
     TH1F* hNPi0           = nullptr;
 
+    // Container for cutflow
+    std::vector<EventVariables> collectedEvents;
+
     void Book(const std::string& prefix) {
         hNCharged      = new TH1F((prefix+"_nCharged").c_str(),
                             ";N charged tracks;Events", 10, -0.5, 9.5);
@@ -38,6 +41,7 @@ struct SelectionHistograms {
     }
 
     void Fill(const EventVariables& ev) {
+        // Fill Hists
         hNCharged      ->Fill(ev.nChargedTracks);
         hNNeutral      ->Fill(ev.nNeutralClusters);
         hEtotal        ->Fill(ev.totalRecoEnergy);
@@ -46,7 +50,9 @@ struct SelectionHistograms {
         hMaxTrackAngle ->Fill(ev.maxTrackAngle);
         hVertexRadius  ->Fill(ev.vertexRadius);
         hNPi0          ->Fill(ev.nPi0Candidates);
-    }
+        // Fill Container
+        collectedEvents.push_back(ev);
+    }   
     
     void PlotOverlay(const SelectionHistograms& bkg, 
                      const std::string& outDir) {

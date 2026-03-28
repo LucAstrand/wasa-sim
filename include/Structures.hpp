@@ -156,6 +156,9 @@ struct EtaPhiTowerKey {
 };
 
 struct EventVariables {
+    // Book keeping 
+    int eventNumber          = 0;   // Event number, from MCPL / GEANT4 --> purely a book keeping varible 
+
     // Multiplicity
     int nChargedTracks       = 0;   // TPC track count (excl electrons)
     int nNeutralClusters     = 0;   // neutral cluster count

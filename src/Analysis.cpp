@@ -195,6 +195,16 @@ int main(int argc, char **argv) {
         hSelSig.PlotOverlay(hSelBkg, "Selection/");
         hCorrSig.ComputeAndPlotCorrelations("Selection/", "Sig");
         hCorrBkg.ComputeAndPlotCorrelations("Selection/", "Bkg");
+
+        Cutflow flow;
+        flow.Init(hSelSig.collectedEvents.size(),
+                  hSelBkg.collectedEvents.size());
+        flow.Evaluate(hSelSig.collectedEvents,
+                      hSelBkg.collectedEvents,
+                      SelectionCuts{} /* See the struct for the default cuts*/);
+        flow.Print();
+        flow.PlotCutflow("Selection/cutflow.png");
+
     }
 
     // Other Analysis-related plotting 

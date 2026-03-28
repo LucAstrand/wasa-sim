@@ -1,8 +1,9 @@
 #include "EventVariables.hpp"
 
 EventVariables ComputeEventVariables(
+    const int& eventNumber,
     const RecoEvent& reco,
-    const TVector3 vertex,
+    const TVector3& vertex,
     const ChargedKECalibration& calibration
 ) {
     EventVariables ev;

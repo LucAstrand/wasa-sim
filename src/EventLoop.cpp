@@ -414,7 +414,7 @@ void RunSignalLoop(
             if (hEvt->hNPionMult) hEvt->hNPionMult->Fill(pi0_per_event[ievt], reco.nPionMultiplicity);
             if (hEvt->hChPionMult) hEvt->hChPionMult->Fill(chPi_per_event[ievt], reco.chPionMultiplicity);
 
-            EventVariables ev = ComputeEventVariables(reco, vertex, calibration);
+            EventVariables ev = ComputeEventVariables(ievt, reco, vertex, calibration);
             // if (ievt < 5) {  // print first 5 events
             //     std::cout << "[EventVars] nCharged=" << ev.nChargedTracks
             //             << " nNeutral=" << ev.nNeutralClusters
@@ -486,7 +486,7 @@ void RunBackgroundLoop(
 
         RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex, dedxTable);
 
-        EventVariables ev = ComputeEventVariables(reco, vertex, calibration);
+        EventVariables ev = ComputeEventVariables(ievt, reco, vertex, calibration);
         // if (ievt < 5) {  // print first 5 events
         //     std::cout << "[EventVars] nCharged=" << ev.nChargedTracks
         //             << " nNeutral=" << ev.nNeutralClusters
