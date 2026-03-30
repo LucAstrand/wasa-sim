@@ -22,6 +22,8 @@ find_package(ROOT REQUIRED COMPONENTS
     Gpad
     Gui
     Physics
+    RooFit
+    RooFitCore
 )
 
 message(STATUS "ROOTSYS = $ENV{ROOTSYS}")
@@ -43,6 +45,7 @@ add_executable(Analysis
     src/RecoEvent.cpp 
     src/Calibration.cpp 
     src/EventVariables.cpp
+    src/RunABCD.cpp
 )
 
 target_include_directories(Analysis PRIVATE include)
@@ -60,6 +63,8 @@ target_link_libraries(Analysis
     ROOT::Gpad
     ROOT::Gui
     ROOT::Physics
+    ROOT::RooFit
+    ROOT::RooFitCore
 )
 
 # ------------------------------------------------------------------

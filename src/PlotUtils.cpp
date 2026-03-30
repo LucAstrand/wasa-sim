@@ -16,17 +16,22 @@
 
 void SetPrettyStyle() {
     std::filesystem::create_directories("plots");
-    std::filesystem::create_directories("plots/preSelection");
-    std::filesystem::create_directories("plots/postSelection");
-    std::filesystem::create_directories("plots/preSelection/Neutral");
-    std::filesystem::create_directories("plots/preSelection/Charged");
-    std::filesystem::create_directories("plots/preSelection/Truth");
-    std::filesystem::create_directories("plots/preSelection/EventVar");
+    // std::filesystem::create_directories("plots/preSelection");
+    // std::filesystem::create_directories("plots/postSelection");
+    // std::filesystem::create_directories("plots/preSelection/Neutral");
+    // std::filesystem::create_directories("plots/preSelection/Charged");
+    // std::filesystem::create_directories("plots/preSelection/Truth");
+    // std::filesystem::create_directories("plots/preSelection/EventVar");
 
-    std::filesystem::create_directories("plots/postSelection/Neutral");
-    std::filesystem::create_directories("plots/postSelection/Charged");
-    std::filesystem::create_directories("plots/postSelection/Truth");
-    std::filesystem::create_directories("plots/postSelection/EventVar");
+    // std::filesystem::create_directories("plots/postSelection/Neutral");
+    // std::filesystem::create_directories("plots/postSelection/Charged");
+    // std::filesystem::create_directories("plots/postSelection/Truth");
+    // std::filesystem::create_directories("plots/postSelection/EventVar");
+    
+    std::filesystem::create_directories("plots/Neutral");
+    std::filesystem::create_directories("plots/Charged");
+    std::filesystem::create_directories("plots/Truth");
+    std::filesystem::create_directories("plots/EventVar");
     std::filesystem::create_directories("plots/Selection");
     gROOT->SetStyle("Plain");
     gStyle->SetOptStat(0);
@@ -328,7 +333,7 @@ void Plot2DOverlay(
     if (options.addTopLatex)
         AddTopLatex(c.get(), options.topLatex);
 
-    c->SetLogx();
+    // c->SetLogx();
     // TColor::InvertPalette();
     SavePlot(c.get(), plotname);
 }

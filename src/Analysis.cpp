@@ -35,6 +35,7 @@
 #include "Calibration.hpp"
 #include "EventVariables.hpp"
 #include "SelectionCuts.hpp"
+#include "RunABCD.hpp"
 
 void MyErrorHandler(int level, Bool_t abort, const char* location, const char* msg)
 {
@@ -205,14 +206,31 @@ int main(int argc, char **argv) {
         flow.Print();
         flow.PlotCutflow("Selection/cutflow.png");
 
+        // ABCD
+        ABCDResult abcd = RunABCD(
+            hSelSig.collectedEvents,
+            hSelBkg.collectedEvents,
+            [](const EventVariables& ev){ return ev.correctedEnergy; },
+            [](const EventVariables& ev){ return ev.sphericity; },
+            400.0,   // energy threshold - tune from your distributions
+            0.4,     // sphericity threshold - tune from your distributions
+            "TotalRecoEnergy",
+            "Sphericity",
+            "plots/Selection/"
+        );
+
     }
 
     // Other Analysis-related plotting 
 
-    if (cfg.doPi0Analysis)     { hPi0.Plot(nentries, "preSelection/"); hPi0.Cleanup();     }
-    if (cfg.doTruthAnalysis)   { hTruth.Plot("preSelection/");         hTruth.Cleanup();   }
-    if (cfg.doChargedAnalysis) { hCharged.Plot("preSelection/");       hCharged.Cleanup(); }
-    if (cfg.doEventVariables)  { hEvt.Plot("preSelection/");           hEvt.Cleanup();     }
+    // if (cfg.doPi0Analysis)     { hPi0.Plot(nentries, "preSelection/"); hPi0.Cleanup();     }
+    // if (cfg.doTruthAnalysis)   { hTruth.Plot("preSelection/");         hTruth.Cleanup();   }
+    // if (cfg.doChargedAnalysis) { hCharged.Plot("preSelection/");       hCharged.Cleanup(); }
+    // if (cfg.doEventVariables)  { hEvt.Plot("preSelection/");           hEvt.Cleanup();     }
+    if (cfg.doPi0Analysis)     { hPi0.Plot(nentries, "Neutral/"); hPi0.Cleanup();     }
+    if (cfg.doTruthAnalysis)   { hTruth.Plot("Truth/");           hTruth.Cleanup();   }
+    if (cfg.doChargedAnalysis) { hCharged.Plot("Charged/");       hCharged.Cleanup(); }
+    if (cfg.doEventVariables)  { hEvt.Plot("EventVar/");          hEvt.Cleanup();     }
 
     f->Close(); delete f;
     return 0;
