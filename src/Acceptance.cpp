@@ -69,11 +69,11 @@ Acceptance::Acceptance(const std::string& tag, int nBins, double xMin, double xM
 
 void Acceptance::Pi0ProcessSignalEvent(const std::vector<TruePi0>& truePi0s, const std::vector<primaryPi0>& primaryPi0s) {
 
-    for (const auto& p : primaryPi0s) h_den_->Fill(p.p4.E());
+    for (const auto& p : primaryPi0s) h_den_->Fill(p.p4.E() - p.p4.M());
 
     std::unordered_map<int, double> genEkin;
     genEkin.reserve(primaryPi0s.size());
-    for (const auto& p : primaryPi0s) genEkin.emplace(p.trackID, p.p4.E());
+    for (const auto& p : primaryPi0s) genEkin.emplace(p.trackID, p.p4.E() - p.p4.M());
 
     for (const auto& d : truePi0s) {
         auto it = genEkin.find(d.trackID);

@@ -6,15 +6,6 @@ std::vector<TruePhoton> TruePhotonBuilder(
 {
     std::vector<TruePhoton> outPhotons;
 
-    // Sanity check
-    // if (hits.size() != 2) {
-    //     // std::cerr << "[TruePhotonBuilder] Expected exactly 2 hits, got "
-    //     //           << hits.size() << std::endl;
-    //     std::cout << "[TruePhotonBuilder] Expected exactly 2 hits, got "
-    //               << hits.size() << std::endl;
-    //     return outPhotons;
-    // }
-
     for (const auto &hit : hits) {
         // Direction from vertex to hit position
         TVector3 dir(hit.x - vertex.X(),
@@ -38,10 +29,6 @@ std::vector<TruePi0> TruePi0Builder(const std::vector<TruePhoton>& photons)
     std::unordered_map<int, TruePi0> pi0map;
 
     for (const auto& g : photons) {
-        // if (g.parentPdg != 111) continue; // by construction the photons are from pi0s (from GEANT4)
-
-        // std::cout << "[TruePi0Builder] photon parentID: " << g.parentID << std::endl;
-
         auto& pi0 = pi0map[g.parentID];
         pi0.trackID = g.parentID;
         pi0.photons.push_back(&g);

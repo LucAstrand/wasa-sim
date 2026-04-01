@@ -42,7 +42,7 @@ bool Pi0Efficiency::IsReco(const TruePi0& tpi0, const std::vector<Pi0Candidate>&
 
 void Pi0Efficiency::ProcessEvent(const std::vector<TruePi0>& truePi0s, const std::vector<Pi0Candidate>& recoPi0s, const std::vector<Cluster>& clusters) {
     for (const auto& tpi0 : truePi0s) {
-        double E = tpi0.p4.E();
+        double E = tpi0.p4.E() - tpi0.p4.M();
         h_den_->Fill(E);
         if (IsReco(tpi0, recoPi0s, clusters)) h_num_->Fill(E);
     }

@@ -21,7 +21,7 @@ EventVariables ComputeEventVariables(
     ev.EM_energy = reco.EM_energy;
     double calibratedKE = calibration.GetMeanKE(reco.chargedClusters.size(), ev.EM_energy);
     ev.correctedEnergy = ev.EM_energy + calibratedKE;
-    ev.totalRecoEnergy = reco.EM_energy + ev.chargedEnergy; // this is just not correct... charged energy is included in EM energy
+    ev.totalRecoEnergy = reco.EM_energy; // + ev.chargedEnergy; // this is just not correct... charged energy is included in EM energy
     ev.nPi0Candidates = reco.nPionMultiplicity;
 
     //proxy sphericity using direction * totalE instead of momentum vector --> this should still give us spatial information about the event

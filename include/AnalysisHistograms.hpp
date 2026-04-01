@@ -40,7 +40,7 @@ struct Pi0Histograms {
 
     void Plot(int nentries, const std::string& outDir) {
         PlotOptions opts;
-        opts.doFit = true; opts.fitMin = 100; opts.fitMax = 170;
+        opts.doFit = true; // opts.fitMin = 100; opts.fitMax = 170; use the full range?
         opts.addInfoPave = true;
         opts.infoLines = {"Signal Dataset", Form("%d Events", nentries)};
         Plot1D({hMass}, {kBlack}, outDir + "Pi0InvMass.png", opts);

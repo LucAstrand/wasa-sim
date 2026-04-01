@@ -53,14 +53,17 @@ void RunSignalLoop(
         primaryChPis.clear();
         pi0_per_event.push_back(0);
         chPi_per_event.push_back(0);
+        double pi0M  = 134.977;
+        double pipmM = 139.570;
         for (size_t i=0; i<nPrimaries; ++i) {
             if ((*br.primaryPDG)[i] == 111) { // pi0
                 pi0_per_event[ievt]++;
-                primaryPi0s.push_back({(*br.primaryTrackID)[i], TLorentzVector(TVector3((*br.primaryPx)[i], (*br.primaryPy)[i], (*br.primaryPz)[i]), (*br.primaryEkin)[i])});
+                // std::cout << "[HELLO] pPi0 Ekin: " << (*br.primaryEkin)[i] << std::endl;
+                primaryPi0s.push_back({(*br.primaryTrackID)[i], TLorentzVector(TVector3((*br.primaryPx)[i], (*br.primaryPy)[i], (*br.primaryPz)[i]), (*br.primaryEkin)[i] + pi0M)});
             }
             if (std::abs((*br.primaryPDG)[i]) == 211) { // pi+-
                 chPi_per_event[ievt]++;
-                primaryChPis.push_back({(*br.primaryTrackID)[i], TLorentzVector(TVector3((*br.primaryPx)[i], (*br.primaryPy)[i], (*br.primaryPz)[i]), (*br.primaryEkin)[i])});
+                primaryChPis.push_back({(*br.primaryTrackID)[i], TLorentzVector(TVector3((*br.primaryPx)[i], (*br.primaryPy)[i], (*br.primaryPz)[i]), (*br.primaryEkin)[i] + pipmM)});
             }
         }
         hits.clear();
@@ -114,8 +117,13 @@ void RunSignalLoop(
             }
             truePhotons = TruePhotonBuilder(trueHits, vertex);
             truePi0s = TruePi0Builder(truePhotons);
-            for (TruePi0 tpi0 : truePi0s) {
-                if (hTruth->hTrueMass) hTruth->hTrueMass->Fill(tpi0.p4.M());
+            // for (TruePi0 tpi0 : truePi0s) {
+            //     if (hTruth->hTrueMass) hTruth->hTrueMass->Fill(tpi0.p4.M());
+            // }
+
+            for (primaryPi0 pPi0 : primaryPi0s) {
+                // std::cout << "[HELLO] pPi0 M: " << pPi0.p4.M() << std::endl;
+                if (hTruth->hTrueMass) hTruth->hTrueMass->Fill(pPi0.p4.M());
             }
         }
 
