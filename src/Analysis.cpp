@@ -210,11 +210,11 @@ int main(int argc, char **argv) {
         ABCDResult abcd = RunABCD(
             hSelSig.collectedEvents,
             hSelBkg.collectedEvents,
-            // [](const EventVariables& ev){ return ev.correctedEnergy; },
-            [](const EventVariables& ev){ return ev.totalRecoEnergy; },
+            [](const EventVariables& ev){ return ev.correctedEnergy; },
+            // [](const EventVariables& ev){ return ev.totalRecoEnergy; },
             [](const EventVariables& ev){ return ev.sphericity; },
-            400.0,   // energy threshold - tune from your distributions
-            0.4,     // sphericity threshold - tune from your distributions
+            250.0,   
+            0.08,     
             "TotalRecoEnergy",
             "Sphericity",
             "plots/Selection/"
