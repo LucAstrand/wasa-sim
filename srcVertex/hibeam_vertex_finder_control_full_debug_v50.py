@@ -8,7 +8,7 @@ Standalone HIBEAM-style vertex finder + rich control plots.
 - Can optionally read a steering card (hibeam_vertex_new.card) to override defaults.
 - Produces:
     * vertices CSV  (one row per fitted vertex candidate)
-    * residuals CSV (one row per trackvertex association)
+    * residuals CSV (one row per track vertex association)
     * diagnostics PDF with many control plots matching the user's spec.
 
 Assumptions about input CSV columns (can be overridden via CLI):
@@ -1370,7 +1370,7 @@ def main():
 
     parser.add_argument("--min-comb", dest="min_comb", type=int, default=2)
     # parser.add_argument("--min-comb", dest="min_comb", type=int, default=3)
-    parser.add_argument("--max-comb", dest="max_comb", type=int, default=4)
+    parser.add_argument("--max-comb", dest="max_comb", type=int, default=6)
 
     parser.add_argument("--z-constraint", dest="z_constraint", type=float, default=0.0)
 
