@@ -179,9 +179,10 @@ struct BranchManagerVertex {
 
             if (better) {
                 cur.has      = true;
-                cur.x        = vtx_x;
-                cur.y        = vtx_y;
-                cur.z        = vtx_z;
+                // cur.x        = vtx_x;
+                // cur.y        = vtx_y;
+                // cur.z        = vtx_z;
+                cur.vertexVec = TVector3{vtx_x, vtx_y, vtx_z};
                 cur.n_tracks = n_tracks;
                 cur.chi2ndf  = chi2ndf;
             }
@@ -207,17 +208,13 @@ struct BranchManagerVertex {
     Vtx GetVertex(Long64_t ievt, const TVector3& fallback) const {
         if (ievt >= 0 && ievt < (Long64_t)bestVtx.size() 
             && bestVtx[ievt].has) {
-            return TVector3(bestVtx[ievt].x, 
-                           bestVtx[ievt].y, 
-                           bestVtx[ievt].z);
+            return bestVtx[ievt];
         }
         else {
             Vtx vertex;
-            vertex.x = fallback.X();
-            vertex.y = fallback.Y();
-            vertex.z = fallback.Z();
-            return vertex
-        }
+            vertex.vertexVec = fallback;
+            return vertex;
+        };
     }
 };
 

@@ -5,25 +5,38 @@
 
 struct SelectionCuts {
     // for now some placeholders
+    // int minChargedTracks      = 2;
+    // double minTotalEnergy     = 300.0; //--> MeV
+    // double minCorrectedEnergy = 300.0; 
+    // int minNeutralClusters    = 2;
+    // double minSphericity      = 0.3;   // we need to establish if this, since we use proxy momentum is okay! 
+    // double maxVertexRadius    = 5.0;   //--> cm
+    // int minPi0Candidates      = 1;     // could also have a min pi+- candidates etc...
+
+    bool hasVertex            = true; 
     int minChargedTracks      = 2;
     double minTotalEnergy     = 300.0; //--> MeV
-    double minCorrectedEnergy = 300.0; 
-    int minNeutralClusters    = 2;
-    double minSphericity      = 0.3;   // we need to establish if this, since we use proxy momentum is okay! 
-    double maxVertexRadius    = 5.0;   //--> cm
     int minPi0Candidates      = 1;     // could also have a min pi+- candidates etc...
+    // double minSphericity      = 0.3;   // we need to establish if this, since we use proxy momentum is okay! 
+
 };
 
 bool PassesSelection(const EventVariables& ev,
                      const SelectionCuts& cuts)
 {
+    // if (ev.nChargedTracks   < cuts.minChargedTracks) return false;
+    // if (ev.totalRecoEnergy  < cuts.minTotalEnergy) return false;
+    // if (ev.correctedEnergy  < cuts.minCorrectedEnergy) return false;
+    // if (ev.nNeutralClusters < cuts.minNeutralClusters) return false;
+    // if (ev.sphericity       < cuts.minSphericity) return false;
+    // if (ev.vertexRadius     > cuts.maxVertexRadius) return false;
+    // if (ev.nPi0Candidates   < cuts.minPi0Candidates) return false;
+
+    if (ev.hasVertex        != cuts.hasVertex) return false;
     if (ev.nChargedTracks   < cuts.minChargedTracks) return false;
     if (ev.totalRecoEnergy  < cuts.minTotalEnergy) return false;
-    if (ev.correctedEnergy  < cuts.minCorrectedEnergy) return false;
-    if (ev.nNeutralClusters < cuts.minNeutralClusters) return false;
-    if (ev.sphericity       < cuts.minSphericity) return false;
-    if (ev.vertexRadius     > cuts.maxVertexRadius) return false;
     if (ev.nPi0Candidates   < cuts.minPi0Candidates) return false;
+    // if (ev.sphericity       < cuts.minSphericity) return false;
     return true;
 }
 
@@ -51,44 +64,73 @@ struct Cutflow {
 
         // Define cuts in order - each lambda applies all cuts up to and including this one
         // This gives you a sequential cutflow (each row = all previous cuts + this one)
+        // std::vector<std::pair<std::string, std::function<bool(const EventVariables&)>>> cutList = {
+        //     {"nCharged >= " + std::to_string(c.minChargedTracks),
+        //         [&](const EventVariables& ev){ 
+        //             return ev.nChargedTracks >= c.minChargedTracks; }},                
+        //     {"nNeutral >= " + std::to_string(c.minNeutralClusters),
+        //         [&](const EventVariables& ev){ 
+        //             return ev.nChargedTracks >= c.minChargedTracks &&
+        //                    ev.nNeutralClusters >= c.minNeutralClusters; }},
+        //     {"Etotal > " + std::to_string((int)c.minTotalEnergy) + " MeV",
+        //         [&](const EventVariables& ev){ 
+        //             return ev.nChargedTracks >= c.minChargedTracks &&
+        //                    ev.nNeutralClusters >= c.minNeutralClusters &&
+        //                    ev.totalRecoEnergy > c.minTotalEnergy; }},
+        //     {"Ecorr > " + std::to_string((int)c.minCorrectedEnergy) + " MeV",
+        //         [&](const EventVariables& ev){ 
+        //             return ev.nChargedTracks >= c.minChargedTracks &&
+        //                    ev.nNeutralClusters >= c.minNeutralClusters &&
+        //                    ev.totalRecoEnergy > c.minTotalEnergy &&
+        //                    ev.correctedEnergy > c.minCorrectedEnergy; }},
+        //     {"sphericity > " + std::to_string(c.minSphericity),
+        //         [&](const EventVariables& ev){ 
+        //             return ev.nChargedTracks >= c.minChargedTracks &&
+        //                    ev.nNeutralClusters >= c.minNeutralClusters &&
+        //                    ev.totalRecoEnergy > c.minTotalEnergy &&
+        //                    ev.correctedEnergy > c.minCorrectedEnergy &&
+        //                    ev.sphericity > c.minSphericity; }},
+        //     {"vtxR < " + std::to_string((int)c.maxVertexRadius) + " cm",
+        //         [&](const EventVariables& ev){ 
+        //             return ev.nChargedTracks >= c.minChargedTracks &&
+        //                    ev.nNeutralClusters >= c.minNeutralClusters &&
+        //                    ev.totalRecoEnergy > c.minTotalEnergy &&
+        //                    ev.correctedEnergy > c.minCorrectedEnergy &&
+        //                    ev.sphericity > c.minSphericity &&
+        //                    ev.vertexRadius < c.maxVertexRadius; }},
+        //     {"nPi0 >= " + std::to_string(c.minPi0Candidates),
+        //         [&](const EventVariables& ev){ 
+        //             return PassesSelection(ev, c); }}  // final = all cuts
+        // };
         std::vector<std::pair<std::string, std::function<bool(const EventVariables&)>>> cutList = {
+
+            {"hasVertex != " + std::to_string(c.hasVertex),
+                [&](const EventVariables& ev){ 
+                    return ev.hasVertex != c.hasVertex; }},  
+
             {"nCharged >= " + std::to_string(c.minChargedTracks),
                 [&](const EventVariables& ev){ 
-                    return ev.nChargedTracks >= c.minChargedTracks; }},
-            {"nNeutral >= " + std::to_string(c.minNeutralClusters),
-                [&](const EventVariables& ev){ 
-                    return ev.nChargedTracks >= c.minChargedTracks &&
-                           ev.nNeutralClusters >= c.minNeutralClusters; }},
+                    return ev.hasVertex != c.hasVertex &&
+                           ev.nChargedTracks >= c.minChargedTracks; }},  
+
             {"Etotal > " + std::to_string((int)c.minTotalEnergy) + " MeV",
                 [&](const EventVariables& ev){ 
-                    return ev.nChargedTracks >= c.minChargedTracks &&
-                           ev.nNeutralClusters >= c.minNeutralClusters &&
+                    return ev.hasVertex != c.hasVertex &&
+                           ev.nChargedTracks >= c.minChargedTracks &&
                            ev.totalRecoEnergy > c.minTotalEnergy; }},
-            {"Ecorr > " + std::to_string((int)c.minCorrectedEnergy) + " MeV",
-                [&](const EventVariables& ev){ 
-                    return ev.nChargedTracks >= c.minChargedTracks &&
-                           ev.nNeutralClusters >= c.minNeutralClusters &&
-                           ev.totalRecoEnergy > c.minTotalEnergy &&
-                           ev.correctedEnergy > c.minCorrectedEnergy; }},
-            {"sphericity > " + std::to_string(c.minSphericity),
-                [&](const EventVariables& ev){ 
-                    return ev.nChargedTracks >= c.minChargedTracks &&
-                           ev.nNeutralClusters >= c.minNeutralClusters &&
-                           ev.totalRecoEnergy > c.minTotalEnergy &&
-                           ev.correctedEnergy > c.minCorrectedEnergy &&
-                           ev.sphericity > c.minSphericity; }},
-            {"vtxR < " + std::to_string((int)c.maxVertexRadius) + " cm",
-                [&](const EventVariables& ev){ 
-                    return ev.nChargedTracks >= c.minChargedTracks &&
-                           ev.nNeutralClusters >= c.minNeutralClusters &&
-                           ev.totalRecoEnergy > c.minTotalEnergy &&
-                           ev.correctedEnergy > c.minCorrectedEnergy &&
-                           ev.sphericity > c.minSphericity &&
-                           ev.vertexRadius < c.maxVertexRadius; }},
+
+
             {"nPi0 >= " + std::to_string(c.minPi0Candidates),
                 [&](const EventVariables& ev){ 
-                    return PassesSelection(ev, c); }}  // final = all cuts
-        };
+                    return ev.hasVertex != c.hasVertex &&
+                           ev.nChargedTracks >= c.minChargedTracks &&
+                           ev.totalRecoEnergy > c.minTotalEnergy &&
+                           ev.nPi0Candidates > c.minPi0Candidates; }},
+                        
+            // {"sphericity > " + std::to_string(c.minSphericity),
+            //     [&](const EventVariables& ev){ 
+            //         return PassesSelection(ev, c); }};  // final = all cuts
+            };
 
         cuts.clear();
         for (auto& [name, cutFn] : cutList) {

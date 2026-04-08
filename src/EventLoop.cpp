@@ -45,8 +45,8 @@ void RunSignalLoop(
         // EVENT Vertices
         if (!br.primaryX||br.primaryX->empty()) continue;
         TVector3 tVertexVec((*br.primaryX)[0], (*br.primaryY)[0], (*br.primaryZ)[0]);
-        TVector3 vertex = brVtx.GetVertex(ievt, tVertexVec);  // falls back to truth if no reco vertex
-    
+        Vtx vertex = brVtx.GetVertex(ievt, tVertexVec);  // falls back to truth if no reco vertex
+
         // Build true pi0s and Pi+-
         size_t nPrimaries = br.primaryPDG->size();
         primaryPi0s.clear();
@@ -101,7 +101,7 @@ void RunSignalLoop(
                 if (!br.TPC_Edep || !br.TPC_firstPosX || !br.TPC_lastPosX) continue;
                 chargedTracks.push_back(
                     {(*br.TPC_trackID)[k],
-                    vertex,
+                    vertex.vertexVec,
                     TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]),
                     TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]) - TVector3((*br.TPC_firstPosX)[k], (*br.TPC_firstPosY)[k], (*br.TPC_firstPosZ)[k]),
                     (*br.TPC_TrueKE)[k], (*br.TPC_pdg)[k], (*br.TPC_dEdx)[k], (*br.TPC_smearedEdep)[k], (*br.TPC_PathLength)[k], 0 /* Placeholder */, 0.15, (*br.TPC_nSteps)[k]});
@@ -115,7 +115,7 @@ void RunSignalLoop(
             for (size_t k=0; k<nTrueHits; ++k) {
                 trueHits.push_back({(*br.truePhotonPosX)[k], (*br.truePhotonPosY)[k], (*br.truePhotonPosZ)[k], (*br.truePhotonE)[k], (*br.truePhotonTrackID)[k], (*br.truePhotonParentID)[k]});
             }
-            truePhotons = TruePhotonBuilder(trueHits, vertex);
+            truePhotons = TruePhotonBuilder(trueHits, vertex.vertexVec);
             truePi0s = TruePi0Builder(truePhotons);
             // for (TruePi0 tpi0 : truePi0s) {
             //     if (hTruth->hTrueMass) hTruth->hTrueMass->Fill(tpi0.p4.M());
@@ -130,7 +130,7 @@ void RunSignalLoop(
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
         // Reconstruct Event
-        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex, dedxTable);
+        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex.vertexVec, dedxTable);
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
@@ -182,7 +182,7 @@ void RunSignalLoop(
 
             if (cfg.doChargedAnalysis) {
                 // add photons built from conversions!
-                std::vector<ConversionCandidate> conversions = FindConversions(reco.chargedClusters, vertex);
+                std::vector<ConversionCandidate> conversions = FindConversions(reco.chargedClusters, vertex.vertexVec);
                 reco.clusters.reserve(reco.clusters.size() + conversions.size());
 
                 for (const auto& conv : conversions) {
@@ -467,7 +467,9 @@ void RunBackgroundLoop(
         if (!br.energies   || br.energies->empty())   continue;
 
         // Have to fix vertexing for the background! 
-        TVector3 vertex(0, 0, 0);
+        // TVector3 vertex(0, 0, 0);
+        Vtx vertex;
+        vertex.vertexVec = TVector3{0,0,0};
 
         // Build hits
         hits.clear();
@@ -481,7 +483,7 @@ void RunBackgroundLoop(
         if (br.TPC_Edep) {
             for (size_t k = 0; k < br.TPC_Edep->size(); ++k) {
                 chargedTracks.push_back({
-                    (*br.TPC_trackID)[k], vertex,
+                    (*br.TPC_trackID)[k], vertex.vertexVec,
                     TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]),
                     TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k])
                   - TVector3((*br.TPC_firstPosX)[k],(*br.TPC_firstPosY)[k],(*br.TPC_firstPosZ)[k]),
@@ -492,7 +494,7 @@ void RunBackgroundLoop(
             }
         }
 
-        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex, dedxTable);
+        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex.vertexVec, dedxTable);
 
         EventVariables ev = ComputeEventVariables(ievt, reco, vertex, calibration);
         // if (ievt < 5) {  // print first 5 events

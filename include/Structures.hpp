@@ -13,7 +13,8 @@
 
 struct Vtx {
     bool has = false;
-    double x=0, y=0, z=0;
+    // double x=0, y=0, z=0;
+    TVector3 vertexVec{0,0,0};
     int n_tracks = 0;
     double chi2ndf = 1e99;
 };
@@ -176,8 +177,8 @@ struct EventVariables {
     
     // Topology
     double sphericity        = 0.0; // 0=pencil-like, 1=isotropic
-    double maxTrackAngle     = 0.0; // largest opening angle between any two tracks
     double vertexRadius      = 0.0; // transverse distance of vertex from beam axis
+    // double maxTrackAngle     = 0.0; // largest opening angle between any two tracks
     
     // PID based
     int nPionCandidates      = 0;   // tracks with pidGuess == Pion

@@ -8,10 +8,16 @@
 #include "TMatrixDSym.h"
 #include "TVectorD.h"
 
+// EventVariables ComputeEventVariables(
+//     const int& eventNumber, 
+//     const RecoEvent& reco,
+//     const TVector3& vertex, 
+//     const ChargedKECalibration& calibration
+// );
 EventVariables ComputeEventVariables(
     const int& eventNumber, 
     const RecoEvent& reco,
-    const TVector3& vertex, 
+    const Vtx& vertex, 
     const ChargedKECalibration& calibration
 );
 

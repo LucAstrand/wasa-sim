@@ -1,13 +1,21 @@
 #include "EventVariables.hpp"
 
+// EventVariables ComputeEventVariables(
+//     const int& eventNumber,
+//     const RecoEvent& reco,
+//     const TVector3& vertex,
+//     const ChargedKECalibration& calibration
+// ) {
 EventVariables ComputeEventVariables(
     const int& eventNumber,
     const RecoEvent& reco,
-    const TVector3& vertex,
+    const Vtx& vertex,
     const ChargedKECalibration& calibration
 ) {
     EventVariables ev;
 
+    if (vertex.has) ev.hasVertex = true;
+    
     //count related variables
     for (const auto& cl : reco.chargedClusters) {
         if (cl.isOrphanElectron || cl.isUsedInConversion) continue;
@@ -55,19 +63,21 @@ EventVariables ComputeEventVariables(
         ev.sphericity = 1.5 * (lam[1] + lam[2]); 
     }
 
-    // max opening angle between tracks --> IDK if this is a really good metric
-    const auto& ccs = reco.chargedClusters;
-    for (size_t i = 0; i < ccs.size(); ++i) {
-        if (ccs[i].isOrphanElectron || ccs[i].isUsedInConversion) continue;
-        for (size_t j = i+1; j < ccs.size(); ++j) {
-            if (ccs[j].isOrphanElectron || ccs[j].isUsedInConversion) continue;
-            double angle = ccs[i].direction.Angle(ccs[j].direction);
-            ev.maxTrackAngle = std::max(ev.maxTrackAngle, angle);
-        }
-    }
+    // // max opening angle between tracks --> IDK if this is a really good metric
+    // const auto& ccs = reco.chargedClusters;
+    // for (size_t i = 0; i < ccs.size(); ++i) {
+    //     if (ccs[i].isOrphanElectron || ccs[i].isUsedInConversion) continue;
+    //     for (size_t j = i+1; j < ccs.size(); ++j) {
+    //         if (ccs[j].isOrphanElectron || ccs[j].isUsedInConversion) continue;
+    //         double angle = ccs[i].direction.Angle(ccs[j].direction);
+    //         ev.maxTrackAngle = std::max(ev.maxTrackAngle, angle);
+    //     }
+    // }
 
     // Vertex radius
-    ev.vertexRadius = vertex.Perp();
+    ev.vertexRadius = vertex.vertexVec.Perp(); // the perpendicular component to the Z-axis --> radius on the disk.
+
+
 
     return ev;
 
