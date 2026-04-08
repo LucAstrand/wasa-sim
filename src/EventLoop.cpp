@@ -44,9 +44,9 @@ void RunSignalLoop(
 
         // EVENT Vertices
         if (!br.primaryX||br.primaryX->empty()) continue;
-        TVector3 tVertex((*br.primaryX)[0], (*br.primaryY)[0], (*br.primaryZ)[0]);
-        TVector3 vertex = brVtx.GetVertex(ievt, tVertex);  // falls back to truth if no reco vertex
-
+        TVector3 tVertexVec((*br.primaryX)[0], (*br.primaryY)[0], (*br.primaryZ)[0]);
+        TVector3 vertex = brVtx.GetVertex(ievt, tVertexVec);  // falls back to truth if no reco vertex
+    
         // Build true pi0s and Pi+-
         size_t nPrimaries = br.primaryPDG->size();
         primaryPi0s.clear();

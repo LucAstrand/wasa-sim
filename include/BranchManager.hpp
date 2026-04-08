@@ -193,15 +193,31 @@ struct BranchManagerVertex {
                   << " / " << nentries << " events\n";
     }
 
+    // // Convenience getter for a given event
+    // TVector3 GetVertex(Long64_t ievt, const TVector3& fallback) const {
+    //     if (ievt >= 0 && ievt < (Long64_t)bestVtx.size() 
+    //         && bestVtx[ievt].has) {
+    //         return TVector3(bestVtx[ievt].x, 
+    //                        bestVtx[ievt].y, 
+    //                        bestVtx[ievt].z);
+    //     }
+    //     return fallback;
+    // }
     // Convenience getter for a given event
-    TVector3 GetVertex(Long64_t ievt, const TVector3& fallback) const {
+    Vtx GetVertex(Long64_t ievt, const TVector3& fallback) const {
         if (ievt >= 0 && ievt < (Long64_t)bestVtx.size() 
             && bestVtx[ievt].has) {
             return TVector3(bestVtx[ievt].x, 
                            bestVtx[ievt].y, 
                            bestVtx[ievt].z);
         }
-        return fallback;
+        else {
+            Vtx vertex;
+            vertex.x = fallback.X();
+            vertex.y = fallback.Y();
+            vertex.z = fallback.Z();
+            return vertex
+        }
     }
 };
 

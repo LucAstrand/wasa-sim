@@ -158,6 +158,10 @@ struct EtaPhiTowerKey {
 struct EventVariables {
     // Book keeping 
     int eventNumber          = 0;   // Event number, from MCPL / GEANT4 --> purely a book keeping varible 
+    
+    // Vertex
+    bool hasVertex           = false; // false if Vertex code did not find a suitable vertex 
+    double meanDCA           = 0.0; // mean distance of closest approach of tracks to vertex
 
     // Multiplicity
     int nChargedTracks       = 0;   // TPC track count (excl electrons)
@@ -174,12 +178,12 @@ struct EventVariables {
     double sphericity        = 0.0; // 0=pencil-like, 1=isotropic
     double maxTrackAngle     = 0.0; // largest opening angle between any two tracks
     double vertexRadius      = 0.0; // transverse distance of vertex from beam axis
-    double meanDCA           = 0.0; // mean distance of closest approach of tracks to vertex
     
     // PID based
     int nPionCandidates      = 0;   // tracks with pidGuess == Pion
     int nProtonCandidates    = 0;
     int nPi0Candidates       = 0;   // reconstructed pi0s
+
 };
 
 #endif
