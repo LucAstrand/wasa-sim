@@ -75,7 +75,7 @@ struct SelectionHistograms {
             if (!hS || !hB) return;
             TH1F* hSn = (TH1F*)hS->Clone(); hSn->Scale(1.0/hS->Integral());
             TH1F* hBn = (TH1F*)hB->Clone(); hBn->Scale(1.0/hB->Integral());
-            Plot1D({hSn, hBn}, {kBlue+1, kRed+1}, outDir + name, opts);
+            Plot1D({hSn, hBn}, {kBlack, kRed}, outDir + name, opts);
             delete hSn; delete hBn;
         };
         overlay(hHasvertex,     bkg.hHasvertex,      "HasVertex.png");

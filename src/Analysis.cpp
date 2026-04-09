@@ -210,11 +210,13 @@ int main(int argc, char **argv) {
         ABCDResult abcd = RunABCD(
             hSelSig.collectedEvents,
             hSelBkg.collectedEvents,
-            [](const EventVariables& ev){ return ev.correctedEnergy; },
-            // [](const EventVariables& ev){ return ev.totalRecoEnergy; },
-            [](const EventVariables& ev){ return ev.sphericity; },
+            // [](const EventVariables& ev){ return ev.correctedEnergy; },
+            [](const EventVariables& ev){ return ev.totalRecoEnergy; },
+            // [](const EventVariables& ev){ return ev.sphericity; },
+            [](const EventVariables& ev){ return ev.nChargedTracks; },
             250.0,   
-            0.08,     
+            // 0.08,  
+            2,   
             "TotalRecoEnergy",
             "Sphericity",
             "plots/Selection/"
