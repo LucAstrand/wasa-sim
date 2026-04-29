@@ -62,7 +62,6 @@ void ChargedKECalibration::Save(const std::string& filename) const {
 void DoCalibration(
     TTree* t,
     Long64_t nentries,
-    // const std::vector<int>& pi0_per_event,
     const std::vector<double>* centerXs,
     const std::vector<double>* centerYs,
     const std::vector<double>* centerZs,
@@ -78,11 +77,9 @@ void DoCalibration(
     const std::vector<double>* TPC_lastPosY,
     const std::vector<double>* TPC_lastPosZ,
     const std::vector<double>* TPC_TrueKE,
-    const std::vector<double>* TPC_pdg,
-    const std::vector<int>*    TPC_nSteps,
-    const std::vector<double>* TPC_dEdx,
-    const std::vector<double>* TPC_smearedEdep,
-    const std::vector<double>* TPC_PathLength,
+    const std::vector<int>*    TPC_pdg,
+    const std::vector<double>* TPC_smearedDedx,
+    const std::vector<double>* TPC_theoryDedx,
     const DEDXTable& dedxTable,
     const std::string& outFile
 ) {
@@ -135,12 +132,9 @@ void DoCalibration(
             trk.direction     = trk.direction.Unit();
             trk.TrueKE        = (*TPC_TrueKE)[k];
             trk.TruePDG       = (*TPC_pdg)[k];
-            trk.clusterdEdx   = (*TPC_dEdx)[k];
-            trk.EdepSmeared   = (*TPC_smearedEdep)[k];
-            trk.pathLength    = (*TPC_PathLength)[k];
-            trk.dEdxTheory    = 0.0;
+            trk.smearedDedx   = (*TPC_smearedDedx)[k];
+            trk.theoryDedx    = (*TPC_theoryDedx)[k];
             trk.resolution    = 0.15;
-            trk.nSteps        = (*TPC_nSteps)[k];
             chargedTracks.push_back(trk);
         }
 

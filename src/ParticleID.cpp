@@ -6,9 +6,10 @@ double nSigmaCalc(
     double resolution
 )
 {
-    double scaleFactor = 0.7; // this is arbitrary and should eb tuned... Its because we do the truncated mean... 
-    double sigma = resolution * dEdxTheory * scaleFactor;
-    double nSigma = (dEdxSmeared - dEdxTheory * scaleFactor) / sigma;
+    // double scaleFactor = 0.7; // this is arbitrary and should eb tuned... Its because we do the truncated mean... 
+    double sigma = resolution * dEdxTheory; //* scaleFactor;
+    // double nSigma = (dEdxSmeared - dEdxTheory * scaleFactor) / sigma;
+    double nSigma = (dEdxSmeared - dEdxTheory) / sigma;
     return nSigma; 
 } 
 // // Implemented exaclty like the sim code, It might not be 100% correct  

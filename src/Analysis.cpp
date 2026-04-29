@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
     std::string background_inputfile = argv[2];
     std::string vertices_inputfile = argv[3];
     bool doCalibration = false;
-    bool doSelection = false;
+    // bool doSelection = false;
 
     AnalysisConfig cfg;
 
@@ -85,6 +85,7 @@ int main(int argc, char **argv) {
             cfg.doChargedAnalysis = true;
             cfg.doTruthAnalysis = true; // NOTE for the truth-reco mix plots you also need to have the flag "--truth-mix-analysis"
             cfg.doEventVariables = true;
+            cfg.doSelection = true;
         }
         if (arg == "--pi0-analysis") cfg.doPi0Analysis = true;
         if (arg == "--charged-analysis") cfg.doChargedAnalysis = true;
@@ -94,7 +95,7 @@ int main(int argc, char **argv) {
             cfg.doTruthAnalysis = true;
         }
             if (arg == "--event-variables") cfg.doEventVariables = true;
-            if (arg == "--do-selection") doSelection = true;
+            if (arg == "--do-selection") cfg.doSelection = true;
 
     }
 
@@ -148,8 +149,7 @@ int main(int argc, char **argv) {
             br.primaryX, br.primaryY, br.primaryZ, br.primaryEkin,
             br.TPC_firstPosX, br.TPC_firstPosY, br.TPC_firstPosZ,
             br.TPC_lastPosX,  br.TPC_lastPosY,  br.TPC_lastPosZ,
-            br.TPC_TrueKE, br.TPC_pdg, br.TPC_nSteps, br.TPC_dEdx,
-            br.TPC_smearedEdep, br.TPC_PathLength,
+            br.TPC_TrueKE, br.TPC_pdg, br.TPC_smearedDedx, br.TPC_theoryDedx,
             dedxTABLE,
             "chargedKE.root"
         );
@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
     SelectionHistograms hSelSig, hSelBkg;
     CorrelationMatrix hCorrSig, hCorrBkg;
 
-    if (doSelection) {
+    if (cfg.doSelection) {
         hSelSig.Book("Sig");
         hSelBkg.Book("Bkg");
         hCorrSig.BookCorrelation("Sig");
@@ -173,10 +173,10 @@ int main(int argc, char **argv) {
     std::cout << "Processing signal..." << std::endl;
     RunSignalLoop(t, brVtx, dedxTABLE, calibration, cfg,
                   &hPi0, &hTruth, &hCharged, &hEvt,
-                  doSelection ? &hSelSig  : nullptr,
-                  doSelection ? &hCorrSig : nullptr);
+                  cfg.doSelection ? &hSelSig  : nullptr,
+                  cfg.doSelection ? &hCorrSig : nullptr);
 
-    if (doSelection) {
+    if (cfg.doSelection) {
         //Open Background input file and branch setup
         TFile* fBkg = TFile::Open(background_inputfile.c_str());
         if (!fBkg || fBkg->IsZombie()) {

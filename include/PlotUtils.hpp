@@ -6,6 +6,7 @@
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TGraph.h"  // For future if needed
+#include "TGraphErrors.h"
 #include "TEfficiency.h"  // For future if needed
 #include <vector>
 #include <string>
@@ -60,6 +61,27 @@ void Plot2DOverlay(
     const std::string& plotname,
     const PlotOptions& options = PlotOptions()
 );
+
+// void Plot2DWithBands(
+//     const std::vector<TH2*>& bandHists,     // will become mean+band
+//     const std::vector<int>& bandColors,
+
+//     const std::vector<TH2*>& scatterHists,  // drawn as TH2
+//     const std::vector<int>& scatterColors,
+
+//     const std::string& plotname,
+//     const PlotOptions& options,
+//     double nsigma = 2.0
+// );
+
+void Plot2DWithBands(
+    const std::vector<TH2*>& hists,
+    const std::vector<int>& colors,
+    const std::string& plotname,
+    const PlotOptions& options,
+    const std::vector<bool>& isTruth = {},      // which hists are "truth" level
+    double smearedResolution = 0.15);             // gaussian smearing resolution
+
 void PlotGraph(TGraph* graph, const std::string& plotname, const PlotOptions& options);
 
 

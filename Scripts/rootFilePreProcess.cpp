@@ -127,26 +127,18 @@ int main(int argc, char** argv) {
     std::vector<double>* TrueChargedPionDecayedBeforeTPC = nullptr;
     std::vector<double>* TrueChargedPionDecayedTrackID = nullptr;
 
+    std::vector<int>* TPC_trackID = nullptr;
+    std::vector<int>* TPC_pdg = nullptr;
+    std::vector<double>* TPC_TrueKE = nullptr;
     std::vector<double>* TPC_firstPosX = nullptr;
     std::vector<double>* TPC_firstPosY = nullptr;
     std::vector<double>* TPC_firstPosZ = nullptr;
     std::vector<double>* TPC_lastPosX = nullptr;
     std::vector<double>* TPC_lastPosY = nullptr;
     std::vector<double>* TPC_lastPosZ = nullptr;
+    std::vector<double>* TPC_smearedDedx = nullptr;
+    std::vector<double>* TPC_theoryDedx = nullptr;
 
-    std::vector<double>* TPC_trackID = nullptr;
-    std::vector<double>* TPC_Edep = nullptr;
-    std::vector<double>* TPC_smearedEdep = nullptr;
-    std::vector<double>* TPC_dEdx = nullptr;
-    std::vector<double>* TPC_PathLength = nullptr;
-
-    // std::vector<double>* TPC_Psm = nullptr;
-    std::vector<double>* TPC_TrueKE = nullptr;
-    // std::vector<double>* TPC_res = nullptr;
-    // std::vector<double>* TPC_eff = nullptr;
-    // std::vector<double>* TPC_Time = nullptr;
-    std::vector<double>* TPC_pdg = nullptr;
-    std::vector<int>* TPC_nSteps = nullptr;
 
     if (!inTree->GetBranch("PrimaryPosX") || !inTree->GetBranch("PrimaryPosY") || !inTree->GetBranch("PrimaryPosZ")) {
         std::cerr << "Missing one or more PrimaryPos* branches—check tree structure." << std::endl;
@@ -191,26 +183,17 @@ int main(int argc, char** argv) {
 	inTree->SetBranchAddress("TrueChargedPionDecayedBeforeTPC", &TrueChargedPionDecayedBeforeTPC);
 	inTree->SetBranchAddress("TrueChargedPionDecayedTrackID", &TrueChargedPionDecayedTrackID);
 
+    inTree->SetBranchAddress("TPC_trackID", &TPC_trackID);
+    inTree->SetBranchAddress("TPC_pdg", &TPC_pdg);
+    inTree->SetBranchAddress("TPC_TrueKE", &TPC_TrueKE);
     inTree->SetBranchAddress("TPC_firstPosX", &TPC_firstPosX);
     inTree->SetBranchAddress("TPC_firstPosY", &TPC_firstPosY);
     inTree->SetBranchAddress("TPC_firstPosZ", &TPC_firstPosZ);
     inTree->SetBranchAddress("TPC_lastPosX", &TPC_lastPosX);
     inTree->SetBranchAddress("TPC_lastPosY", &TPC_lastPosY);
     inTree->SetBranchAddress("TPC_lastPosZ", &TPC_lastPosZ);
-
-    inTree->SetBranchAddress("TPC_trackID", &TPC_trackID);
-    inTree->SetBranchAddress("TPC_EDep", &TPC_Edep);
-    inTree->SetBranchAddress("TPC_smearedEdep", &TPC_smearedEdep);
-    inTree->SetBranchAddress("TPC_dEdx", &TPC_dEdx);
-    inTree->SetBranchAddress("TPC_PathLength", &TPC_PathLength);
-
-    // inTree->SetBranchAddress("TPC_Psm", &TPC_Psm);
-    inTree->SetBranchAddress("TPC_TrueKE", &TPC_TrueKE);
-    // inTree->SetBranchAddress("TPC_res", &TPC_res);
-    // inTree->SetBranchAddress("TPC_eff", &TPC_eff);
-    // inTree->SetBranchAddress("TPC_Time", &TPC_Time);
-    inTree->SetBranchAddress("TPC_pdg", &TPC_pdg);
-    inTree->SetBranchAddress("TPC_nSteps", &TPC_nSteps);
+    inTree->SetBranchAddress("TPC_smearedDedx", &TPC_smearedDedx);
+    inTree->SetBranchAddress("TPC_theoryDedx", &TPC_theoryDedx);
 
 
     // Quick test read of first entry to catch issues early
@@ -256,8 +239,9 @@ int main(int argc, char** argv) {
     std::vector<double> outTruePhotonEndX, outTruePhotonEndY, outTruePhotonEndZ;
     std::vector<double> outTPC_firstPosX, outTPC_firstPosY, outTPC_firstPosZ;
     std::vector<double> outTPC_lastPosX, outTPC_lastPosY, outTPC_lastPosZ;
-    std::vector<double> outTPC_trackID, outTPC_Edep, outTPC_smearedEdep, outTPC_dEdx, outTPC_PathLength, outTPC_TrueKE, outTPC_pdg; // outTPC_Psm,
-    std::vector<int> outTPC_nSteps;
+    std::vector<int> outTPC_trackID, outTPC_pdg;
+    std::vector<double> outTPC_TrueKE, outTPC_smearedDedx, outTPC_theoryDedx; // outTPC_Psm,
+    // std::vector<int> outTPC_nSteps;
     std::vector<double> outTrueChargedPionX, outTrueChargedPionY, outTrueChargedPionZ, outTrueChargedPionE, outTrueChargedPionTrackID, outTrueChargedPionThroughTPC;
     std::vector<double> outTrueChargedPionCreationX, outTrueChargedPionCreationY, outTrueChargedPionCreationZ, outTrueChargedPionEndX, outTrueChargedPionEndY, outTrueChargedPionEndZ;
     std::vector<double> outTrueChargedPionDecayedBeforeCal, outTrueChargedPionDecayedBeforeTPC, outTrueChargedPionDecayedTrackID;
@@ -308,22 +292,17 @@ int main(int argc, char** argv) {
     outTree->Branch("TrueChargedPionDecayedTrackID", &outTrueChargedPionDecayedTrackID);
 
 
+    outTree->Branch("TPC_trackID", &TPC_trackID);
+    outTree->Branch("TPC_pdg", &outTPC_pdg);
+    outTree->Branch("TPC_TrueKE", &outTPC_TrueKE);
     outTree->Branch("TPC_firstPosX", &outTPC_firstPosX);
     outTree->Branch("TPC_firstPosY", &outTPC_firstPosY);
     outTree->Branch("TPC_firstPosZ", &outTPC_firstPosZ);
     outTree->Branch("TPC_lastPosX", &outTPC_lastPosX);
     outTree->Branch("TPC_lastPosY", &outTPC_lastPosY);
     outTree->Branch("TPC_lastPosZ", &outTPC_lastPosZ);
-
-    outTree->Branch("TPC_trackID", &TPC_trackID);
-    outTree->Branch("TPC_Edep", &outTPC_Edep);
-    outTree->Branch("TPC_smearedEdep", &outTPC_smearedEdep);
-    outTree->Branch("TPC_dEdx", &outTPC_dEdx);
-    outTree->Branch("TPC_PathLength", &outTPC_PathLength);
-    // outTree->Branch("TPC_Psm", &outTPC_Psm);
-    outTree->Branch("TPC_TrueKE", &outTPC_TrueKE);
-    outTree->Branch("TPC_pdg", &outTPC_pdg);
-    outTree->Branch("TPC_nSteps", &outTPC_nSteps);
+    outTree->Branch("TPC_smearedDedx", &outTPC_smearedDedx);
+    outTree->Branch("TPC_theoryDedx", &outTPC_theoryDedx);
 
     // Process each entry (event)
     Long64_t nEntries = inTree->GetEntries();
@@ -376,22 +355,17 @@ int main(int argc, char** argv) {
         outTrueChargedPionDecayedBeforeTPC = TrueChargedPionDecayedBeforeTPC ? *TrueChargedPionDecayedBeforeTPC : std::vector<double>();
         outTrueChargedPionDecayedTrackID = TrueChargedPionDecayedTrackID ? *TrueChargedPionDecayedTrackID : std::vector<double>();
         
+        outTPC_trackID = TPC_trackID ? *TPC_trackID : std::vector<int>();
+        outTPC_pdg = TPC_pdg ? *TPC_pdg : std::vector<int>();
+        outTPC_TrueKE = TPC_TrueKE ? *TPC_TrueKE : std::vector<double>();
         outTPC_firstPosX = TPC_firstPosX ? *TPC_firstPosX : std::vector<double>();
         outTPC_firstPosY = TPC_firstPosY ? *TPC_firstPosY : std::vector<double>();
         outTPC_firstPosZ = TPC_firstPosZ ? *TPC_firstPosZ : std::vector<double>();
         outTPC_lastPosX = TPC_lastPosX ? *TPC_lastPosX : std::vector<double>();
         outTPC_lastPosY = TPC_lastPosY ? *TPC_lastPosY : std::vector<double>();
         outTPC_lastPosZ = TPC_lastPosZ ? *TPC_lastPosZ : std::vector<double>();
-
-        outTPC_trackID = TPC_trackID ? *TPC_trackID : std::vector<double>();
-        outTPC_Edep = TPC_Edep ? *TPC_Edep : std::vector<double>();
-        outTPC_smearedEdep = TPC_smearedEdep ? *TPC_smearedEdep : std::vector<double>();
-        outTPC_dEdx = TPC_dEdx ? *TPC_dEdx : std::vector<double>();
-        outTPC_PathLength = TPC_PathLength ? *TPC_PathLength : std::vector<double>();
-        // outTPC_Psm = TPC_Psm ? *TPC_Psm : std::vector<double>();
-        outTPC_TrueKE = TPC_TrueKE ? *TPC_TrueKE : std::vector<double>();
-        outTPC_pdg = TPC_pdg ? *TPC_pdg : std::vector<double>();
-        outTPC_nSteps = TPC_nSteps ? *TPC_nSteps : std::vector<int>();
+        outTPC_smearedDedx = TPC_smearedDedx ? *TPC_smearedDedx : std::vector<double>();
+        outTPC_theoryDedx = TPC_theoryDedx ? *TPC_theoryDedx : std::vector<double>();
 
         // Clear vectors for this event
         centerXs.clear();

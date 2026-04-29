@@ -478,25 +478,48 @@ int main(int argc, char **argv) {
     SafeSetBranch(t, "TruePhotonEndZ", TruePhotonEndZ);
 
     // TPC info
-    std::vector<double> *TPC_trackID = nullptr, *TPC_Edep = nullptr, *TPC_smearedEdep = nullptr;
-    std::vector<double> *TPC_firstPosX = nullptr, *TPC_firstPosY = nullptr, *TPC_firstPosZ = nullptr;
-    std::vector<double> *TPC_lastPosX = nullptr, *TPC_lastPosY = nullptr, *TPC_lastPosZ = nullptr;
-    std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_TrueKE = nullptr, *TPC_pdg = nullptr;
-    SafeSetBranch(t, "TPC_trackID", TPC_trackID);
-    SafeSetBranch(t, "TPC_Edep", TPC_Edep);
-    SafeSetBranch(t, "TPC_smearedEdep", TPC_smearedEdep);
-    SafeSetBranch(t, "TPC_firstPosX", TPC_firstPosX);
-    SafeSetBranch(t, "TPC_firstPosY", TPC_firstPosY);
-    SafeSetBranch(t, "TPC_firstPosZ", TPC_firstPosZ);
-    SafeSetBranch(t, "TPC_lastPosX", TPC_lastPosX);
-    SafeSetBranch(t, "TPC_lastPosY", TPC_lastPosY);
-    SafeSetBranch(t, "TPC_lastPosZ", TPC_lastPosZ);
-    SafeSetBranch(t, "TPC_PathLength", TPC_PathLength);
-    SafeSetBranch(t, "TPC_dEdx", TPC_dEdx);
-    SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
-    SafeSetBranch(t, "TPC_pdg", TPC_pdg);
+    // std::vector<double> *TPC_trackID = nullptr, *TPC_Edep = nullptr, *TPC_smearedEdep = nullptr;
+    // std::vector<double> *TPC_firstPosX = nullptr, *TPC_firstPosY = nullptr, *TPC_firstPosZ = nullptr;
+    // std::vector<double> *TPC_lastPosX = nullptr, *TPC_lastPosY = nullptr, *TPC_lastPosZ = nullptr;
+    // std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_TrueKE = nullptr, *TPC_pdg = nullptr;
+    // SafeSetBranch(t, "TPC_trackID", TPC_trackID);
+    // SafeSetBranch(t, "TPC_Edep", TPC_Edep);
+    // SafeSetBranch(t, "TPC_smearedEdep", TPC_smearedEdep);
+    // SafeSetBranch(t, "TPC_firstPosX", TPC_firstPosX);
+    // SafeSetBranch(t, "TPC_firstPosY", TPC_firstPosY);
+    // SafeSetBranch(t, "TPC_firstPosZ", TPC_firstPosZ);
+    // SafeSetBranch(t, "TPC_lastPosX", TPC_lastPosX);
+    // SafeSetBranch(t, "TPC_lastPosY", TPC_lastPosY);
+    // SafeSetBranch(t, "TPC_lastPosZ", TPC_lastPosZ);
+    // SafeSetBranch(t, "TPC_PathLength", TPC_PathLength);
+    // SafeSetBranch(t, "TPC_dEdx", TPC_dEdx);
+    // SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
+    // SafeSetBranch(t, "TPC_pdg", TPC_pdg);
+    std::vector<int>    *TPC_trackID     = nullptr;
+    std::vector<int>    *TPC_pdg         = nullptr;
+    std::vector<double> *TPC_TrueKE      = nullptr;
+    std::vector<double> *TPC_firstPosX   = nullptr;
+    std::vector<double> *TPC_firstPosY   = nullptr;
+    std::vector<double> *TPC_firstPosZ   = nullptr;
+    std::vector<double> *TPC_lastPosX    = nullptr;
+    std::vector<double> *TPC_lastPosY    = nullptr;
+    std::vector<double> *TPC_lastPosZ    = nullptr;
+    std::vector<double> *TPC_smearedDedx = nullptr;
+    std::vector<double> *TPC_theoryDedx  = nullptr;
 
-    Long64_t nEvents = 10; // or: t->GetEntries();
+    SafeSetBranch(t, "TPC_trackID",    TPC_trackID);
+    SafeSetBranch(t, "TPC_pdg",        TPC_pdg);
+    SafeSetBranch(t, "TPC_TrueKE",     TPC_TrueKE);
+    SafeSetBranch(t, "TPC_firstPosX",  TPC_firstPosX);
+    SafeSetBranch(t, "TPC_firstPosY",  TPC_firstPosY);
+    SafeSetBranch(t, "TPC_firstPosZ",  TPC_firstPosZ);
+    SafeSetBranch(t, "TPC_lastPosX",   TPC_lastPosX);
+    SafeSetBranch(t, "TPC_lastPosY",   TPC_lastPosY);
+    SafeSetBranch(t, "TPC_lastPosZ",   TPC_lastPosZ);
+    SafeSetBranch(t, "TPC_smearedDedx", TPC_smearedDedx);
+    SafeSetBranch(t, "TPC_theoryDedx", TPC_theoryDedx);
+
+    Long64_t nEvents = 1; // or: t->GetEntries();
 
     std::vector<primaryChPi> primaryChPis;
     DEDXTable dedxTABLE("dedx_tables_Ar80CO2.root");
@@ -586,26 +609,39 @@ int main(int argc, char **argv) {
 
         // ---------- Build chargedTracks ----------
         std::vector<ChargedTrack> chargedTracks;
-        if (TPC_Edep && TPC_firstPosX && TPC_lastPosX && TPC_TrueKE && TPC_pdg && TPC_dEdx && TPC_smearedEdep && TPC_PathLength) {
-            chargedTracks.reserve(TPC_Edep->size());
-            for (size_t k = 0; k < TPC_Edep->size(); ++k) {
+        if (TPC_firstPosX && TPC_lastPosX && TPC_TrueKE && TPC_pdg) {
+            chargedTracks.reserve(TPC_pdg->size());
+            for (size_t k = 0; k < TPC_pdg->size(); ++k) {
                 TVector3 first((*TPC_firstPosX)[k], (*TPC_firstPosY)[k], (*TPC_firstPosZ)[k]);
                 TVector3 last((*TPC_lastPosX)[k],  (*TPC_lastPosY)[k],  (*TPC_lastPosZ)[k]);
                 TVector3 dir = last - first;
 
-                chargedTracks.push_back({
-                    (*TPC_trackID)[k],
-                    vertex,
-                    last,
-                    dir,
-                    (*TPC_TrueKE)[k],
-                    (*TPC_pdg)[k],
-                    (*TPC_dEdx)[k],
-                    (*TPC_smearedEdep)[k],
-                    (*TPC_PathLength)[k],
-                    0.0,   // dEdxTheory placeholder
-                    0.15   // resolution
-                });
+                // chargedTracks.push_back({
+                //     (*TPC_trackID)[k],
+                //     vertex,
+                //     last,
+                //     dir,
+                //     (*TPC_TrueKE)[k],
+                //     (*TPC_pdg)[k],
+                //     (*TPC_dEdx)[k],
+                //     (*TPC_smearedEdep)[k],
+                //     (*TPC_PathLength)[k],
+                //     0.0,   // dEdxTheory placeholder
+                //     0.15   // resolution
+                // });
+                ChargedTrack trk;
+                trk.id            = k;
+                trk.vertex        = vertex;
+                trk.exitPoint     = TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]);
+                trk.direction     = trk.exitPoint
+                                - TVector3((*TPC_firstPosX)[k], (*TPC_firstPosY)[k], (*TPC_firstPosZ)[k]);
+                trk.direction     = trk.direction.Unit();
+                trk.TrueKE        = (*TPC_TrueKE)[k];
+                trk.TruePDG       = (*TPC_pdg)[k];
+                trk.smearedDedx   = (*TPC_smearedDedx)[k];
+                trk.theoryDedx    = (*TPC_theoryDedx)[k];
+                trk.resolution    = 0.15;
+                chargedTracks.push_back(trk);
             }
         }
 

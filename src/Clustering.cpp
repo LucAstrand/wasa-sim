@@ -305,17 +305,16 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         c.TPCExitPoint = trk.exitPoint;
         c.objectTrueKE = KE;
         c.objectTruePDG = trk.TruePDG;
-        // c.objectTruedEdx = BetheBloch(trk.TruePDG, trk.TrueKE, tpcGas);
-        if (std::abs(trk.TruePDG) == 211) c.objectTruedEdx = dedxTheory_pion;
-        if (std::abs(trk.TruePDG) == 2212) c.objectTruedEdx = dedxTheory_proton;
-        if (std::abs(trk.TruePDG) == 13) c.objectTruedEdx = dedxTheory_muon;
-        if (std::abs(trk.TruePDG) == 11) c.objectTruedEdx = dedxTheory_electron;
+        if (std::abs(trk.TruePDG) == 211) c.objectTheoryDedx = dedxTheory_pion;
+        if (std::abs(trk.TruePDG) == 2212) c.objectTheoryDedx = dedxTheory_proton;
+        if (std::abs(trk.TruePDG) == 13) c.objectTheoryDedx = dedxTheory_muon;
+        if (std::abs(trk.TruePDG) == 11) c.objectTheoryDedx = dedxTheory_electron;
         c.totalEnergy = 0.0;
-        c.clusterdEdx = trk.clusterdEdx;
-        c.EdepSmeared = trk.EdepSmeared;
-        c.nSigmaPion = nSigmaCalc(trk.clusterdEdx, dedxTheory_pion, trk.resolution);
-        c.nSigmaProton = nSigmaCalc(trk.clusterdEdx, dedxTheory_proton, trk.resolution);
-        c.nSigmaElectron = nSigmaCalc(trk.clusterdEdx, dedxTheory_electron, trk.resolution);
+        c.objectSmearedDedx = trk.smearedDedx;
+        c.objectTheoryDedx = trk.theoryDedx;
+        c.nSigmaPion = nSigmaCalc(trk.smearedDedx, dedxTheory_pion, trk.resolution);
+        c.nSigmaProton = nSigmaCalc(trk.smearedDedx, dedxTheory_proton, trk.resolution);
+        c.nSigmaElectron = nSigmaCalc(trk.smearedDedx, dedxTheory_electron, trk.resolution);
         c.pidL = ComputePIDLikelihoods(
             c.nSigmaPion,
             c.nSigmaElectron,

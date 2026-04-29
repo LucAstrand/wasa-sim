@@ -32,6 +32,8 @@ void RunSignalLoop(
     std::vector<TrueChPiInCal> trueChPiInCals;
     std::vector<TrueChPiDecayed> trueChPiDecayed;
 
+    pi0_per_event.resize(nentries, 0);
+    chPi_per_event.resize(nentries, 0);
 
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
         bar.update(); // Visual feedback on loop progress.
@@ -51,18 +53,20 @@ void RunSignalLoop(
         size_t nPrimaries = br.primaryPDG->size();
         primaryPi0s.clear();
         primaryChPis.clear();
-        pi0_per_event.push_back(0);
-        chPi_per_event.push_back(0);
+        // pi0_per_event.push_back(0);
+        // chPi_per_event.push_back(0);
         double pi0M  = 134.977;
         double pipmM = 139.570;
         for (size_t i=0; i<nPrimaries; ++i) {
             if ((*br.primaryPDG)[i] == 111) { // pi0
-                pi0_per_event[ievt]++;
+                // pi0_per_event[ievt]++;
+                pi0_per_event.at(ievt)++;
                 // std::cout << "[HELLO] pPi0 Ekin: " << (*br.primaryEkin)[i] << std::endl;
                 primaryPi0s.push_back({(*br.primaryTrackID)[i], TLorentzVector(TVector3((*br.primaryPx)[i], (*br.primaryPy)[i], (*br.primaryPz)[i]), (*br.primaryEkin)[i] + pi0M)});
             }
             if (std::abs((*br.primaryPDG)[i]) == 211) { // pi+-
-                chPi_per_event[ievt]++;
+                // chPi_per_event[ievt]++;
+                chPi_per_event.at(ievt)++;
                 primaryChPis.push_back({(*br.primaryTrackID)[i], TLorentzVector(TVector3((*br.primaryPx)[i], (*br.primaryPy)[i], (*br.primaryPz)[i]), (*br.primaryEkin)[i] + pipmM)});
             }
         }
@@ -96,15 +100,28 @@ void RunSignalLoop(
                 trueChPiDecayed.push_back(chpi);
             }
             chargedTracks.clear();
-            size_t nChargedTracks = br.TPC_Edep->size();
+            size_t nChargedTracks = br.TPC_trackID->size();
             for (size_t k=0; k<nChargedTracks; ++k) {
-                if (!br.TPC_Edep || !br.TPC_firstPosX || !br.TPC_lastPosX) continue;
-                chargedTracks.push_back(
-                    {(*br.TPC_trackID)[k],
-                    vertex.vertexVec,
-                    TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]),
-                    TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]) - TVector3((*br.TPC_firstPosX)[k], (*br.TPC_firstPosY)[k], (*br.TPC_firstPosZ)[k]),
-                    (*br.TPC_TrueKE)[k], (*br.TPC_pdg)[k], (*br.TPC_dEdx)[k], (*br.TPC_smearedEdep)[k], (*br.TPC_PathLength)[k], 0 /* Placeholder */, 0.15, (*br.TPC_nSteps)[k]});
+                if (!br.TPC_trackID || !br.TPC_firstPosX || !br.TPC_lastPosX) continue;
+                // chargedTracks.push_back(
+                //     {(*br.TPC_trackID)[k],
+                //     vertex.vertexVec,
+                //     TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]),
+                //     TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]) - TVector3((*br.TPC_firstPosX)[k], (*br.TPC_firstPosY)[k], (*br.TPC_firstPosZ)[k]),
+                //     (*br.TPC_TrueKE)[k], (*br.TPC_pdg)[k], (*br.TPC_smearedDedx)[k], (*br.TPC_theoryDedx)[k], 0.15});
+                ChargedTrack trk;
+                trk.id            = (*br.TPC_trackID)[k];
+                trk.vertex        = vertex.vertexVec;
+                trk.exitPoint     = TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]);
+                trk.direction     = trk.exitPoint
+                                - TVector3((*br.TPC_firstPosX)[k], (*br.TPC_firstPosY)[k], (*br.TPC_firstPosZ)[k]);
+                trk.direction     = trk.direction.Unit();
+                trk.TrueKE        = (*br.TPC_TrueKE)[k];
+                trk.TruePDG       = (*br.TPC_pdg)[k];
+                trk.smearedDedx   = (*br.TPC_smearedDedx)[k];
+                trk.theoryDedx    = (*br.TPC_theoryDedx)[k];
+                trk.resolution    = 0.15;
+                chargedTracks.push_back(trk);
             }
         }
 
@@ -286,24 +303,24 @@ void RunSignalLoop(
                 if (hCharged->hNSigmaProton) hCharged->hNSigmaProton->Fill(cluster.nSigmaProton);
                 //--> Pions
                 if (cluster.objectTruePDG == 211 || cluster.objectTruePDG == -211) {
-                if (hCharged->hdEdxVsE_cluster_Pion) hCharged->hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
-                // if (hCharged->hdEdxVsE_cluster_Pion) hCharged->hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
+                // if (hCharged->hdEdxVsE_cluster_Pion) hCharged->hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
+                if (hCharged->hdEdxVsE_cluster_Pion) hCharged->hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.objectSmearedDedx); // ORDER: X vs Y
                 if (hCharged->hClusterE) hCharged->hClusterE->Fill(cluster.totalEnergy);
-                if (hCharged->hdEdxVsE_true_Pion) hCharged->hdEdxVsE_true_Pion->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
-                if (hCharged->hdEdxTruePion) hCharged->hdEdxTruePion->Fill(cluster.objectTruedEdx);
-                if (hCharged->hdEdxSmearPion) hCharged->hdEdxSmearPion->Fill(cluster.clusterdEdx);
+                if (hCharged->hdEdxVsE_true_Pion) hCharged->hdEdxVsE_true_Pion->Fill(cluster.objectTrueKE, cluster.objectTheoryDedx);
+                if (hCharged->hdEdxTruePion) hCharged->hdEdxTruePion->Fill(cluster.objectTheoryDedx);
+                if (hCharged->hdEdxSmearPion) hCharged->hdEdxSmearPion->Fill(cluster.objectSmearedDedx);
                 }
                 //--> Protons
                 if (cluster.objectTruePDG == 2212) {
-                if (hCharged->hdEdxVsE_cluster_Proton) hCharged->hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
-                // if (hCharged->hdEdxVsE_cluster_Proton) hCharged->hdEdxVsE_cluster_Proton->Fill(cluster.objectTrueKE, cluster.clusterdEdx); // ORDER: X vs Y
-                if (hCharged->hdEdxVsE_true_Proton) hCharged->hdEdxVsE_true_Proton->Fill(cluster.objectTrueKE, cluster.objectTruedEdx);
-                if (hCharged->hdEdxTrueProton) hCharged->hdEdxTrueProton->Fill(cluster.objectTruedEdx);
-                if (hCharged->hdEdxSmearProton) hCharged->hdEdxSmearProton->Fill(cluster.clusterdEdx);
+                // if (hCharged->hdEdxVsE_cluster_Proton) hCharged->hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
+                if (hCharged->hdEdxVsE_cluster_Proton) hCharged->hdEdxVsE_cluster_Proton->Fill(cluster.objectTrueKE, cluster.objectSmearedDedx); // ORDER: X vs Y
+                if (hCharged->hdEdxVsE_true_Proton) hCharged->hdEdxVsE_true_Proton->Fill(cluster.objectTrueKE, cluster.objectTheoryDedx);
+                if (hCharged->hdEdxTrueProton) hCharged->hdEdxTrueProton->Fill(cluster.objectTheoryDedx);
+                if (hCharged->hdEdxSmearProton) hCharged->hdEdxSmearProton->Fill(cluster.objectSmearedDedx);
                 }
                 
                 // E res plots
-                double totalRecoE = cluster.totalEnergy + cluster.EdepSmeared;
+                double totalRecoE = cluster.totalEnergy;//+ cluster.EdepSmeared;
                 // double Eres = (cluster.totalEnergy - cluster.objectTrueKE) / cluster.objectTrueKE;
                 double Eres = (totalRecoE - cluster.objectTrueKE) / cluster.objectTrueKE;
                 if (hCharged->h2_Eres) hCharged->h2_Eres->Fill(cluster.objectTrueKE, Eres);
@@ -352,7 +369,9 @@ void RunSignalLoop(
         // Pi0 eff & acc
         if (cfg.doPi0Analysis) {
             if (hPi0->effPlotter) hPi0->effPlotter->ProcessEvent(truePi0s, selected, reco.clusters);
-            if (hPi0->accPlotter) hPi0->accPlotter->Pi0ProcessSignalEvent(truePi0s, primaryPi0s);
+            if (hPi0->accEkin) hPi0->accEkin->Pi0ProcessSignalEvent(truePi0s, primaryPi0s);
+            if (hPi0->accTheta) hPi0->accTheta->Pi0ProcessSignalEvent(truePi0s, primaryPi0s);
+            if (hPi0->acc2D) hPi0->acc2D->Pi0ProcessSignalEvent(truePi0s, primaryPi0s);
 
             // THESE NEED TO BE FIXED!!!
 
@@ -377,11 +396,14 @@ void RunSignalLoop(
         if (cfg.doChargedAnalysis) {
             hCharged->pidEff->ProcessEvent(reco.chargedClusters);
             // chAccPlotter->ChPiProcessSignalEvent(reco.chargedClusters, primaryChPis);
-
+            //Acc
             hCharged->chAccGlobal->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 0);
             hCharged->chAccCondTPC->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 1);
             hCharged->chAccCondNoTPC->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 2);
-
+            hCharged->accNChTracks->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 0);
+            //Eff
+            hCharged->chEffTheta->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, reco.chargedClusters);
+            hCharged->chEffNChTracks->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, reco.chargedClusters);
             // assign a charged pion multiplicity based on PID Guess --> TPC info
             for (ChargedCluster ch : reco.chargedClusters) {
                 if (ch.pidGuess == PID::Pion) {
@@ -391,10 +413,22 @@ void RunSignalLoop(
                     reco.chPionMultiplicity += 1;
                 }
             }
+            std::unordered_map<int, const primaryChPi*> p4Map;
+            p4Map.reserve(primaryChPis.size());
+            for (const auto& p : primaryChPis) p4Map.emplace(p.trackID, &p);
+
+            for (const auto& d : trueChPiInCals) {
+                if (!d.throughTPC) continue;
+                auto it = p4Map.find(d.trackID);
+                if (it == p4Map.end()) continue;
+                double val = it->second->p4.Theta();
+                if (hCharged->hPionThetaWASA) hCharged->hPionThetaWASA->Fill(val);
+            }
+
             for (primaryChPi chPi: primaryChPis) {
                 if (hCharged->hPionTheta) hCharged->hPionTheta->Fill(chPi.p4.Theta());
                 if (hCharged->hPionCosTheta) hCharged->hPionCosTheta->Fill(std::cos(chPi.p4.Theta()));
-                if (hCharged->hPionPhi) hCharged->hPionPhi->Fill(chPi.p4.Phi());
+                if (hCharged->hPionPhi) hCharged->hPionPhi->Fill(chPi.p4.Phi());                
             }
 
         }
@@ -480,17 +514,31 @@ void RunBackgroundLoop(
 
         // Build charged tracks from TPC
         chargedTracks.clear();
-        if (br.TPC_Edep) {
-            for (size_t k = 0; k < br.TPC_Edep->size(); ++k) {
-                chargedTracks.push_back({
-                    (*br.TPC_trackID)[k], vertex.vertexVec,
-                    TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]),
-                    TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k])
-                  - TVector3((*br.TPC_firstPosX)[k],(*br.TPC_firstPosY)[k],(*br.TPC_firstPosZ)[k]),
-                    (*br.TPC_TrueKE)[k], (*br.TPC_pdg)[k], (*br.TPC_dEdx)[k],
-                    (*br.TPC_smearedEdep)[k], (*br.TPC_PathLength)[k],
-                    0, 0.15, (*br.TPC_nSteps)[k]
-                });
+        if (br.TPC_trackID) {
+            for (size_t k = 0; k < br.TPC_trackID->size(); ++k) {
+                // chargedTracks.push_back({
+                //     (*br.TPC_trackID)[k], vertex.vertexVec,
+                //     TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]),
+                //     TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k])
+                //   - TVector3((*br.TPC_firstPosX)[k],(*br.TPC_firstPosY)[k],(*br.TPC_firstPosZ)[k]),
+                //     (*br.TPC_TrueKE)[k], (*br.TPC_pdg)[k], (*br.TPC_dEdx)[k],
+                //     (*br.TPC_smearedEdep)[k], (*br.TPC_PathLength)[k],
+                //     0, 0.15, (*br.TPC_nSteps)[k]
+                // });
+                ChargedTrack trk;
+                trk.id            = k;
+                trk.vertex        = vertex.vertexVec;
+                trk.exitPoint     = TVector3((*br.TPC_lastPosX)[k], (*br.TPC_lastPosY)[k], (*br.TPC_lastPosZ)[k]);
+                trk.direction     = trk.exitPoint
+                                - TVector3((*br.TPC_firstPosX)[k], (*br.TPC_firstPosY)[k], (*br.TPC_firstPosZ)[k]);
+                trk.direction     = trk.direction.Unit();
+                trk.TrueKE        = (*br.TPC_TrueKE)[k];
+                trk.TruePDG       = (*br.TPC_pdg)[k];
+                //TEMPTEMPTEMPTEMP
+                // trk.smearedDedx   = (*br.TPC_smearedDedx)[k];
+                // trk.theoryDedx    = (*br.TPC_theoryDedx)[k];
+                trk.resolution    = 0.15;
+                chargedTracks.push_back(trk);
             }
         }
 

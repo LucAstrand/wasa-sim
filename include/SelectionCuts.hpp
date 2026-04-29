@@ -43,9 +43,9 @@ std::vector<std::pair<std::string, CutPredicate>>
 BuildCutList(const SelectionCuts& c)
 {
     return {
-        // { "hasVertex",
-        //   [&](const EventVariables& ev) {
-        //       return !c.requireVertex || ev.hasVertex; }},
+        { "hasVertex",
+          [&](const EventVariables& ev) {
+              return !c.requireVertex || ev.hasVertex; }},
 
         { "nCharged >= " + std::to_string(c.minChargedTracks),
           [&](const EventVariables& ev) {

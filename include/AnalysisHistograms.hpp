@@ -8,6 +8,7 @@
 #include "TProfile.h"
 #include "TMath.h"
 #include "Pi0Efficiency.hpp"
+#include "ChEfficiency.hpp"
 #include "Acceptance.hpp"
 #include "PIDEfficiency.hpp"
 #include "PlotUtils.hpp"
@@ -19,23 +20,29 @@ struct Pi0Histograms {
     TH2F* hppM_pre  = nullptr;
     TH2F* hppM_post = nullptr;
     Pi0Efficiency* effPlotter        = nullptr;
-    Acceptance*    accPlotter        = nullptr;
-    Acceptance*    accVsEta          = nullptr;
-    Acceptance*    accVsTheta        = nullptr;
+    // Acceptance*    accPlotter        = nullptr;
+    // Acceptance*    accVsEta          = nullptr;
+    // Acceptance*    accVsTheta        = nullptr;
+    Acceptance* accTheta = nullptr;
+    Acceptance* accEkin  = nullptr;
+    Acceptance* acc2D    = nullptr;
 
     void Book() {
-        hMass     = new TH1F("hPi0Mass",
+        hMass      = new TH1F("hPi0Mass",
             ";M_{#gamma#gamma} [MeV];Events", 100, 1.5, 301.5);
-        hppM_pre  = new TH2F("hPi0ppM_pre",
+        hppM_pre   = new TH2F("hPi0ppM_pre",
             ";M_{#gamma#gamma} [MeV];#theta_{#gamma#gamma} [rad]",
             200, 0, 250, 200, 0, 4);
-        hppM_post = new TH2F("hPi0ppM_post",
+        hppM_post  = new TH2F("hPi0ppM_post",
             ";M_{#gamma#gamma} [MeV];#theta_{#gamma#gamma} [rad]",
             200, 0, 250, 200, 0, 4);
         effPlotter = new Pi0Efficiency(4, 1, 500);
-        accPlotter = new Acceptance("nPiE",     100, 1, 1000);
-        accVsEta   = new Acceptance("nPiEta",   100, -10, 10);
-        accVsTheta = new Acceptance("nPiTheta", 60, 0, TMath::Pi());
+        // accPlotter = new Acceptance("nPiE",     100, 1, 1000);
+        // accVsEta   = new Acceptance("nPiEta",   100, -10, 10);
+        // accVsTheta = new Acceptance("nPiTheta", 60, 0, TMath::Pi());
+        accTheta   = new Acceptance("npi_theta", AccAxisType::kTheta, 20, 0, 3.2);
+        accEkin    = new Acceptance("npi_ekin", AccAxisType::kEkin, 20, 0, 1000);
+        acc2D      = new Acceptance("chpi_2d", 25, 0, 1000, 20, 0, TMath::Pi());
     }
 
     void Plot(int nentries, const std::string& outDir) {
@@ -54,19 +61,35 @@ struct Pi0Histograms {
 
         effPlotter->FinalizePlot(outDir + "Pi0_efficiency_vs_Ekin.png");
 
-        PlotOptions optsAcc;
-        optsAcc.topLatex    = "#bf{Hibeam}  #it{Wasa full simulation}";
-        optsAcc.infoLines   = {"Signal dataset"};
-        optsAcc.addInfoPave = true;
-        optsAcc.xAxisTitle  = "Signal #pi^{0} E_{kin} [MeV]";
-        optsAcc.yAxisTitle  = "Acceptance [%]";
-        accPlotter->FinalizePlot(outDir + "Pi0_acceptance_vs_Ekin.png", optsAcc);
+        PlotOptions optsAccEkin;
+        optsAccEkin.topLatex    = "#bf{Hibeam}  #it{Wasa full simulation}";
+        optsAccEkin.infoLines   = {"Signal dataset"};
+        optsAccEkin.addInfoPave = true;
+        optsAccEkin.xAxisTitle  = "Signal #pi^{0} E_{kin} [MeV]";
+        optsAccEkin.yAxisTitle  = "Acceptance [%]";
+        accEkin->FinalizePlot(outDir + "Pi0_acceptance_vs_Ekin.png", optsAccEkin);
+
+        PlotOptions optsAccTheta;
+        optsAccTheta.topLatex    = "#bf{Hibeam}  #it{Wasa full simulation}";
+        optsAccTheta.infoLines   = {"Signal dataset"};
+        optsAccTheta.addInfoPave = true;
+        optsAccTheta.xAxisTitle  = "Signal #pi^{0} #theta [rad]";
+        optsAccTheta.yAxisTitle  = "Acceptance [%]";
+        accTheta->FinalizePlot(outDir + "Pi0_acceptance_vs_Theta.png", optsAccTheta);
+
+        PlotOptions optsAcc2D;
+        optsAcc2D.topLatex    = "#bf{Hibeam}  #it{Wasa full simulation}";
+        optsAcc2D.infoLines   = {"Signal dataset"};
+        optsAcc2D.addInfoPave = true;
+        optsAcc2D.xAxisTitle  = "Signal #pi^{0} E_{kin} [MeV]";
+        optsAcc2D.yAxisTitle  = "Signal #pi^{0} #theta [rad]";
+        acc2D->FinalizePlot(outDir + "Pi0_acceptance_2D.png", optsAcc2D);
     }
 
     void Cleanup() {
         delete hMass; delete hppM_pre; delete hppM_post;
-        delete effPlotter; delete accPlotter;
-        delete accVsEta; delete accVsTheta;
+        delete effPlotter; delete accEkin;
+        delete accTheta; delete acc2D;
     }
 };
 
@@ -119,6 +142,7 @@ struct ChargedHistograms {
     TH1F* hdEdxTruePion         = nullptr;
     TH1F* hdEdxSmearPion        = nullptr;
     TH1F* hPionTheta            = nullptr;
+    TH1F* hPionThetaWASA        = nullptr;
     TH1F* hPionCosTheta         = nullptr;
     TH1F* hPionPhi              = nullptr;
     // Protons
@@ -134,10 +158,14 @@ struct ChargedHistograms {
     TH1F* hAngle_unmatched = nullptr;
     TH2F* hAngleVsE        = nullptr;
     // Acceptance
-    PIDEfficiency* pidEff            = nullptr;
     Acceptance*    chAccGlobal       = nullptr;
     Acceptance*    chAccCondTPC      = nullptr;
     Acceptance*    chAccCondNoTPC    = nullptr;
+    Acceptance*    accNChTracks      = nullptr;
+    // Efficiency
+    PIDEfficiency* pidEff            = nullptr;
+    ChEfficiency*  chEffTheta        = nullptr;
+    ChEfficiency*  chEffNChTracks    = nullptr;
 
     void Book() {
         hNSigmaPion   = new TH1F("hNSigmaPion",
@@ -145,6 +173,8 @@ struct ChargedHistograms {
         hNSigmaProton = new TH1F("hNSigmaProton",
             ";n#sigma;Counts", 100, -5, 5);
         hPionTheta    = new TH1F("hPionTheta",
+            ";#theta;Counts", 60, 0, TMath::Pi());
+        hPionThetaWASA= new TH1F("hPionThetaWASA",
             ";#theta;Counts", 60, 0, TMath::Pi());
         hPionCosTheta = new TH1F("hPionCosTheta",
             ";cos #theta;Counts", 60, -1, 1);
@@ -177,9 +207,15 @@ struct ChargedHistograms {
         hAngleVsE = new TH2F("hHitAngleVsE",
             ";Hit Energy [MeV];Angular distance [deg]", 100, 0, 50, 180, 0, 180);
         pidEff         = new PIDEfficiency(20, 0, 500);
-        chAccGlobal    = new Acceptance("chPiEGlobal",    100, 1, 1000);
-        chAccCondTPC   = new Acceptance("chPiECondTPC",   100, 1, 1000);
-        chAccCondNoTPC = new Acceptance("chPiECondNoTPC", 100, 1, 1000);
+        // chAccGlobal    = new Acceptance("chPiEGlobal",    100, 1, 1000);
+        // chAccCondTPC   = new Acceptance("chPiECondTPC",   100, 1, 1000);
+        // chAccCondNoTPC = new Acceptance("chPiECondNoTPC", 100, 1, 1000);
+        chAccGlobal    = new Acceptance("chPiEGlobal", AccAxisType::kEkin,    100, 1, 1000);
+        chAccCondTPC   = new Acceptance("chPiECondTPC", AccAxisType::kEkin,   100, 1, 1000);
+        chAccCondNoTPC = new Acceptance("chPiECondNoTPC", AccAxisType::kEkin, 100, 1, 1000);
+        accNChTracks   = new Acceptance("chpi_chTracks", AccAxisType::kTracks, 9, -0.5, 8.5);
+        chEffTheta     = new ChEfficiency("chEff_theta", AccAxisTypeChPi::kTheta, 20, 0, 3.2);
+        chEffNChTracks = new ChEfficiency("chEff_nChTracks", AccAxisTypeChPi::kTracks, 9, -0.5, 8.5);
     }
 
     void Plot(const std::string& outDir) {
@@ -191,6 +227,7 @@ struct ChargedHistograms {
                outDir + "nSigmaPlots.png", opts_nSigma);
 
         Plot1D({hPionTheta},    {kBlack}, outDir + "primaryChPionTheta.png",    {});
+        Plot1D({hPionThetaWASA},{kBlack}, outDir + "primaryChPionThetaWASA.png",{});
         Plot1D({hPionCosTheta}, {kBlack}, outDir + "primaryChPionCosTheta.png", {});
         Plot1D({hPionPhi},      {kBlack}, outDir + "primaryChPionPhi.png",      {});
 
@@ -198,12 +235,28 @@ struct ChargedHistograms {
         opts2D.drawOption  = "SCAT";
         opts2D.legendEntries = {"#pi^{#pm}", "p"};
         opts2D.legendDrawOpt = "P";
-        Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Proton},
-                      {kBlack, kRed},
-                      outDir + "dedx_vs_E_overlay_true.png", opts2D);
-        Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton},
-                      {kBlack, kRed},
-                      outDir + "dedx_vs_E_overlay_cluster.png", opts2D);
+        // Plot2DOverlay({hdEdxVsE_true_Pion, hdEdxVsE_true_Proton},
+        //               {kBlack, kRed},
+        //               outDir + "dedx_vs_E_overlay_true.png", opts2D);
+        // Plot2DOverlay({hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton},
+        //               {kBlack, kRed},
+        //               outDir + "dedx_vs_E_overlay_cluster.png", opts2D);
+        // Plot2DWithBands(
+        //     {hdEdxVsE_true_Pion, hdEdxVsE_true_Proton},
+        //     {kBlack, kRed},
+        //     {hdEdxVsE_cluster_Pion, hdEdxVsE_cluster_Proton},
+        //     {kBlack, kRed},
+        //     outDir + "dedx_overlay.png",
+        //     opts2D,
+        //     2.0
+        // );
+        Plot2DWithBands(
+        {hdEdxVsE_true_Pion, hdEdxVsE_cluster_Pion, hdEdxVsE_true_Proton, hdEdxVsE_cluster_Proton},
+        {kP6Violet, kP6Gray, kP6Yellow, kP6Red},
+        outDir + "dEdx_overlay.png",
+        opts2D,
+        {true, false, true, false},  // shade truth hists only
+        0.15);                        // 15% resolution
 
         TProfile* pEres = h2_Eres->ProfileX(
             Form("pEres_%s", h2_Eres->GetName()));
@@ -225,11 +278,36 @@ struct ChargedHistograms {
         optsAcc.topLatex    = "#bf{Hibeam}  #it{Wasa full simulation}";
         optsAcc.infoLines   = {"Signal dataset"};
         optsAcc.addInfoPave = true;
-        optsAcc.xAxisTitle  = "Signal #pi^{#pm} E_{kin} [MeV]";
+        // optsAcc.xAxisTitle  = "Signal #pi^{#pm} E_{kin} [MeV]";
+        optsAcc.xAxisTitle  = "Signal #pi^{#pm} #theta [rad]";
         optsAcc.yAxisTitle  = "Acceptance [%]";
         chAccGlobal   ->FinalizePlot(outDir + "chPi_acceptance_Global.png",    optsAcc);
         chAccCondTPC  ->FinalizePlot(outDir + "chPi_acceptance_CondTPC.png",   optsAcc);
         chAccCondNoTPC->FinalizePlot(outDir + "chPi_acceptance_CondNoTPC.png", optsAcc);
+
+        PlotOptions optsAccNChTracks;
+        optsAccNChTracks.topLatex    = "#bf{Hibeam}  #it{Wasa full simulation}";
+        optsAccNChTracks.infoLines   = {"Signal dataset"};
+        optsAccNChTracks.addInfoPave = true;
+        optsAccNChTracks.xAxisTitle  = "Number of charged tracks";
+        optsAccNChTracks.yAxisTitle  = "Acceptance [%]";
+        accNChTracks->FinalizePlot(outDir + "chPi_acceptance_vs_nTracks.png", optsAccNChTracks);
+
+        PlotOptions optsEffTheta;
+        optsEffTheta.topLatex    = "#bf{Hibeam}  #it{Wasa full simulation}";
+        optsEffTheta.infoLines   = {"Signal dataset"};
+        optsEffTheta.addInfoPave = true;
+        optsEffTheta.xAxisTitle  = "Signal #pi^{#pm} #theta [rad]";
+        optsEffTheta.yAxisTitle  = "Efficiency [%]";
+        chEffTheta->FinalizePlot(outDir + "chPi_eff_vs_theta.png", optsEffTheta);
+
+        PlotOptions optsEffNChTracks;
+        optsEffNChTracks.topLatex    = "#bf{Hibeam}  #it{Wasa full simulation}";
+        optsEffNChTracks.infoLines   = {"Signal dataset"};
+        optsEffNChTracks.addInfoPave = true;
+        optsEffNChTracks.xAxisTitle  = "Number of charged tracks";
+        optsEffNChTracks.yAxisTitle  = "Efficiency [%]";
+        chEffNChTracks->FinalizePlot(outDir + "chPi_eff_vs_nTracks.png", optsEffNChTracks);
 
         PlotOptions opts_cone;
         opts_cone.addLegend = true;

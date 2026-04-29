@@ -216,6 +216,7 @@ void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, cons
         info->Draw();
     }
     if (options.addTopLatex) AddTopLatex(c.get(), options.topLatex);
+    // c->SetLogy();
     SavePlot(c.get(), plotname);
 }
 
@@ -335,6 +336,121 @@ void Plot2DOverlay(
 
     // c->SetLogx();
     // TColor::InvertPalette();
+    SavePlot(c.get(), plotname);
+}
+
+void Plot2DWithBands(
+    const std::vector<TH2*>& hists,
+    const std::vector<int>& colors,
+    const std::string& plotname,
+    const PlotOptions& options,
+    const std::vector<bool>& isTruth,
+    double smearedResolution)
+{
+    if (hists.empty() || !hists[0]) return;
+
+    SetPrettyStyle();
+    gStyle->SetPalette(options.colorMap);
+    auto c = PlotCreateCanvas("c2DOverlay_" + plotname);
+
+    for (size_t i = 0; i < hists.size(); ++i) {
+        auto* h = hists[i];
+        h->SetMarkerColor(colors.size() > i ? colors[i] : kBlack);
+        h->SetMarkerStyle(20 + i);
+        h->SetMarkerSize(0.6);
+
+        std::string drawOpt = (i == 0)
+            ? options.drawOption
+            : "SAME " + options.drawOption;
+
+        h->Draw(drawOpt.c_str());
+    }
+
+    std::vector<std::unique_ptr<TGraphErrors>> bands;
+
+    for (size_t i = 0; i < hists.size(); ++i) {
+        bool doShade = isTruth.empty() || (i < isTruth.size() && isTruth[i]);
+        if (!doShade) continue;
+
+        auto* h = hists[i];
+        int nx = h->GetNbinsX();
+
+        // --- Build point lists dynamically to avoid stale (0,0) slots ---
+        std::vector<double> vX, vY, vEX, vEY;
+        vX.reserve(nx);
+        vY.reserve(nx);
+        vEX.reserve(nx);
+        vEY.reserve(nx);
+
+        for (int bx = 1; bx <= nx; ++bx) {
+            std::unique_ptr<TH1D> proj(h->ProjectionY(
+                ("_projY_" + std::string(h->GetName()) + "_" + std::to_string(bx)).c_str(),
+                bx, bx));
+
+            // Skip empty, zero-centre, or suspiciously low-stats bins
+            if (!proj || proj->GetEntries() < 5) continue;
+
+            double dEdx = proj->GetMean();
+            if (dEdx <= 0.0) continue;   // skip any (0,0)-type artefact
+
+            double ekin  = h->GetXaxis()->GetBinCenter(bx);
+            if (ekin  <= 0.0) continue;  // guard for log-x: skip non-positive x
+
+            vX .push_back(ekin);
+            vY .push_back(dEdx);
+            vEX.push_back(0.0);
+            vEY.push_back(dEdx * smearedResolution);
+        }
+
+        if (vX.empty()) continue;
+
+        auto gr = std::make_unique<TGraphErrors>(
+            (int)vX.size(), vX.data(), vY.data(), vEX.data(), vEY.data());
+
+        int col = (colors.size() > i) ? colors[i] : kBlack;
+
+        TColor* baseColor = gROOT->GetColor(col);
+        if (baseColor) {
+            int transIdx = TColor::GetFreeColorIndex();
+            new TColor(transIdx,
+                       baseColor->GetRed(),
+                       baseColor->GetGreen(),
+                       baseColor->GetBlue(),
+                       "transColor", 0.25);
+            gr->SetFillColorAlpha(transIdx, 0.25);
+        } else {
+            gr->SetFillColorAlpha(col, 0.25);
+        }
+
+        gr->SetFillStyle(1001);
+        gr->SetLineColor(col);
+        gr->SetLineWidth(2);
+
+        gr->Draw("E3 SAME");
+        gr->Draw("L SAME");
+
+        bands.push_back(std::move(gr));
+    }
+
+    std::unique_ptr<TLegend> leg;
+    if (options.addLegend) {
+        std::vector<TObject*> objs(hists.begin(), hists.end());
+        for (auto& gr : bands) objs.push_back(gr.get());
+
+        leg = PlotCreateLegend(
+            options.legendEntries, options.extraLegendLines,
+            options.legendX1, options.legendY1,
+            options.legendX2, options.legendY2,
+            objs, options.legendDrawOpt);
+        leg->Draw();
+    }
+
+    if (options.addTopLatex)
+        AddTopLatex(c.get(), options.topLatex);
+
+    // --- Log x scale (set after all drawing so axis range is frozen) ---
+    c->SetLogx();
+
     SavePlot(c.get(), plotname);
 }
 

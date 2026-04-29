@@ -18,6 +18,7 @@ struct AnalysisConfig {
     bool doTruthAnalysis   = false;
     bool doTruthAndMix     = false;
     bool doEventVariables  = false;
+    bool doSelection       = false;
     bool isSignal          = true;   // false = background/cosmic
 };
 

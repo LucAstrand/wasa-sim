@@ -54,6 +54,7 @@ struct TruePi0 {
 struct TrueChPiInCal {
     int trackID;
     bool throughTPC;
+    TVector3 direction;
 };
 
 struct TrueChPiDecayed {
@@ -103,12 +104,9 @@ struct ChargedTrack {
     TVector3 direction;     // cached (exit - entry).Unit()
     double TrueKE;
     double TruePDG;
-    double clusterdEdx;
-    double EdepSmeared;
-    double pathLength;
-    double dEdxTheory;
+    double smearedDedx;
+    double theoryDedx;
     double resolution;
-    int nSteps; 
 };
 
 struct ChargedCluster {
@@ -118,11 +116,10 @@ struct ChargedCluster {
     TVector3 direction;
     TVector3 TPCExitPoint;
     int nSteps;
-    double objectTrueKE; // true info from sim for control plots 
-    double objectTruedEdx; // true info from sim for control plots
     int objectTruePDG;
-    double clusterdEdx;
-    double EdepSmeared;
+    double objectTrueKE; // true info from sim for control plots 
+    double objectSmearedDedx;
+    double objectTheoryDedx;
     double nSigmaPion;
     double nSigmaProton;
     double nSigmaElectron;

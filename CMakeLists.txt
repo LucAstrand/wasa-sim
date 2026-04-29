@@ -39,6 +39,7 @@ add_executable(Analysis
     src/PhotonMatch.cpp
     src/Acceptance.cpp
     src/Pi0Efficiency.cpp
+    src/ChEfficiency.cpp
     src/PlotUtils.cpp
     src/TruePhotonCalc.cpp
     src/PIDEfficiency.cpp

@@ -61,20 +61,17 @@ struct BranchManagerInput {
     std::vector<double> *TrueChargedPionDecayedTrackID  = nullptr;
 
     // TPC
-    std::vector<double> *TPC_trackID     = nullptr;
-    std::vector<double> *TPC_Edep        = nullptr;
-    std::vector<double> *TPC_smearedEdep = nullptr;
+    std::vector<int>    *TPC_trackID     = nullptr;
+    std::vector<int>    *TPC_pdg         = nullptr;
+    std::vector<double> *TPC_TrueKE      = nullptr;
     std::vector<double> *TPC_firstPosX   = nullptr;
     std::vector<double> *TPC_firstPosY   = nullptr;
     std::vector<double> *TPC_firstPosZ   = nullptr;
     std::vector<double> *TPC_lastPosX    = nullptr;
     std::vector<double> *TPC_lastPosY    = nullptr;
     std::vector<double> *TPC_lastPosZ    = nullptr;
-    std::vector<double> *TPC_PathLength  = nullptr;
-    std::vector<double> *TPC_dEdx        = nullptr;
-    std::vector<double> *TPC_TrueKE      = nullptr;
-    std::vector<double> *TPC_pdg         = nullptr;
-    std::vector<int>    *TPC_nSteps      = nullptr;
+    std::vector<double> *TPC_smearedDedx = nullptr;
+    std::vector<double> *TPC_theoryDedx  = nullptr;
 
     void SetBranches(TTree* t) {
         // Calorimeter
@@ -117,19 +114,16 @@ struct BranchManagerInput {
         SafeSetBranch(t, "TrueChargedPionDecayedTrackID",  TrueChargedPionDecayedTrackID);
         // TPC
         SafeSetBranch(t, "TPC_trackID",    TPC_trackID);
-        SafeSetBranch(t, "TPC_Edep",       TPC_Edep);
-        SafeSetBranch(t, "TPC_smearedEdep",TPC_smearedEdep);
+        SafeSetBranch(t, "TPC_pdg",        TPC_pdg);
+        SafeSetBranch(t, "TPC_TrueKE",     TPC_TrueKE);
         SafeSetBranch(t, "TPC_firstPosX",  TPC_firstPosX);
         SafeSetBranch(t, "TPC_firstPosY",  TPC_firstPosY);
         SafeSetBranch(t, "TPC_firstPosZ",  TPC_firstPosZ);
         SafeSetBranch(t, "TPC_lastPosX",   TPC_lastPosX);
         SafeSetBranch(t, "TPC_lastPosY",   TPC_lastPosY);
         SafeSetBranch(t, "TPC_lastPosZ",   TPC_lastPosZ);
-        SafeSetBranch(t, "TPC_PathLength", TPC_PathLength);
-        SafeSetBranch(t, "TPC_dEdx",       TPC_dEdx);
-        SafeSetBranch(t, "TPC_TrueKE",     TPC_TrueKE);
-        SafeSetBranch(t, "TPC_pdg",        TPC_pdg);
-        SafeSetBranch(t, "TPC_nSteps",     TPC_nSteps);
+        SafeSetBranch(t, "TPC_smearedDedx", TPC_smearedDedx);
+        SafeSetBranch(t, "TPC_theoryDedx", TPC_theoryDedx);
     }
 };
 
