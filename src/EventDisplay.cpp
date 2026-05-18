@@ -1,773 +1,702 @@
 #include "EventDisplay.hpp"
-
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <iomanip>
 #include <iostream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <unordered_map>
 #include <unordered_set>
 
-// ---------- SafeSetBranch ----------
+#include "TEveProjectionManager.h"
+#include "TEveProjectionBases.h"
+
+// ============================================================
+//  Utility: safe TTree branch binding
+// ============================================================
 template <typename T>
-bool SafeSetBranch(TTree* tree, const char* branchName, T*& ptr) {
-    if (tree->GetListOfBranches()->FindObject(branchName)) {
-        tree->SetBranchAddress(branchName, &ptr);
+bool SafeSetBranch(TTree* tree, const char* name, T*& ptr)
+{
+    if (tree->GetListOfBranches()->FindObject(name)) {
+        tree->SetBranchAddress(name, &ptr);
         return true;
-    } else {
-        std::cout << "[Warning] Branch " << branchName << " not found. Skipping." << std::endl;
-        return false;
+    }
+    std::cout << "[Warning] Branch '" << name << "' not found.\n";
+    return false;
+}
+
+// ============================================================
+//  Colour palette
+// ============================================================
+namespace Palette
+{
+    static Color_t Reg(float r, float g, float b)
+    {
+        Color_t idx = TColor::GetFreeColorIndex();
+        new TColor(idx, r, g, b);
+        return idx;
+    }
+
+    static std::vector<Color_t> MakeClusterPalette()
+    {
+        return {
+            Reg(0.22f, 0.62f, 0.98f),   // azure
+            Reg(0.98f, 0.52f, 0.10f),   // amber
+            Reg(0.22f, 0.88f, 0.44f),   // green
+            Reg(0.95f, 0.18f, 0.28f),   // coral
+            Reg(0.78f, 0.42f, 0.95f),   // violet
+            Reg(0.08f, 0.82f, 0.82f),   // teal
+            Reg(0.97f, 0.88f, 0.12f),   // gold
+            Reg(0.92f, 0.50f, 0.72f),   // rose
+            Reg(0.38f, 0.92f, 0.72f),   // mint
+            Reg(0.96f, 0.64f, 0.38f),   // peach
+        };
+    }
+
+    static Color_t ForPDG(int pdg)
+    {
+        switch (pdg) {
+            case  211: return Reg(0.20f, 0.60f, 1.00f);
+            case -211: return Reg(0.00f, 0.85f, 0.85f);
+            case 2212: return Reg(1.00f, 0.25f, 0.25f);
+            case   13: return Reg(1.00f, 0.85f, 0.10f);
+            case  -13: return Reg(1.00f, 0.65f, 0.10f);
+            case   11: return Reg(0.90f, 0.20f, 0.80f);
+            case  -11: return Reg(0.95f, 0.55f, 0.85f);
+            case  111: return Reg(0.30f, 1.00f, 0.30f);
+            case 2112: return Reg(0.80f, 0.80f, 0.80f);
+            case   22: return Reg(1.00f, 1.00f, 0.50f);
+            default:   return Reg(0.55f, 0.55f, 0.55f);
+        }
+    }
+
+    static std::string NameForPDG(int pdg)
+    {
+        switch (pdg) {
+            case  211: return "pi+";
+            case -211: return "pi-";
+            case 2212: return "p";
+            case   13: return "mu-";
+            case  -13: return "mu+";
+            case   11: return "e-";
+            case  -11: return "e+";
+            case  111: return "pi0";
+            case 2112: return "n";
+            case   22: return "gamma";
+            default:   return Form("PDG%d", pdg);
+        }
     }
 }
 
-// ---------- Distinct per-cluster colors ----------
-static Color_t MakeDistinctColor(int i, float sat=1.0f, float val=1.0f)
+// ============================================================
+//  Geometry helpers
+// ============================================================
+
+// Walk the current gGeoManager mother stack upward looking for
+// the first node whose volume name starts with 'prefix'.
+// Must be called immediately after FindNode() so the stack is valid.
+static TGeoNode* FindAncestorByPrefix(const char* prefix)
 {
-    // Golden ratio hue stepping for visually distinct colors
-    double hue = fmod(i * 0.61803398875, 1.0);
-
-    float r=0, g=0, b=0;
-
-    float h = (float)(hue * 6.0);
-    float c = val * sat;
-    float x = c * (1.0f - fabsf(fmodf(h, 2.0f) - 1.0f));
-    float m = val - c;
-
-    float rp=0, gp=0, bp=0;
-    if      (0 <= h && h < 1) { rp = c; gp = x; bp = 0; }
-    else if (1 <= h && h < 2) { rp = x; gp = c; bp = 0; }
-    else if (2 <= h && h < 3) { rp = 0; gp = c; bp = x; }
-    else if (3 <= h && h < 4) { rp = 0; gp = x; bp = c; }
-    else if (4 <= h && h < 5) { rp = x; gp = 0; bp = c; }
-    else                      { rp = c; gp = 0; bp = x; }
-
-    r = rp + m; g = gp + m; b = bp + m;
-
-    Color_t idx = TColor::GetFreeColorIndex();
-    new TColor(idx, r, g, b); // register in ROOT
-    return idx;
+    int level = gGeoManager->GetLevel();
+    for (int lv = 0; lv <= level; ++lv) {
+        TGeoNode* node = gGeoManager->GetMother(lv);
+        if (!node) continue;
+        const char* vname = node->GetVolume()->GetName();
+        if (std::string(vname).rfind(prefix, 0) == 0)
+            return node;
+    }
+    return nullptr;
 }
 
-static inline void MakePerpBasis(const TVector3& dir, TVector3& u, TVector3& v)
+// Retrieve the world-space centre of the current node
+// (call right after FindNode, before moving the navigator).
+static TVector3 CurrentNodeWorldCentre()
 {
-    // Pick a vector not parallel to dir
-    TVector3 a = (std::fabs(dir.Z()) < 0.9) ? TVector3(0,0,1) : TVector3(0,1,0);
-    u = dir.Cross(a).Unit();
-    v = dir.Cross(u).Unit();
+    double local[3] = {0, 0, 0};
+    double world[3] = {0, 0, 0};
+    gGeoManager->LocalToMaster(local, world);
+    return TVector3(world[0], world[1], world[2]);
 }
 
-// Draw the same cone used by your clustering: angle between (hit - vertex) and direction < thetaMax
-TEveElement* DrawMatchCone(const TVector3& apex,
-                           const TVector3& dirIn,
-                           double thetaMax,      // radians
-                           double L,             // length in your detector units
-                           Color_t col = kCyan,
-                           int nCircle = 48,
-                           int nRays   = 12,
-                           double alpha = 0.7)   // (0..1) line transparency feel; TEveLine doesn't do true alpha
+// Reset every volume in the tree to a dim, semi-transparent state.
+static void ResetGeometryColors(Color_t dimCol, int transp)
 {
-    auto group = new TEveElementList("MatchCone");
+    if (!gGeoManager) return;
+    TGeoVolume* top = gGeoManager->GetTopVolume();
+    if (!top) return;
+    std::function<void(TGeoVolume*, int)> walk = [&](TGeoVolume* vol, int d) {
+        if (!vol || d > 8) return;
+        vol->SetLineColor(dimCol);
+        vol->SetFillColor(dimCol);
+        vol->SetTransparency(transp);
+        for (int i = 0; i < vol->GetNdaughters(); ++i)
+            walk(vol->GetNode(i)->GetVolume(), d + 1);
+    };
+    walk(top, 0);
+}
+
+// ============================================================
+//  Energy-spike parameters  (tune to your detector units / MeV)
+// ============================================================
+static constexpr double SPIKE_SCALE  = 0.20;   // length per MeV  [cm/MeV]
+static constexpr double SPIKE_MIN    = 2.0;    // minimum spike length [cm]
+static constexpr double SPIKE_MAX    = 55.0;   // maximum spike length [cm]
+
+// ============================================================
+//  Core cluster drawing
+//  For each hit:
+//    1. FindNode → walk stack to SECE cell node
+//    2. Recolour that geometry volume
+//    3. Accumulate energy per cell
+//    4. Draw one radial spike per cell, length ~ sum(E_hits)
+//    5. Place a centroid star at the energy-weighted centre
+// ============================================================
+static TEveElementList* DrawClusterCells(
+    const std::vector<Hit*>& hits,
+    int                       cid,
+    const char*               label,
+    Color_t                   col,
+    bool                      chargedOnly = false)
+{
+    auto group = new TEveElementList(label);
     group->SetMainColor(col);
 
-    TVector3 dir = dirIn;
-    if (dir.Mag() <= 0) return group;
-    dir = dir.Unit();
+    if (!gGeoManager) return group;
+    std::unordered_map<TGeoNode*, double>   cellE;
+    std::unordered_map<TGeoNode*, TVector3> cellCtr;
+    // hits that couldn't be matched to a SECE node
+    std::vector<const Hit*> unmatched;
 
-    TVector3 u, v;
-    MakePerpBasis(dir, u, v);
-
-    // Base circle at distance L along axis
-    const TVector3 baseC = apex + L * dir;
-    const double rBase   = L * std::tan(thetaMax);
-
-    auto base = new TEveLine("ConeBase");
-    base->SetMainColor(col);
-    base->SetLineWidth(2);
-
-    for (int i = 0; i <= nCircle; ++i) {
-        double phi = 2.0 * TMath::Pi() * (double)i / (double)nCircle;
-        TVector3 p = baseC + rBase * (std::cos(phi) * u + std::sin(phi) * v);
-        base->SetNextPoint(p.X(), p.Y(), p.Z());
-    }
-    group->AddElement(base);
-
-    // Rays from apex to a few points on the base circle
-    for (int k = 0; k < nRays; ++k) {
-        double phi = 2.0 * TMath::Pi() * (double)k / (double)nRays;
-        TVector3 p = baseC + rBase * (std::cos(phi) * u + std::sin(phi) * v);
-
-        auto ray = new TEveLine(Form("ConeRay_%d", k));
-        ray->SetMainColor(col);
-        ray->SetLineStyle(2);
-        ray->SetLineWidth(1);
-        ray->SetNextPoint(apex.X(), apex.Y(), apex.Z());
-        ray->SetNextPoint(p.X(), p.Y(), p.Z());
-        group->AddElement(ray);
-    }
-
-    // Optional: draw axis line for clarity
-    auto axis = new TEveLine("ConeAxis");
-    axis->SetMainColor(col);
-    axis->SetLineWidth(2);
-    axis->SetNextPoint(apex.X(), apex.Y(), apex.Z());
-    axis->SetNextPoint(baseC.X(), baseC.Y(), baseC.Z());
-    group->AddElement(axis);
-
-    return group;
-}
-
-
-// ---------- Draw a reconstructed cluster consistently ----------
-TEveElementList* DrawRecoNCluster(const Cluster& c, int cid, Color_t col,
-                                bool drawBBox=true, bool drawHitBoxes=false)
-{
-    auto group = new TEveElementList(Form("NCluster_%d", cid));
-    group->SetMainColor(col);
-
-    // ---- Hits: one TEvePointSet per cluster (fast + consistent) ----
-    auto hitsPS = new TEvePointSet(Form("NClusterHits_%d", cid));
-    hitsPS->SetMarkerStyle(4);
-    hitsPS->SetMarkerSize(1.0);
-    hitsPS->SetMarkerColor(col);
-
-    for (const Hit* h : c.hits) {
+    for (Hit* h : hits) {
         if (!h) continue;
-        hitsPS->SetNextPoint(h->x, h->y, h->z);
-    }
-    group->AddElement(hitsPS);
-
-    // ---- Centroid ----
-    auto cent = new TEvePointSet(Form("Centroid_%d", cid));
-    cent->SetMarkerStyle(20);
-    cent->SetMarkerSize(1.6);
-    cent->SetMarkerColor(col);
-    cent->SetNextPoint(c.centroid.X(), c.centroid.Y(), c.centroid.Z());
-    group->AddElement(cent);
-
-    // ---- Momentum arrow ----
-    TVector3 cc = c.centroid;
-    TVector3 dir = c.p4.Vect();
-    if (dir.Mag() > 0) dir = dir.Unit();
-
-    double E = c.p4.E();
-    double arrowLen = 4.0 + std::log(std::max(1e-6, E));
-    TVector3 vec = arrowLen * dir;
-
-    auto arrow = new TEveArrow(vec.X(), vec.Y(), vec.Z(), cc.X(), cc.Y(), cc.Z());
-    arrow->SetMainColor(col);
-    // arrow->SetLineWidth(2);
-    group->AddElement(arrow);
-
-    // ---- Optional: bounding box from cluster hits ----
-    if (drawBBox && !c.hits.empty()) {
-        double xmin=1e9, xmax=-1e9, ymin=1e9, ymax=-1e9, zmin=1e9, zmax=-1e9;
-        bool any=false;
-
-        for (const Hit* h : c.hits) {
-            if (!h) continue;
-            any = true;
-            xmin = std::min(xmin, h->x); xmax = std::max(xmax, h->x);
-            ymin = std::min(ymin, h->y); ymax = std::max(ymax, h->y);
-            zmin = std::min(zmin, h->z); zmax = std::max(zmax, h->z);
+        if (chargedOnly && h->owner != HitOwner::Charged) continue;
+        TGeoNode* cellNode = gGeoManager->FindNode(h->x, h->y, h->z);
+        if (!cellNode) {
+            unmatched.push_back(h);
+            continue;
         }
+        if (std::string(cellNode->GetName()).rfind("SECE", 0) != 0) {
+            unmatched.push_back(h);
+            continue;
+        }
+        cellE[cellNode] += h->e;
 
-        if (any) {
-            auto box = new TEveBox(Form("BBox_%d", cid));
-            box->SetMainColor(col);
-            box->SetMainTransparency(75);
+        if (cellCtr.find(cellNode) == cellCtr.end()) {
+            gGeoManager->FindNode(h->x, h->y, h->z);
+            double loc[3] = {0,0,0}, wld[3] = {0,0,0};
+            gGeoManager->LocalToMaster(loc, wld);
+            cellCtr[cellNode] = TVector3(wld[0], wld[1], wld[2]);
 
-            box->SetVertex(0, xmin, ymin, zmin);
-            box->SetVertex(1, xmax, ymin, zmin);
-            box->SetVertex(2, xmax, ymax, zmin);
-            box->SetVertex(3, xmin, ymax, zmin);
-            box->SetVertex(4, xmin, ymin, zmax);
-            box->SetVertex(5, xmax, ymin, zmax);
-            box->SetVertex(6, xmax, ymax, zmax);
-            box->SetVertex(7, xmin, ymax, zmax);
-
-            group->AddElement(box);
+            // Restore navigator
+            gGeoManager->FindNode(h->x, h->y, h->z);
         }
     }
 
-    // ---- Optional: little boxes per hit (cluster "shape") ----
-    // Looks nice if hits correspond to cells. Can be heavy if many hits.
-    if (drawHitBoxes && !c.hits.empty()) {
-        auto bs = new TEveBoxSet(Form("HitBoxes_%d", cid));
-        bs->SetMainColor(col);
-        bs->SetMainTransparency(40);
-        bs->Reset(TEveBoxSet::kBT_AABox, true, 64);
+    // ── Recolour cells + draw spikes ───────────────────────
+    auto spikeGroup = new TEveElementList(Form("Spikes_%d", cid));
+    spikeGroup->SetMainColor(col);
 
-        const float half = 0.5f; // tune this to your cell size
-        for (const Hit* h : c.hits) {
-            if (!h) continue;
-            bs->AddBox(h->x - half, h->y - half, h->z - half,
-                         2*half, 2*half, 2*half);
+    TVector3 wCentroid(0, 0, 0);
+    double   wSum = 0;
+
+    for (auto& kv : cellE) {
+        TGeoNode*       node   = kv.first;
+        double          eSum   = kv.second;
+        const TVector3& ctr    = cellCtr[node];
+
+        // Radial direction outward from origin
+        TVector3 rhat = ctr;
+        if (rhat.Mag() > 0) rhat = rhat.Unit();
+        else rhat.SetXYZ(0, 0, 1);
+        double len =
+            std::clamp(
+                6.0 + 18.0 * std::log10(1.0 + eSum),
+                6.0,
+                90.0);
+        int width =
+            std::clamp(
+                (int)(2 + 1.8 * std::log10(1.0 + eSum)),
+                2,
+                12);
+        TVector3 base = ctr + 1.5 * rhat;
+        TVector3 tip = ctr + len * rhat;
+
+        auto outer = new TEveLine();
+        outer->SetLineWidth(width + 4);
+        outer->SetLineColor(kBlack);
+        outer->SetMainTransparency(70);
+        outer->SetNextPoint(base.X(), base.Y(), base.Z());
+        outer->SetNextPoint(tip.X(),  tip.Y(),  tip.Z());
+        auto spike = new TEveLine(Form("spike_%.0fMeV", eSum));
+        spike->SetLineColor(col);
+        spike->SetLineWidth(width);
+        spike->SetLineStyle(1);
+        // spike->SetMainTransparency(15);
+        spike->SetNextPoint(base.X(), base.Y(), base.Z());
+        spike->SetNextPoint(tip.X(),  tip.Y(),  tip.Z());
+        spikeGroup->AddElement(outer);
+        spikeGroup->AddElement(spike);
+
+        // Accumulate energy-weighted centroid
+        wCentroid += eSum * ctr;
+        wSum += eSum;
+    }
+    group->AddElement(spikeGroup);
+
+    // ── Fallback points for unmatched hits ─────────────────
+    if (!unmatched.empty()) {
+        auto ps = new TEvePointSet(Form("UnmatchedHits_%d", cid));
+        ps->SetMarkerStyle(kFullDotSmall);
+        ps->SetMarkerSize(0.9);
+        ps->SetMarkerColor(col);
+        for (const Hit* h : unmatched) {
+            ps->SetNextPoint(h->x, h->y, h->z);
+            wCentroid += TVector3(h->x, h->y, h->z);
+            wSum += 1.0;
         }
-        bs->RefitPlex();
-        group->AddElement(bs);
+        group->AddElement(ps);
+    }
+
+    // ── Centroid star ──────────────────────────────────────
+    if (wSum > 0) {
+        wCentroid *= 1.0 / wSum;
+        auto centPS = new TEvePointSet(Form("Centroid_%d", cid));
+        centPS->SetMarkerStyle(kFullStar);
+        centPS->SetMarkerSize(2.8);
+        centPS->SetMarkerColor(col);
+        centPS->SetNextPoint(wCentroid.X(), wCentroid.Y(), wCentroid.Z());
+        group->AddElement(centPS);
     }
 
     return group;
 }
 
-TEveElementList* DrawRecoCCluster(const ChargedCluster& c, int cid, Color_t col,
-                                bool drawBBox=true, bool drawHitBoxes=false)
+// ── Public wrappers ────────────────────────────────────────
+
+static TEveElementList* DrawNeutralCluster(const Cluster& c, int cid, Color_t col)
 {
-    std::string particle_label = PIDToString(c.pidGuess);
-    auto group = new TEveElementList(Form("CCluster_%s_%d", particle_label.c_str(), cid));
-    group->SetMainColor(col);
+    std::string lbl = Form("NCluster_%d  E=%.0f MeV  nhits=%zu",
+                           cid, c.p4.E(), c.hits.size());
+    return DrawClusterCells(c.hits, cid, lbl.c_str(), col, false);
+}
 
-    // ---- Hits: one TEvePointSet per cluster (fast + consistent) ----
-    auto hitsPS = new TEvePointSet(Form("CClusterHits_%d", cid));
-    hitsPS->SetMarkerStyle(4);
-    hitsPS->SetMarkerSize(1.0);
-    hitsPS->SetMarkerColor(col);
+static TEveElementList* DrawChargedCluster(const ChargedCluster& c, int cid, Color_t col)
+{
+    std::string pid = PIDToString(c.pidGuess);
+    std::string lbl = Form("CCluster_%s_%d  E=%.0f MeV",
+                           pid.c_str(), cid, c.totalEnergy);
+    return DrawClusterCells(c.hits, cid, lbl.c_str(), col, true);
+}
 
-    for (const Hit* h : c.hits) {
-        if (!h) continue;
-        if (h->owner == HitOwner::Charged) {
-            hitsPS->SetNextPoint(h->x, h->y, h->z);
-        }
+// ============================================================
+//  TPC reconstructed tracks  (straight lines, no B-field)
+// ============================================================
+static TEveElementList* DrawTPCTracks(
+    const std::vector<double>* fX, const std::vector<double>* fY, const std::vector<double>* fZ,
+    const std::vector<double>* lX, const std::vector<double>* lY, const std::vector<double>* lZ,
+    const std::vector<int>*    pdg,
+    const std::vector<double>* trueKE,
+    const std::vector<double>* smearedDedx)
+{
+    auto group = new TEveElementList("TPC Tracks (reco)");
+    if (!fX || fX->empty()) return group;
+
+    for (int i = 0; i < (int)fX->size(); ++i) {
+        TVector3 p0((*fX)[i], (*fY)[i], (*fZ)[i]);
+        TVector3 p1((*lX)[i], (*lY)[i], (*lZ)[i]);
+
+        int    thisPDG = pdg       ? (*pdg)[i]        : 0;
+        double ke      = trueKE    ? (*trueKE)[i]     : 0.0;
+        double dedx    = smearedDedx ? (*smearedDedx)[i] : -1.0;
+
+        Color_t     col   = Palette::ForPDG(thisPDG);
+        std::string pname = Palette::NameForPDG(thisPDG);
+
+        std::ostringstream lbl;
+        lbl << "TPC " << pname
+            << "  Ekin=" << std::fixed << std::setprecision(0) << ke << " MeV";
+        if (dedx >= 0)
+            lbl << "  dE/dx=" << std::setprecision(2) << dedx << " MeV/cm";
+
+        auto trkGrp = new TEveElementList(lbl.str().c_str());
+        trkGrp->SetMainColor(col);
+
+        auto line = new TEveLine("segment");
+        line->SetLineColor(col);
+        line->SetLineWidth(3);
+        line->SetLineStyle(1);
+        line->SetNextPoint(p0.X(), p0.Y(), p0.Z());
+        line->SetNextPoint(p1.X(), p1.Y(), p1.Z());
+        trkGrp->AddElement(line);
+
+        auto psA = new TEvePointSet("entry");
+        psA->SetMarkerStyle(kOpenCircle);
+        psA->SetMarkerSize(2.0);
+        psA->SetMarkerColor(col);
+        psA->SetNextPoint(p0.X(), p0.Y(), p0.Z());
+        trkGrp->AddElement(psA);
+
+        auto psB = new TEvePointSet("exit");
+        psB->SetMarkerStyle(kFullCircle);
+        psB->SetMarkerSize(1.6);
+        psB->SetMarkerColor(col);
+        psB->SetNextPoint(p1.X(), p1.Y(), p1.Z());
+        trkGrp->AddElement(psB);
+
+        group->AddElement(trkGrp);
     }
-    group->AddElement(hitsPS);
-
-    // // ---- Centroid ----
-    // auto cent = new TEvePointSet(Form("Direction_%d", cid));
-    // cent->SetMarkerStyle(20);
-    // cent->SetMarkerSize(1.6);
-    // cent->SetMarkerColor(col);
-    // cent->SetNextPoint(c.direction.X(), c.direction.Y(), c.direction.Z());
-    // group->AddElement(cent);
-
-    // ---- Momentum arrow ----
-    // TVector3 cc = c.centroid;
-    TVector3 dir = c.direction;
-    TVector3 exitPoint = c.TPCExitPoint;
-    if (dir.Mag() > 0) dir = dir.Unit();
-
-    double E = c.totalEnergy;
-    double arrowLen = 4.0 + std::log(std::max(1e-6, E));
-    TVector3 vec = arrowLen * dir;
-
-    auto arrow = new TEveArrow(vec.X(), vec.Y(), vec.Z(), exitPoint.X(), exitPoint.Y(), exitPoint.Z());
-    arrow->SetMainColor(col);
-    // arrow->SetLineWidth(2);
-    group->AddElement(arrow);
-
-    const TVector3 axis = dir.Unit();
-    double theta = 25*TMath::DegToRad();      // MUST be radians
-    double L = 100.0;             // choose: track length or detector size
-
-    auto coneEl = DrawMatchCone(exitPoint, axis, theta, L, kMagenta);
-    group->AddElement(coneEl);
-
-
     return group;
 }
 
-void DrawPionsAsArrows(const std::vector<primaryChPi>& pions,
-                       double x0 = 0, double y0 = 0, double z0 = 0,
-                       double scale = 1.0)
+// ============================================================
+//  Primary truth tracks  (long-dashed, PDG-coloured)
+// ============================================================
+static TEveElementList* DrawPrimaryTracks(
+    const std::vector<double>* pX,  const std::vector<double>* pY,  const std::vector<double>* pZ,
+    const std::vector<double>* mX,  const std::vector<double>* mY,  const std::vector<double>* mZ,
+    const std::vector<double>* ekin,
+    const std::vector<int>*    pdg,
+    const std::vector<int>*    trackID,
+    double trackLen = 180.0)
 {
-  // Make sure TEve is running
-  if (!gEve) TEveManager::Create();
+    auto group = new TEveElementList("Primary Tracks (truth)");
+    if (!pX || pX->empty()) return group;
 
-  auto* list = new TEveElementList("Primary charged pions");
-  gEve->AddElement(list);
-
-  for (const auto& pi : pions) {
-    // Use momentum as arrow direction
-    const double px = pi.p4.Px();
-    const double py = pi.p4.Py();
-    const double pz = pi.p4.Pz();
-
-    // Normalize direction; use magnitude separately if you like
-    const double p = TMath::Sqrt(px*px + py*py + pz*pz);
-    if (p <= 0) continue;
-
-    const double dx = (px / p) * (p * scale);
-    const double dy = (py / p) * (p * scale);
-    const double dz = (pz / p) * (p * scale);
-
-    auto* a = new TEveArrow(dx, dy, dz, x0, y0, z0);
-    a->SetName(Form("pi trackID=%d", pi.trackID));
-
-    // Optional styling
-    a->SetMainColor(kRed);   // or color by charge/pT/etc.
-    a->SetTubeR(0.001);       // shaft radius (world units)
-    a->SetConeR(0.0001);
-    a->SetConeL(0.0001);
-
-    list->AddElement(a);
-  }
-
-  gEve->Redraw3D(kTRUE);
-}
-
-TEveElementList* MakePrimaryTracks(
-    const std::vector<double>* primaryX,
-    const std::vector<double>* primaryY,
-    const std::vector<double>* primaryZ,
-    const std::vector<double>* primaryPx,
-    const std::vector<double>* primaryPy,
-    const std::vector<double>* primaryPz,
-    const std::vector<double>* primaryEkin,
-    const std::vector<int>*    primaryPDG,
-    const std::vector<int>*    primaryTrackID,
-    double trackLength = 200.0  // cm, how far to draw the arrow
-)
-{
-    TEveElementList* group = new TEveElementList("Primary Tracks");
-
-    if (!primaryX || primaryX->empty()) return group;
-
-    int nPrimaries = primaryX->size();
-
-    for (int i = 0; i < nPrimaries; i++) {
-
-        double x0 = primaryX->at(i);
-        double y0 = primaryY->at(i);
-        double z0 = primaryZ->at(i);
-
-        double px = primaryPx->at(i);
-        double py = primaryPy->at(i);
-        double pz = primaryPz->at(i);
+    for (int i = 0; i < (int)pX->size(); ++i) {
+        double px = (*mX)[i], py = (*mY)[i], pz = (*mZ)[i];
         double pmag = std::sqrt(px*px + py*py + pz*pz);
+        if (pmag <= 0) continue;
 
-        int pdg = primaryPDG->at(i);
-        int tid = primaryTrackID->at(i);
-        double ekin = primaryEkin->at(i);
+        TVector3 start((*pX)[i], (*pY)[i], (*pZ)[i]);
+        TVector3 dir(px/pmag, py/pmag, pz/pmag);
+        TVector3 end = start + trackLen * dir;
 
-        // Normalised direction
-        double dx = 0, dy = 0, dz = 0;
-        if (pmag > 0) {
-            dx = px / pmag;
-            dy = py / pmag;
-            dz = pz / pmag;
-        }
+        int    thisPDG = (*pdg)[i];
+        int    tid     = (*trackID)[i];
+        double ke      = (*ekin)[i];
 
-        // End point of the drawn track segment
-        double x1 = x0 + dx * trackLength;
-        double y1 = y0 + dy * trackLength;
-        double z1 = z0 + dz * trackLength;
+        Color_t     col   = Palette::ForPDG(thisPDG);
+        std::string pname = Palette::NameForPDG(thisPDG);
 
-        // Use TEveLine for the track
-        TEveLine* line = new TEveLine();
-        line->SetNextPoint(x0, y0, z0);
-        line->SetNextPoint(x1, y1, z1);
+        std::ostringstream lbl;
+        lbl << "Truth " << pname << " [TID=" << tid << "]"
+            << "  Ekin=" << std::fixed << std::setprecision(0) << ke << " MeV";
+
+        auto trkGrp = new TEveElementList(lbl.str().c_str());
+        trkGrp->SetMainColor(col);
+
+        auto line = new TEveLine("truth_seg");
+        line->SetLineColor(col);
         line->SetLineWidth(2);
+        line->SetLineStyle(7);   // long dash  → clearly different from reco
+        line->SetNextPoint(start.X(), start.Y(), start.Z());
+        line->SetNextPoint(end.X(),   end.Y(),   end.Z());
+        trkGrp->AddElement(line);
 
-        // Color by PDG type
-        Color_t color = kGray;
-        std::string pname = "unknown";
-        if      (pdg ==  211) { color = kBlue;    pname = "pi+";     }
-        else if (pdg == -211) { color = kCyan;    pname = "pi-";     }
-        else if (pdg == 2212) { color = kRed;     pname = "proton";  }
-        else if (pdg ==   13) { color = kYellow;  pname = "mu-";     }
-        else if (pdg ==  -13) { color = kOrange;  pname = "mu+";     }
-        else if (pdg ==   11) { color = kMagenta; pname = "e-";      }
-        else if (pdg ==  -11) { color = kPink;    pname = "e+";      }
-        else if (pdg ==  111) { color = kGreen;   pname = "pi0";     }
-        else if (pdg == 2112) { color = kWhite;   pname = "neutron"; }
+        auto psVtx = new TEvePointSet("vtx");
+        psVtx->SetMarkerStyle(kOpenDiamond);
+        psVtx->SetMarkerSize(2.2);
+        psVtx->SetMarkerColor(col);
+        psVtx->SetNextPoint(start.X(), start.Y(), start.Z());
+        trkGrp->AddElement(psVtx);
 
-        line->SetLineColor(color);
-
-        // Descriptive name shown in the Eve browser panel
-        char name[256];
-        snprintf(name, sizeof(name), 
-                 "%s [TID=%d] Ekin=%.1f MeV", 
-                 pname.c_str(), tid, ekin);
-        line->SetName(name);
-
-        // Optional: add a marker at the vertex position
-        TEvePointSet* vtxMarker = new TEvePointSet(1);
-        vtxMarker->SetNextPoint(x0, y0, z0);
-        vtxMarker->SetMarkerStyle(4);  // open circle
-        vtxMarker->SetMarkerSize(1.5);
-        vtxMarker->SetMarkerColor(color);
-        vtxMarker->SetName("vertex");
-
-        // Group the line and its vertex marker together
-        TEveElementList* trackGroup = new TEveElementList(name);
-        trackGroup->AddElement(line);
-        trackGroup->AddElement(vtxMarker);
-
-        group->AddElement(trackGroup);
+        group->AddElement(trkGrp);
     }
-
     return group;
 }
 
-int main(int argc, char **argv) {
+// ============================================================
+//  True photon trajectories (dotted)
+// ============================================================
+static TEveElementList* DrawTruePhotons(
+    const std::vector<double>* cx, const std::vector<double>* cy, const std::vector<double>* cz,
+    const std::vector<double>* ex, const std::vector<double>* ey, const std::vector<double>* ez,
+    const std::vector<double>* phPid)
+{
+    auto group = new TEveElementList("True Photons (truth)");
+    if (!cx || cx->empty()) return group;
+
+    Color_t col = TColor::GetColor(1.0f, 1.0f, 0.55f);
+    for (size_t i = 0; i < cx->size(); ++i) {
+        double photonParentID = (*phPid)[i];
+        auto line = new TEveLine(Form("gamma_%zu_%f", i, photonParentID));
+        line->SetLineColor(col);
+        line->SetLineWidth(2);
+        line->SetLineStyle(3);
+        line->SetNextPoint((*cx)[i], (*cy)[i], (*cz)[i]);
+        line->SetNextPoint((*ex)[i], (*ey)[i], (*ez)[i]);
+        group->AddElement(line);
+    }
+    return group;
+}
+
+// ============================================================
+//  Background hit cloud (very dim – just shows detector coverage)
+// ============================================================
+static TEvePointSet* DrawAllHits(
+    const std::vector<double>* xs,
+    const std::vector<double>* ys,
+    const std::vector<double>* zs)
+{
+    auto ps = new TEvePointSet("All Calo Hits");
+    ps->SetMarkerStyle(kFullDotSmall);
+    ps->SetMarkerSize(0.28);
+    ps->SetMarkerColor(TColor::GetColor(0.24f, 0.24f, 0.26f));
+    if (xs)
+        for (size_t i = 0; i < xs->size(); ++i)
+            ps->SetNextPoint((*xs)[i], (*ys)[i], (*zs)[i]);
+    return ps;
+}
+
+// ============================================================
+//  Primary vertex
+// ============================================================
+static TEvePointSet* DrawVertex(const TVector3& v)
+{
+    auto ps = new TEvePointSet("Primary Vertex");
+    ps->SetMarkerStyle(kFullStar);
+    ps->SetMarkerSize(1);
+    ps->SetMarkerColor(kWhite);
+    ps->SetNextPoint(v.X(), v.Y(), v.Z());
+    return ps;
+}
+
+// ============================================================
+//  pi0 candidate connectors
+// ============================================================
+static TEveElementList* DrawPi0Candidates(
+    const std::vector<Pi0Candidate>& selected,
+    const std::vector<Cluster>&      allClusters)
+{
+    auto group = new TEveElementList("pi0 Candidates");
+    Color_t col = TColor::GetColor(1.0f, 1.0f, 0.55f);
+
+    for (size_t k = 0; k < selected.size(); ++k) {
+        const auto& cand = selected[k];
+        std::ostringstream lbl;
+        lbl << "pi0 #" << k
+            << "  m_gg=" << std::fixed << std::setprecision(1) << cand.mgg << " MeV"
+            << "  theta=" << std::setprecision(1)
+            << cand.theta * TMath::RadToDeg() << " deg";
+
+        auto candGrp = new TEveElementList(lbl.str().c_str());
+
+        auto conn = new TEveLine("connector");
+        conn->SetLineColor(col);
+        conn->SetLineWidth(2);
+        conn->SetLineStyle(5);
+        conn->SetNextPoint(cand.c1->centroid.X(), cand.c1->centroid.Y(), cand.c1->centroid.Z());
+        conn->SetNextPoint(cand.c2->centroid.X(), cand.c2->centroid.Y(), cand.c2->centroid.Z());
+        candGrp->AddElement(conn);
+
+        group->AddElement(candGrp);
+    }
+    return group;
+}
+
+// ============================================================
+//  MAIN
+// ============================================================
+int main(int argc, char** argv)
+{
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0] << " <data.root> <geometry.root>\n";
         return 1;
     }
-    const char* dataFile = argv[1];
-    const char* geoFile  = argv[2];
 
-    TGeoManager::Import(geoFile, "geometry");
+    TGeoManager::Import(argv[2], "geometry");
     if (!gGeoManager) {
-        std::cerr << "ERROR: Could not load geometry!\n";
+        std::cerr << "ERROR: cannot load geometry\n";
         return 1;
     }
 
     new TApplication("app", &argc, argv);
     TEveManager::Create();
 
-    // Make detector geometry semi-transparent
-    TGeoVolume* topVolume = gGeoManager->GetTopVolume();
-    int nd = topVolume->GetNdaughters();
-    for (int i = 0; i < nd; i++) {
-        TGeoNode* node = topVolume->GetNode(i);
-        TGeoVolume* vol = node->GetVolume();
-        vol->SetTransparency(80);
-        vol->SetLineColor(kGray + 1);
-    }
+    // auto projMgrRPhi = new TEveProjectionManager();
+    // projMgrRPhi->SetProjection(TEveProjection::kPT_RPhi);
+    // gEve->AddToListTree(projMgrRPhi, kTRUE);
 
-    auto top = new TEveGeoTopNode(gGeoManager, gGeoManager->GetTopNode());
-    top->SetVisLevel(4);
-    gEve->AddGlobalElement(top);
+    // auto viewRPhi = gEve->SpawnNewViewer("RPhi View");
+    // auto sceneRPhi = gEve->SpawnNewScene("RPhi Scene");
 
-    TFile* f = TFile::Open(dataFile);
-    if (!f) { std::cerr << "ERROR: cannot open datafile\n"; return 1; }
+    // viewRPhi->AddScene(sceneRPhi);
+    // projMgrRPhi->SetCurrentCamera(viewRPhi->GetGLViewer()->GetCurrentCamera());
+    auto projMgrRPhi = new TEveProjectionManager();
+    projMgrRPhi->SetProjection(TEveProjection::kPT_RPhi);
+    gEve->AddToListTree(projMgrRPhi, kFALSE);
 
-    TTree* t = (TTree*)f->Get("digitizedHits");
-    if (!t) { std::cerr << "ERROR: TTree not found\n"; return 1; }
+    auto projScene = gEve->SpawnNewScene("RPhi Projected Scene");
+    // projMgrRPhi->SetProjModel(projScene);
 
-    // Hit cell centers + energy
-    std::vector<double> *centerXs = nullptr, *centerYs = nullptr, *centerZs = nullptr, *energies = nullptr;
-    SafeSetBranch(t, "centerX", centerXs);
-    SafeSetBranch(t, "centerY", centerYs);
-    SafeSetBranch(t, "centerZ", centerZs);
-    SafeSetBranch(t, "energy", energies);
+    auto viewRPhi = gEve->SpawnNewViewer("RPhi View");
+    viewRPhi->AddScene(projScene);
 
-    // Primary vertex
-    std::vector<double> *primaryX = nullptr, *primaryY = nullptr, *primaryZ = nullptr, *primaryEkin = nullptr;
-    std::vector<double> *primaryPx = nullptr, *primaryPy = nullptr, *primaryPz = nullptr;
-    std::vector<int> *primaryPDG = nullptr, *primaryTrackID = nullptr;
-    SafeSetBranch(t, "PrimaryPosX", primaryX);
-    SafeSetBranch(t, "PrimaryPosY", primaryY);
-    SafeSetBranch(t, "PrimaryPosZ", primaryZ);
-    SafeSetBranch(t, "PrimaryEkin", primaryEkin);
-    SafeSetBranch(t, "PrimaryMomX", primaryPx);
-    SafeSetBranch(t, "PrimaryMomY", primaryPy);
-    SafeSetBranch(t, "PrimaryMomZ", primaryPz);
-    SafeSetBranch(t, "PrimaryPDG", primaryPDG);
-    SafeSetBranch(t, "PrimaryTrackID", primaryTrackID);
+    // Dark background
+    if (auto gl = gEve->GetDefaultViewer()->GetGLViewer())
+        gl->SetClearColor(TColor::GetColor(0.04f, 0.04f, 0.06f));
 
-    // Truth info (photons)
-    std::vector<double> *truePhotonPosX = nullptr, *truePhotonPosY = nullptr, *truePhotonPosZ = nullptr, *truePhotonE = nullptr;
-    std::vector<int> *truePhotonTrackID = nullptr, *truePhotonParentID = nullptr;
-    SafeSetBranch(t, "truthPosX", truePhotonPosX);
-    SafeSetBranch(t, "truthPosY", truePhotonPosY);
-    SafeSetBranch(t, "truthPosZ", truePhotonPosZ);
-    SafeSetBranch(t, "truthE", truePhotonE);
-    SafeSetBranch(t, "TruePhotonTrackID", truePhotonTrackID);
-    SafeSetBranch(t, "TruePhotonParentID", truePhotonParentID);
+    // All geometry starts dim
+    Color_t dimCol = TColor::GetColor(0.28f, 0.30f, 0.33f);
+    ResetGeometryColors(dimCol, 90);
 
-    std::vector<double>* TruePhotonCreationX = nullptr;
-    std::vector<double>* TruePhotonCreationY = nullptr;
-    std::vector<double>* TruePhotonCreationZ = nullptr;
-    std::vector<double>* TruePhotonEndX = nullptr;
-    std::vector<double>* TruePhotonEndY = nullptr;
-    std::vector<double>* TruePhotonEndZ = nullptr;
+    // Add geometry to scene; vis level 5 reaches the SECE cell level
+    auto geoTop = new TEveGeoTopNode(gGeoManager, gGeoManager->GetTopNode());
+    geoTop->SetVisLevel(5);
+    gEve->AddGlobalElement(geoTop);
+    // auto gse  = (TEveGeoShapeExtract*) gGeoManager->Get("Gentle");
+    projMgrRPhi->AddElement(geoTop);
 
-    SafeSetBranch(t, "TruePhotonCreationX", TruePhotonCreationX);
-    SafeSetBranch(t, "TruePhotonCreationY", TruePhotonCreationY);
-    SafeSetBranch(t, "TruePhotonCreationZ", TruePhotonCreationZ);
-    SafeSetBranch(t, "TruePhotonEndX", TruePhotonEndX);
-    SafeSetBranch(t, "TruePhotonEndY", TruePhotonEndY);
-    SafeSetBranch(t, "TruePhotonEndZ", TruePhotonEndZ);
+    // AddCoordinateAxes();
 
-    // TPC info
-    // std::vector<double> *TPC_trackID = nullptr, *TPC_Edep = nullptr, *TPC_smearedEdep = nullptr;
-    // std::vector<double> *TPC_firstPosX = nullptr, *TPC_firstPosY = nullptr, *TPC_firstPosZ = nullptr;
-    // std::vector<double> *TPC_lastPosX = nullptr, *TPC_lastPosY = nullptr, *TPC_lastPosZ = nullptr;
-    // std::vector<double> *TPC_PathLength = nullptr, *TPC_dEdx = nullptr, *TPC_TrueKE = nullptr, *TPC_pdg = nullptr;
-    // SafeSetBranch(t, "TPC_trackID", TPC_trackID);
-    // SafeSetBranch(t, "TPC_Edep", TPC_Edep);
-    // SafeSetBranch(t, "TPC_smearedEdep", TPC_smearedEdep);
-    // SafeSetBranch(t, "TPC_firstPosX", TPC_firstPosX);
-    // SafeSetBranch(t, "TPC_firstPosY", TPC_firstPosY);
-    // SafeSetBranch(t, "TPC_firstPosZ", TPC_firstPosZ);
-    // SafeSetBranch(t, "TPC_lastPosX", TPC_lastPosX);
-    // SafeSetBranch(t, "TPC_lastPosY", TPC_lastPosY);
-    // SafeSetBranch(t, "TPC_lastPosZ", TPC_lastPosZ);
-    // SafeSetBranch(t, "TPC_PathLength", TPC_PathLength);
-    // SafeSetBranch(t, "TPC_dEdx", TPC_dEdx);
-    // SafeSetBranch(t, "TPC_TrueKE", TPC_TrueKE);
-    // SafeSetBranch(t, "TPC_pdg", TPC_pdg);
-    std::vector<int>    *TPC_trackID     = nullptr;
-    std::vector<int>    *TPC_pdg         = nullptr;
-    std::vector<double> *TPC_TrueKE      = nullptr;
-    std::vector<double> *TPC_firstPosX   = nullptr;
-    std::vector<double> *TPC_firstPosY   = nullptr;
-    std::vector<double> *TPC_firstPosZ   = nullptr;
-    std::vector<double> *TPC_lastPosX    = nullptr;
-    std::vector<double> *TPC_lastPosY    = nullptr;
-    std::vector<double> *TPC_lastPosZ    = nullptr;
-    std::vector<double> *TPC_smearedDedx = nullptr;
-    std::vector<double> *TPC_theoryDedx  = nullptr;
+    // Open data
+    std::cout << "datafile name: "<< argv[1] << "geometry filename: "<< argv[2] << std::endl;
+    // TFile* f = TFile::Open(argv[1]);
+    TFile* f = TFile::Open("../build/processedData/processed_fullSignal_2026-04-29.root");
+    if (!f || f->IsZombie()) { std::cerr << "ERROR: cannot open data file\n"; return 1; }
+    TTree* t = dynamic_cast<TTree*>(f->Get("digitizedHits"));
+    if (!t) { std::cerr << "ERROR: TTree 'digitizedHits' not found\n"; return 1; }
 
-    SafeSetBranch(t, "TPC_trackID",    TPC_trackID);
-    SafeSetBranch(t, "TPC_pdg",        TPC_pdg);
-    SafeSetBranch(t, "TPC_TrueKE",     TPC_TrueKE);
-    SafeSetBranch(t, "TPC_firstPosX",  TPC_firstPosX);
-    SafeSetBranch(t, "TPC_firstPosY",  TPC_firstPosY);
-    SafeSetBranch(t, "TPC_firstPosZ",  TPC_firstPosZ);
-    SafeSetBranch(t, "TPC_lastPosX",   TPC_lastPosX);
-    SafeSetBranch(t, "TPC_lastPosY",   TPC_lastPosY);
-    SafeSetBranch(t, "TPC_lastPosZ",   TPC_lastPosZ);
-    SafeSetBranch(t, "TPC_smearedDedx", TPC_smearedDedx);
-    SafeSetBranch(t, "TPC_theoryDedx", TPC_theoryDedx);
+    // Branches
+    std::vector<double> *cX=nullptr,*cY=nullptr,*cZ=nullptr,*cE=nullptr;
+    SafeSetBranch(t,"centerX",cX); SafeSetBranch(t,"centerY",cY);
+    SafeSetBranch(t,"centerZ",cZ); SafeSetBranch(t,"energy", cE);
 
-    Long64_t nEvents = 1; // or: t->GetEntries();
+    std::vector<double> *primX=nullptr,*primY=nullptr,*primZ=nullptr,*primEkin=nullptr;
+    std::vector<double> *primPx=nullptr,*primPy=nullptr,*primPz=nullptr;
+    std::vector<int>    *primPDG=nullptr,*primTID=nullptr;
+    SafeSetBranch(t,"PrimaryPosX",primX);   SafeSetBranch(t,"PrimaryPosY",primY);
+    SafeSetBranch(t,"PrimaryPosZ",primZ);   SafeSetBranch(t,"PrimaryEkin",primEkin);
+    SafeSetBranch(t,"PrimaryMomX",primPx);  SafeSetBranch(t,"PrimaryMomY",primPy);
+    SafeSetBranch(t,"PrimaryMomZ",primPz);  SafeSetBranch(t,"PrimaryPDG", primPDG);
+    SafeSetBranch(t,"PrimaryTrackID",primTID);
 
-    std::vector<primaryChPi> primaryChPis;
-    DEDXTable dedxTABLE("dedx_tables_Ar80CO2.root");
+    std::vector<double> *phCX=nullptr,*phCY=nullptr,*phCZ=nullptr;
+    std::vector<double> *phEX=nullptr,*phEY=nullptr,*phEZ=nullptr;
+    std::vector<double> *phPid=nullptr;
+    SafeSetBranch(t,"TruePhotonCreationX",phCX); SafeSetBranch(t,"TruePhotonCreationY",phCY);
+    SafeSetBranch(t,"TruePhotonCreationZ",phCZ); SafeSetBranch(t,"TruePhotonEndX",phEX);
+    SafeSetBranch(t,"TruePhotonEndY",phEY);      SafeSetBranch(t,"TruePhotonEndZ",phEZ);
+    SafeSetBranch(t, "TruePhotonParentID",phPid);
 
-    for (Long64_t ev = 0; ev < nEvents; ev++) {
+    std::vector<int>    *tpcPDG=nullptr,*tpcTID=nullptr;
+    std::vector<double> *tpcKE=nullptr;
+    std::vector<double> *tpcFX=nullptr,*tpcFY=nullptr,*tpcFZ=nullptr;
+    std::vector<double> *tpcLX=nullptr,*tpcLY=nullptr,*tpcLZ=nullptr;
+    std::vector<double> *tpcDS=nullptr,*tpcDT=nullptr;
+    SafeSetBranch(t,"TPC_pdg",tpcPDG);         SafeSetBranch(t,"TPC_trackID",tpcTID);
+    SafeSetBranch(t,"TPC_TrueKE",tpcKE);
+    SafeSetBranch(t,"TPC_firstPosX",tpcFX);    SafeSetBranch(t,"TPC_firstPosY",tpcFY);
+    SafeSetBranch(t,"TPC_firstPosZ",tpcFZ);    SafeSetBranch(t,"TPC_lastPosX",tpcLX);
+    SafeSetBranch(t,"TPC_lastPosY",tpcLY);     SafeSetBranch(t,"TPC_lastPosZ",tpcLZ);
+    SafeSetBranch(t,"TPC_smearedDedx",tpcDS);  SafeSetBranch(t,"TPC_theoryDedx",tpcDT);
+
+    auto palette = Palette::MakeClusterPalette();
+    DEDXTable dedxTable("dedx_tables_Ar80CO2.root");
+
+    const double pi0_h=135,pi0_a=45,pi0_k=1.6,pi0_b=1.55;
+
+    Long64_t nEvents = std::min((Long64_t)2, t->GetEntries());
+
+    for (Long64_t ev = 0; ev < nEvents; ++ev) {
+
+        // Reset geometry highlights before each new event
+        ResetGeometryColors(dimCol, 90);
+
         t->GetEntry(ev);
 
-        // Build event list
-        auto eventList = new TEveElementList(Form("Event_%lld", ev));
+        auto eventList = new TEveElementList(Form("Event %lld", ev));
         gEve->AddElement(eventList);
 
-        // ---------- Event color (only used for truth/charged tracks here) ----------
-        // Keep eventColor distinct, but clusters will have their own colors.
-        Color_t eventColor = MakeDistinctColor((int)ev, 0.6f, 1.0f);
-
-        // ---------- Draw photons (truth) ----------
-        if (TruePhotonCreationX && TruePhotonEndX) {
-            for (size_t i = 0; i < TruePhotonCreationX->size(); i++) {
-                auto photon = new TEveLine(Form("Photon_%lld_%zu", ev, i));
-                photon->SetLineWidth(3);
-                photon->SetMainColor(eventColor);
-
-                photon->SetPoint(0,
-                    (*TruePhotonCreationX)[i],
-                    (*TruePhotonCreationY)[i],
-                    (*TruePhotonCreationZ)[i]);
-
-                photon->SetPoint(1,
-                    (*TruePhotonEndX)[i],
-                    (*TruePhotonEndY)[i],
-                    (*TruePhotonEndZ)[i]);
-
-                eventList->AddElement(photon);
-            }
-        }
-
-        // ---------- Draw charged tracks ----------
-        if (TPC_firstPosX && TPC_lastPosX) {
-            for (size_t i = 0; i < TPC_firstPosX->size(); i++) {
-                auto charged = new TEveLine(Form("charged_%lld_%zu", ev, i));
-                charged->SetLineWidth(3);
-                charged->SetMainColor(eventColor);
-
-                charged->SetPoint(0,
-                    (*TPC_firstPosX)[i],
-                    (*TPC_firstPosY)[i],
-                    (*TPC_firstPosZ)[i]);
-
-                charged->SetPoint(1,
-                    (*TPC_lastPosX)[i],
-                    (*TPC_lastPosY)[i],
-                    (*TPC_lastPosZ)[i]);
-
-                eventList->AddElement(charged);
-            }
-        }
-
-        // ---------- Build hits ----------
-        std::vector<Hit> hits;
-        if (!centerXs || !centerYs || !centerZs || !energies) continue;
-
-        const size_t nHits = energies->size();
-        hits.reserve(nHits);
-        for (size_t k = 0; k < nHits; ++k) {
-            hits.push_back({(*centerXs)[k], (*centerYs)[k], (*centerZs)[k], (*energies)[k]});
-        }
-
-        // Primary vertex
         TVector3 vertex(0,0,0);
-        if (primaryX && !primaryX->empty()) {
-            vertex = TVector3((*primaryX)[0], (*primaryY)[0], (*primaryZ)[0]);
-        }
+        if (primX && !primX->empty())
+            vertex.SetXYZ((*primX)[0], (*primY)[0], (*primZ)[0]);
 
-        size_t nPrimaries = primaryPDG->size();
-        // reset the vetors as they are filled on an event level
-        primaryChPis.clear();
-        for (size_t i=0; i<nPrimaries; ++i) {
-            
-            //init event value
-            // chPi_per_event.push_back(0);
+        // Draw order: back to front
+        eventList->AddElement(DrawAllHits(cX, cY, cZ));
+        eventList->AddElement(DrawTruePhotons(phCX,phCY,phCZ,phEX,phEY,phEZ,phPid));
+        eventList->AddElement(DrawPrimaryTracks(primX,primY,primZ,
+                                                primPx,primPy,primPz,
+                                                primEkin,primPDG,primTID));
+        eventList->AddElement(DrawTPCTracks(tpcFX,tpcFY,tpcFZ,
+                                            tpcLX,tpcLY,tpcLZ,
+                                            tpcPDG,tpcKE,tpcDS));
+        eventList->AddElement(DrawVertex(vertex));
 
-            if (std::abs((*primaryPDG)[i]) == 211) { // pi+-
-                // chPi_per_event[ievt]++;
-                primaryChPis.push_back({(*primaryTrackID)[i], TLorentzVector(TVector3((*primaryPx)[i], (*primaryPy)[i], (*primaryPz)[i]), (*primaryEkin)[i])});
-            }
-        }
+        // Build hits for reconstruction
+        if (!cX || cX->empty()) continue;
+        std::vector<Hit> hits;
+        hits.reserve(cX->size());
+        for (size_t k = 0; k < cX->size(); ++k)
+            hits.push_back({(*cX)[k],(*cY)[k],(*cZ)[k],(*cE)[k]});
 
-        // ---------- Build chargedTracks ----------
         std::vector<ChargedTrack> chargedTracks;
-        if (TPC_firstPosX && TPC_lastPosX && TPC_TrueKE && TPC_pdg) {
-            chargedTracks.reserve(TPC_pdg->size());
-            for (size_t k = 0; k < TPC_pdg->size(); ++k) {
-                TVector3 first((*TPC_firstPosX)[k], (*TPC_firstPosY)[k], (*TPC_firstPosZ)[k]);
-                TVector3 last((*TPC_lastPosX)[k],  (*TPC_lastPosY)[k],  (*TPC_lastPosZ)[k]);
-                TVector3 dir = last - first;
-
-                // chargedTracks.push_back({
-                //     (*TPC_trackID)[k],
-                //     vertex,
-                //     last,
-                //     dir,
-                //     (*TPC_TrueKE)[k],
-                //     (*TPC_pdg)[k],
-                //     (*TPC_dEdx)[k],
-                //     (*TPC_smearedEdep)[k],
-                //     (*TPC_PathLength)[k],
-                //     0.0,   // dEdxTheory placeholder
-                //     0.15   // resolution
-                // });
+        if (tpcFX && tpcPDG) {
+            for (size_t k = 0; k < tpcPDG->size(); ++k) {
                 ChargedTrack trk;
-                trk.id            = k;
-                trk.vertex        = vertex;
-                trk.exitPoint     = TVector3((*TPC_lastPosX)[k], (*TPC_lastPosY)[k], (*TPC_lastPosZ)[k]);
-                trk.direction     = trk.exitPoint
-                                - TVector3((*TPC_firstPosX)[k], (*TPC_firstPosY)[k], (*TPC_firstPosZ)[k]);
-                trk.direction     = trk.direction.Unit();
-                trk.TrueKE        = (*TPC_TrueKE)[k];
-                trk.TruePDG       = (*TPC_pdg)[k];
-                trk.smearedDedx   = (*TPC_smearedDedx)[k];
-                trk.theoryDedx    = (*TPC_theoryDedx)[k];
-                trk.resolution    = 0.15;
+                trk.id        = (int)k;
+                trk.vertex    = vertex;
+                trk.exitPoint = TVector3((*tpcLX)[k],(*tpcLY)[k],(*tpcLZ)[k]);
+                trk.direction = (trk.exitPoint -
+                    TVector3((*tpcFX)[k],(*tpcFY)[k],(*tpcFZ)[k])).Unit();
+                trk.TrueKE      = (*tpcKE)[k];
+                trk.TruePDG     = (*tpcPDG)[k];
+                trk.smearedDedx = tpcDS ? (*tpcDS)[k] : 0.0;
+                trk.theoryDedx  = tpcDT ? (*tpcDT)[k] : 0.0;
+                trk.resolution  = 0.15;
                 chargedTracks.push_back(trk);
             }
         }
 
-        // ---------- Reconstruct ----------
-        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex, dedxTABLE);
+        RecoEvent reco = ReconstructEvent(hits, chargedTracks, vertex, dedxTable);
 
-        // ---------- Draw ALL hits as gray background ----------
-        {
-            auto allHits = new TEvePointSet(Form("AllHits_%lld", ev));
-            allHits->SetMarkerStyle(4);
-            allHits->SetMarkerSize(0.6);
-            allHits->SetMarkerColor(kGray + 1);
-            for (size_t i = 0; i < centerXs->size(); ++i) {
-                allHits->SetNextPoint(centerXs->at(i), centerYs->at(i), centerZs->at(i));
-            }
-            eventList->AddElement(allHits);
-        }
-
-        // ---------- candidate selection ----------
-        double param_h = 135;
-        double param_k = 1.6;
-        double param_a = 45;
-        double param_b = 1.55;
-
+        // pi0 selection
         std::vector<Pi0Candidate> candidates;
+        for (size_t a = 0; a < reco.clusters.size(); ++a)
+            for (size_t b = a+1; b < reco.clusters.size(); ++b) {
+                const auto& g1=reco.clusters[a].p4, &g2=reco.clusters[b].p4;
+                double mgg=( g1+g2).M(), theta=openingAngle(g1,g2);
+                double r2=std::pow((mgg-pi0_h)/pi0_a,2)+std::pow((theta-pi0_k)/pi0_b,2);
+                if (r2>1.0) continue;
+                Pi0Candidate c; c.c1=&reco.clusters[a]; c.c2=&reco.clusters[b];
+                c.mgg=mgg; c.theta=theta; c.p4=g1+g2; c.score=r2;
+                candidates.push_back(c);
+            }
+        std::sort(candidates.begin(),candidates.end(),
+            [](const Pi0Candidate& a,const Pi0Candidate& b){return a.score<b.score;});
         std::vector<Pi0Candidate> selected;
-
-        for (size_t a = 0; a < reco.clusters.size(); ++a) {
-            for (size_t b = a + 1; b < reco.clusters.size(); ++b) {
-                const auto& g1 = reco.clusters[a].p4;
-                const auto& g2 = reco.clusters[b].p4;
-
-                double mgg = (g1 + g2).M();
-                double theta = openingAngle(g1, g2);
-
-                double relipse =
-                    std::pow((mgg - param_h), 2) / std::pow(param_a, 2) +
-                    std::pow((theta - param_k), 2) / std::pow(param_b, 2);
-
-                if (relipse > 1) continue;
-
-                Pi0Candidate cand;
-                cand.c1 = &reco.clusters[a];
-                cand.c2 = &reco.clusters[b];
-                cand.mgg = mgg;
-                cand.theta = theta;
-                cand.p4 = g1 + g2;
-                cand.score = relipse;
-
-                candidates.push_back(cand);
-            }
-        }
-
-        std::sort(candidates.begin(), candidates.end(),
-            [](const Pi0Candidate& a, const Pi0Candidate& b) { return a.score < b.score; });
-
         std::unordered_set<const Cluster*> used;
-        for (const auto& cand : candidates) {
-            if (used.count(cand.c1) || used.count(cand.c2)) continue;
-            used.insert(cand.c1);
-            used.insert(cand.c2);
-            selected.push_back(cand);
+        for (const auto& c:candidates) {
+            if (used.count(c.c1)||used.count(c.c2)) continue;
+            used.insert(c.c1); used.insert(c.c2);
+            selected.push_back(c);
         }
 
-        // ---------- Helper: cluster pointer -> index ----------
-        auto clusterIndex = [&](const Cluster* cptr)->int {
-            for (size_t i = 0; i < reco.clusters.size(); ++i) {
-                if (&reco.clusters[i] == cptr) return (int)i;
-            }
-            return -1;
-        };
+        // Neutral clusters
+        auto neutGrp = new TEveElementList("Neutral Clusters (ECAL)");
+        for (size_t ci=0; ci<reco.clusters.size(); ++ci)
+            neutGrp->AddElement(
+                DrawNeutralCluster(reco.clusters[ci],(int)ci,
+                                   palette[ci%palette.size()]));
+        eventList->AddElement(neutGrp);
 
-        // ---------- DRAWING OPTIONS ----------
-        const bool drawAllNClusters = false;     // set false if you only want selected pi0 clusters
-        const bool drawBBox         = true;
-        const bool drawHitBoxes     = false;    // heavy if many hits; try true for a few clusters
-        const bool drawAllCClusters = true;
-        const bool drawPrimaryPions = true;
+        // Charged clusters
+        auto chGrp = new TEveElementList("Charged Clusters");
+        for (size_t ci=0; ci<reco.chargedClusters.size(); ++ci)
+            chGrp->AddElement(
+                DrawChargedCluster(reco.chargedClusters[ci],(int)ci,
+                                   palette[(ci+5)%palette.size()]));
+        eventList->AddElement(chGrp);
 
-        if (drawAllNClusters) {
-            // Draw every cluster with its own unique color
-            for (size_t ci = 0; ci < reco.clusters.size(); ++ci) {
-                Color_t ccol = MakeDistinctColor((int)ci);
-                auto clEve = DrawRecoNCluster(reco.clusters[ci], (int)ci, ccol, drawBBox, drawHitBoxes);
-                eventList->AddElement(clEve);
-            }
-        } else {
-            // Draw only selected pi0 clusters, each with its own unique color
-            for (const Pi0Candidate& pi0 : selected) {
-                int i1 = clusterIndex(pi0.c1);
-                int i2 = clusterIndex(pi0.c2);
-
-                Color_t col1 = MakeDistinctColor(i1 >= 0 ? i1 : 1000);
-                Color_t col2 = MakeDistinctColor(i2 >= 0 ? i2 : 1001);
-
-                // For selected, you might want hit boxes ON to see the shape:
-                eventList->AddElement(DrawRecoNCluster(*pi0.c1, i1, col1, /*drawBBox=*/true, /*drawHitBoxes=*/true));
-                eventList->AddElement(DrawRecoNCluster(*pi0.c2, i2, col2, /*drawBBox=*/true, /*drawHitBoxes=*/true));
-            }
-        }
-
-        if (drawAllCClusters) {
-            for (size_t ch = 0; ch < reco.chargedClusters.size(); ++ch) {
-                Color_t chcol = MakeDistinctColor((int)ch);
-                auto chclEve = DrawRecoCCluster(reco.chargedClusters[ch], (int)ch, chcol, drawBBox, drawHitBoxes);
-                eventList->AddElement(chclEve);
-            }
-        }
-
-        if (drawPrimaryPions) {
-
-            DrawPionsAsArrows(primaryChPis, vertex.X(), vertex.Y(), vertex.Z(), 1);
-        }        
-
-        TEveElementList* primaries = MakePrimaryTracks(
-            primaryX, primaryY, primaryZ,
-            primaryPx, primaryPy, primaryPz,
-            primaryEkin, primaryPDG, primaryTrackID
-        );
-        gEve->AddElement(primaries);
-        // gEve->Redraw3D(kTRUE);
-
-        // Done with this event
+        // pi0 connectors
+        eventList->AddElement(DrawPi0Candidates(selected, reco.clusters));
+        // projMgrRPhi->ImportElements(eventList);
+        projMgrRPhi->ImportElements(eventList, projScene);
     }
-
     gEve->Redraw3D(kTRUE);
     gApplication->Run(kTRUE);
     return 0;
 }
+

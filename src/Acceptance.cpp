@@ -347,12 +347,13 @@ void Acceptance::FinalizePlot(const std::string& outFileName, PlotOptions opts)
         // Set axis titles on the histogram itself so Plot2D picks them up
         h2_acc->GetXaxis()->SetTitle(opts.xAxisTitle.c_str());
         h2_acc->GetYaxis()->SetTitle(opts.yAxisTitle.c_str());
-        h2_acc->GetZaxis()->SetTitle("Acceptance (%)");
+        h2_acc->GetZaxis()->SetTitle(opts.zAxisTitle.c_str());
+        // h2_acc->GetZaxis()->SetTitle("Acceptance (%)");
 
         // Reuse Plot2D — it calls SavePlot which prepends "plots/" correctly
         opts.drawOption  = "COLZ";
         opts.isHeatmap   = true;
-        opts.colorMap    = kBird;
+        // opts.colorMap    = kBird;
         Plot2D(h2_acc, outFileName, opts);
 
         delete h2_acc;

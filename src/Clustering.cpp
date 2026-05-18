@@ -315,11 +315,12 @@ std::vector<ChargedCluster> MatchHitsToTracks(
         c.nSigmaPion = nSigmaCalc(trk.smearedDedx, dedxTheory_pion, trk.resolution);
         c.nSigmaProton = nSigmaCalc(trk.smearedDedx, dedxTheory_proton, trk.resolution);
         c.nSigmaElectron = nSigmaCalc(trk.smearedDedx, dedxTheory_electron, trk.resolution);
+        c.nSigmaMuon = nSigmaCalc(trk.smearedDedx, dedxTheory_muon, trk.resolution);
         c.pidL = ComputePIDLikelihoods(
             c.nSigmaPion,
             c.nSigmaElectron,
-            c.nSigmaProton
-
+            c.nSigmaProton,
+            c.nSigmaMuon
         );
         c.pidGuess = AssignPIDFromLikelihood(c.pidL, 0.7);
 
@@ -335,9 +336,9 @@ std::vector<ChargedCluster> MatchHitsToTracks(
             MatchHitsElectron(clusters[i], hits, 3.0 /* ~moliere radius in cm TUNE THIS!*/);
             break;
         // in case we want to implement separate for muons
-        // case PID::Muon:
-        //     MatchHitsMuon(clusters[i], hits, 5*TMath::DegToRad());
-        //     break;
+        case PID::Muon:
+            MatchHitsMuon(clusters[i], hits, 5*TMath::DegToRad());
+            break;
         case PID::Pion:
         case PID::Proton:
         default:

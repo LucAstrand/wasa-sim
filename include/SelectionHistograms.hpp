@@ -78,14 +78,14 @@ struct SelectionHistograms {
             Plot1D({hSn, hBn}, {kBlack, kRed}, outDir + name, opts);
             delete hSn; delete hBn;
         };
-        overlay(hHasvertex,     bkg.hHasvertex,      "HasVertex.png");
-        overlay(hVertexRadius,  bkg.hVertexRadius,   "VertexRadius.png");
-        overlay(hNCharged,      bkg.hNCharged,       "nCharged.png");
-        overlay(hNNeutral,      bkg.hNNeutral,       "nNeutral.png");
-        overlay(hNPi0,          bkg.hNPi0,           "NPi0.png");
-        overlay(hEtotal,        bkg.hEtotal,         "Etotal.png");
-        overlay(hECorrected,    bkg.hECorrected,     "ECorrected.png");
-        overlay(hSphericity,    bkg.hSphericity,     "Sphericity.png");
+        overlay(hHasvertex,     bkg.hHasvertex,      "HasVertex.pdf");
+        overlay(hVertexRadius,  bkg.hVertexRadius,   "VertexRadius.pdf");
+        overlay(hNCharged,      bkg.hNCharged,       "nCharged.pdf");
+        overlay(hNNeutral,      bkg.hNNeutral,       "nNeutral.pdf");
+        overlay(hNPi0,          bkg.hNPi0,           "NPi0.pdf");
+        overlay(hEtotal,        bkg.hEtotal,         "Etotal.pdf");
+        overlay(hECorrected,    bkg.hECorrected,     "ECorrected.pdf");
+        overlay(hSphericity,    bkg.hSphericity,     "Sphericity.pdf");
     }
 };
 
@@ -166,7 +166,7 @@ struct CorrelationMatrix {
         opts.isHeatmap = true;
         hCorrelationMatrix->SetMinimum(-1.0);
         hCorrelationMatrix->SetMaximum(1.0);
-        Plot2D(hCorrelationMatrix, outDir + label + "_correlations.png", opts);
+        Plot2D(hCorrelationMatrix, outDir + label + "_correlations.pdf", opts);
         delete hCorrelationMatrix;
     }
 

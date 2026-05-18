@@ -6,16 +6,16 @@
 
 #include "PlotUtils.hpp"
 
-PIDEfficiency::PIDEfficiency(int nBins, double eMin, double eMax)
+PIDEfficiency::PIDEfficiency(const std::string& tag, int nBins, double eMin, double eMax)
     : nBins_(nBins), eMin_(eMin), eMax_(eMax)
 {
-    h_numPion_ = new TH1D("h_numPionPIDEfficiency", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    h_numPion_ = new TH1D(Form("h_numPi_%s", tag.c_str()), ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
     // h_numPion_miss = new TH1D("h_numPion_missPIDEfficiency", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
-    h_denPion_ = new TH1D("h_denPionPIDEfficiency", "All Pions;True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    h_denPion_ = new TH1D(Form("h_denPi_%s", tag.c_str()), "All Pions;True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
 
-    h_numProton_ = new TH1D("h_numProtonPIDEfficiency", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    h_numProton_ = new TH1D(Form("h_numP_%s", tag.c_str()), ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
     // h_numProton_miss = new TH1D("h_numProton_missPIDEfficiency", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
-    h_denProton_ = new TH1D("h_denProtonPIDEfficiency", "All Protons;True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
+    h_denProton_ = new TH1D(Form("h_denP_%s", tag.c_str()), "All Protons;True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
 
     // h_numElectron_ = new TH1D("h_numElectron", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
     // h_numElectron_miss = new TH1D("h_numElectron", ";True E_{kin} [MeV];Events", nBins_, eMin_, eMax_);
@@ -59,7 +59,9 @@ void PIDEfficiency::ProcessEvent(const std::vector<ChargedCluster>& clusters)
 
 void PIDEfficiency::FinalizePlot(const std::string& outFileName, int pdgNumToPlot)
 {
-    TGraphAsymmErrors* gEff = nullptr;
+    TGraphAsymmErrors* gEff       = nullptr;
+    // TGraphAsymmErrors* gEffPion   = nullptr;
+    // TGraphAsymmErrors* gEffProton = nullptr;
     // TGraphAsymmErrors* gEffmiss = nullptr;
 
     switch (pdgNumToPlot) {
@@ -90,6 +92,13 @@ void PIDEfficiency::FinalizePlot(const std::string& outFileName, int pdgNumToPlo
         //         h_numElectron_miss, h_denElectron_, "cl=0.683 b(1,1) mode"
         //     );
         //     break;
+        // case -1:
+        //     gEffPion = new TGraphAsymmErrors(
+        //         h_numPion_, h_denPion_, "cl=0.683 b(1,1) mode"
+        //     );
+        //     gEffProton = new TGraphAsymmErrors(
+        //         h_numProton_, h_denProton_, "cl=0.683 b(1,1) mode"
+        //     );
 
         default:
             std::cerr << "[PIDEfficiency] Unknown PDG " << pdgNumToPlot
@@ -113,6 +122,12 @@ void PIDEfficiency::FinalizePlot(const std::string& outFileName, int pdgNumToPlo
     // gEffmiss->GetYaxis()->SetTitle("miss-ID [%]");
     // gEffmiss->GetYaxis()->SetRangeUser(0, 110);
 
+    // gEffPion->GetXaxis()->SetTitle("True KE [MeV]");
+    // gEffPion->GetYaxis()->SetTitle("Efficiency [%]");
+    // gEffPion->GetYaxis()->SetRangeUser(0, 110);
+    // gEffProton->GetXaxis()->SetTitle("True KE [MeV]");
+    // gEffProton->GetYaxis()->SetTitle("Efficiency [%]");
+    // gEffProton->GetYaxis()->SetRangeUser(0, 110);
     // scale to percent
     for (int i = 0; i < gEff->GetN(); ++i) {
         double x, y;
@@ -126,19 +141,22 @@ void PIDEfficiency::FinalizePlot(const std::string& outFileName, int pdgNumToPlo
             100.0 * gEff->GetErrorYhigh(i)
         );
     }
-    // // scale to percent
-    // for (int i = 0; i < gEff->GetN(); ++i) {
+
+    // for (TGraphAsymmErrors *const gEff : {gEff, gEffPion, gEffProton}) {
+    //     for (int i = 0; i < gEff->GetN(); ++i) {
     //     double x, y;
-    //     gEffmiss->GetPoint(i, x, y);
-    //     gEffmiss->SetPoint(i, x, 100.0 * y);
-    //     gEffmiss->SetPointError(
+    //     gEff->GetPoint(i, x, y);
+    //     gEff->SetPoint(i, x, 100.0 * y);
+    //     gEff->SetPointError(
     //         i,
-    //         gEffmiss->GetErrorXlow(i),
-    //         gEffmiss->GetErrorXhigh(i),
-    //         100.0 * gEffmiss->GetErrorYlow(i),
-    //         100.0 * gEffmiss->GetErrorYhigh(i)
+    //         gEff->GetErrorXlow(i),
+    //         gEff->GetErrorXhigh(i),
+    //         100.0 * gEff->GetErrorYlow(i),
+    //         100.0 * gEff->GetErrorYhigh(i)
     //     );
     // }
+    // }
+
 
     PlotOptions opts;
     opts.legendEntries = { "#pi^{+} ID efficiency" };
@@ -146,11 +164,11 @@ void PIDEfficiency::FinalizePlot(const std::string& outFileName, int pdgNumToPlo
     opts.legendX1 = 0.65;
     opts.legendX2 = 0.98;
 
-    PlotOptions optsmiss;
-    optsmiss.legendEntries = { "#pi^{+} miss-ID percentage" };
-    optsmiss.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
-    optsmiss.legendX1 = 0.65;
-    optsmiss.legendX2 = 0.98;
+    // PlotOptions optsmiss;
+    // optsmiss.legendEntries = { "#pi^{+} miss-ID percentage" };
+    // optsmiss.topLatex = "#bf{Hibeam}  #it{Wasa full simulation}";
+    // optsmiss.legendX1 = 0.65;
+    // optsmiss.legendX2 = 0.98;
 
     // PlotGraph(gEff, "pid_efficiency_pion.png", opts);
     // PlotGraph(gEffmiss, "miss_pid_percentage_pion.png", optsmiss);

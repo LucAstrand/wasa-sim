@@ -16,7 +16,8 @@ void RunSignalLoop(
     BranchManagerInput br;
     br.SetBranches(tree);
 
-    Long64_t nentries = tree->GetEntries();
+    // Long64_t nentries = tree->GetEntries();
+    Long64_t nentries = 1000; // limit to 5k events.
     progressbar bar(nentries);
 
     std::vector<Hit> hits;
@@ -34,6 +35,9 @@ void RunSignalLoop(
 
     pi0_per_event.resize(nentries, 0);
     chPi_per_event.resize(nentries, 0);
+
+    hCharged->gdEdxPion   = dedxTable.GetGraph(211);
+    hCharged->gdEdxProton = dedxTable.GetGraph(2212);
 
     for (Long64_t ievt=0; ievt<nentries; ++ievt) {
         bar.update(); // Visual feedback on loop progress.
@@ -88,6 +92,7 @@ void RunSignalLoop(
                 TrueChPiInCal chpi;
                 chpi.trackID = (*br.TrueChargedPionTrackID)[i];
                 chpi.throughTPC = (*br.TrueChargedPionThroughTPC)[i];
+                chpi.theta = (*br.TrueChargedPionthetaAtEntry)[i];
                 trueChPiInCals.push_back(chpi);
             }
             trueChPiDecayed.clear();
@@ -196,6 +201,7 @@ void RunSignalLoop(
             double relipse = 0;
 
             std::vector<Pi0Candidate> candidates;
+            if (hPi0->hPhotonNum) hPi0->hPhotonNum->Fill(reco.clusters.size());
 
             if (cfg.doChargedAnalysis) {
                 // add photons built from conversions!
@@ -243,12 +249,15 @@ void RunSignalLoop(
                     const auto& g2 = reco.clusters[b].p4;
 
                     double E1 = g1.E();
+                    if (hPi0->hPhotonE) hPi0->hPhotonE->Fill(E1);
                     double E2 = g2.E();
+                    if (hPi0->hPhotonE) hPi0->hPhotonE->Fill(E2);
 
                     double mgg = (g1 + g2).M();
                     double theta = openingAngle(g1, g2);
 
                     if (hPi0->hppM_pre) hPi0->hppM_pre->Fill(mgg, theta);
+                    if (hPi0->hMassPreSelection) hPi0->hMassPreSelection->Fill(mgg); 
 
                     relipse = pow((mgg-param_h),2)/pow(param_a,2) + pow( (theta - param_k), 2)/pow(param_b,2);
                     if (relipse > 1) continue;
@@ -295,27 +304,35 @@ void RunSignalLoop(
         if (cfg.doChargedAnalysis) {
 
             for (const ChargedCluster& cluster : reco.chargedClusters) {
+                if (cluster.objectTruePDG == 11 || cluster.objectTruePDG == -11 ) {
+                if (cluster.isOrphanElectron && hCharged->hClusterE_Electron) hCharged->hClusterE_Electron->Fill(cluster.totalEnergy);    
+                }
                 if (cluster.isOrphanElectron) continue;  // skip orphan electrons
                 if (cluster.isUsedInConversion) continue; // skip electrons used in conversion reco
 
                 // n-Sigma plots
                 if (hCharged->hNSigmaPion) hCharged->hNSigmaPion->Fill(cluster.nSigmaPion);
                 if (hCharged->hNSigmaProton) hCharged->hNSigmaProton->Fill(cluster.nSigmaProton);
+                if (hCharged->hNSigmaElectron) hCharged->hNSigmaElectron->Fill(cluster.nSigmaElectron);
+                if (hCharged->hNSigmaMuon) hCharged->hNSigmaMuon->Fill(cluster.nSigmaMuon);
                 //--> Pions
                 if (cluster.objectTruePDG == 211 || cluster.objectTruePDG == -211) {
                 // if (hCharged->hdEdxVsE_cluster_Pion) hCharged->hdEdxVsE_cluster_Pion->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
                 if (hCharged->hdEdxVsE_cluster_Pion) hCharged->hdEdxVsE_cluster_Pion->Fill(cluster.objectTrueKE, cluster.objectSmearedDedx); // ORDER: X vs Y
-                if (hCharged->hClusterE) hCharged->hClusterE->Fill(cluster.totalEnergy);
+                if (hCharged->hClusterE_Pion) hCharged->hClusterE_Pion->Fill(cluster.totalEnergy);
                 if (hCharged->hdEdxVsE_true_Pion) hCharged->hdEdxVsE_true_Pion->Fill(cluster.objectTrueKE, cluster.objectTheoryDedx);
-                if (hCharged->hdEdxTruePion) hCharged->hdEdxTruePion->Fill(cluster.objectTheoryDedx);
+                if (hCharged->hdEdxTruePion) hCharged->hdEdxTruePion->Fill(cluster.objectTheoryDedx); ///
                 if (hCharged->hdEdxSmearPion) hCharged->hdEdxSmearPion->Fill(cluster.objectSmearedDedx);
+                if (cluster.totalEnergy < 10) {
+                    std::cout << "Low E Pion < 10 MeV, KE: " << cluster.objectTrueKE << "theta: " << cluster.direction.Theta() << std::endl; 
+                }
                 }
                 //--> Protons
                 if (cluster.objectTruePDG == 2212) {
                 // if (hCharged->hdEdxVsE_cluster_Proton) hCharged->hdEdxVsE_cluster_Proton->Fill(cluster.totalEnergy, cluster.clusterdEdx); // ORDER: X vs Y
                 if (hCharged->hdEdxVsE_cluster_Proton) hCharged->hdEdxVsE_cluster_Proton->Fill(cluster.objectTrueKE, cluster.objectSmearedDedx); // ORDER: X vs Y
                 if (hCharged->hdEdxVsE_true_Proton) hCharged->hdEdxVsE_true_Proton->Fill(cluster.objectTrueKE, cluster.objectTheoryDedx);
-                if (hCharged->hdEdxTrueProton) hCharged->hdEdxTrueProton->Fill(cluster.objectTheoryDedx);
+                if (hCharged->hdEdxTrueProton) hCharged->hdEdxTrueProton->Fill(cluster.objectTheoryDedx); ///
                 if (hCharged->hdEdxSmearProton) hCharged->hdEdxSmearProton->Fill(cluster.objectSmearedDedx);
                 }
                 
@@ -373,34 +390,23 @@ void RunSignalLoop(
             if (hPi0->accTheta) hPi0->accTheta->Pi0ProcessSignalEvent(truePi0s, primaryPi0s);
             if (hPi0->acc2D) hPi0->acc2D->Pi0ProcessSignalEvent(truePi0s, primaryPi0s);
 
-            // THESE NEED TO BE FIXED!!!
-
-            // double px = primaryPx->at(0);
-            // double py = primaryPy->at(0);
-            // double pz = primaryPz->at(0);
-            // double p = sqrt(px*px + py*py + pz*pz);
-
-            // double eta = 0.5 * log((p + pz) / (p - pz)); // pseudorapidity
-            // double theta = acos(pz / p); // theta
-
-            // pi0AcceptanceVsEta.ProcessEvent(clusters, truePhotons, eta);
-            // pi0AcceptanceVsTheta.ProcessEvent(clusters, truePhotons, theta);
-
-            // pi0AcceptanceVsTheta.ProcessEventTwoHist(clusters, truePhotons, genEkin, theta);
-
         }
 
         //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
 
         // Pi+- eff & acc
         if (cfg.doChargedAnalysis) {
-            hCharged->pidEff->ProcessEvent(reco.chargedClusters);
+            hCharged->pidEffPion->ProcessEvent(reco.chargedClusters);
+            hCharged->pidEffProton->ProcessEvent(reco.chargedClusters);
             // chAccPlotter->ChPiProcessSignalEvent(reco.chargedClusters, primaryChPis);
             //Acc
-            hCharged->chAccGlobal->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 0);
-            hCharged->chAccCondTPC->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 1);
-            hCharged->chAccCondNoTPC->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 2);
-            hCharged->accNChTracks->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 0);
+            hCharged->chAccGlobalEkin->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 0);
+            hCharged->chAccCondTPCEkin->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 1);
+            hCharged->chAccCondNoTPCEkin->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 2);
+            hCharged->chAccGlobalTheta->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 0);
+            hCharged->chAccCondTPCTheta->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 1);
+            hCharged->chAccCondNoTPCTheta->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 2);
+            // hCharged->accNChTracks->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, 0);
             //Eff
             hCharged->chEffTheta->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, reco.chargedClusters);
             hCharged->chEffNChTracks->ChPiProcessSignalEvent(trueChPiInCals, primaryChPis, reco.chargedClusters);
@@ -477,6 +483,7 @@ void RunSignalLoop(
 
 void RunBackgroundLoop(
     TTree* tree,
+    BranchManagerVertex& brVtx,
     const DEDXTable& dedxTable,
     const ChargedKECalibration& calibration,
     SelectionHistograms& hSel,
@@ -485,7 +492,8 @@ void RunBackgroundLoop(
     BranchManagerInput br;
     br.SetBranches(tree);
 
-    Long64_t nentries = tree->GetEntries();
+    // Long64_t nentries = tree->GetEntries();
+    Long64_t nentries = 1000; // limit to 5k events.
     progressbar bar(nentries);
 
     std::vector<Hit>          hits;
@@ -502,8 +510,12 @@ void RunBackgroundLoop(
 
         // Have to fix vertexing for the background! 
         // TVector3 vertex(0, 0, 0);
-        Vtx vertex;
-        vertex.vertexVec = TVector3{0,0,0};
+        // Vtx vertex;
+        // vertex.vertexVec = TVector3{0,0,0};
+        // EVENT Vertices
+        if (!br.primaryX||br.primaryX->empty()) continue;
+        TVector3 tVertexVec((*br.primaryX)[0], (*br.primaryY)[0], (*br.primaryZ)[0]);
+        Vtx vertex = brVtx.GetVertex(ievt, tVertexVec);  // falls back to truth if no reco vertex
 
         // Build hits
         hits.clear();

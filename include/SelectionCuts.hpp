@@ -24,6 +24,7 @@
 // }
 
 #include "EventVariables.hpp"
+#include "PlotUtils.hpp"
 
 struct SelectionCuts {
     bool   requireVertex     = true;

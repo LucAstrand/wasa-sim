@@ -51,7 +51,7 @@ void MyErrorHandler(int level, Bool_t abort, const char* location, const char* m
 
 int main(int argc, char **argv) {
     if (argc < 4) {
-            std::cout << "Usage: " << argv[0] << " <input.root> <background.root> <vertices.root> [options]\n"
+            std::cout << "Usage: " << argv[0] << " <input.root> <background.root> <vertices.root> <verticesBkg.root> [options]\n"
                     << "Options:\n"
                     << "  --calibration         Performs calibration procedure\n"
                     << "  --full-analysis       Performs everything\n"
@@ -68,12 +68,13 @@ int main(int argc, char **argv) {
     std::string root_inputfile = argv[1];
     std::string background_inputfile = argv[2];
     std::string vertices_inputfile = argv[3];
+    std::string vertices_inputfile_Bkg = argv[4];
     bool doCalibration = false;
     // bool doSelection = false;
 
     AnalysisConfig cfg;
 
-    for (int i = 4; i<argc; ++i) {
+    for (int i = 5; i<argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--calibration") doCalibration = true;
         if (arg == "--full-analysis") {
@@ -129,9 +130,21 @@ int main(int argc, char **argv) {
     if (!vtxTree) {std::cerr << "Tree vertices not found" << std::endl; return 1;}
     BranchManagerVertex brVtx;   
     brVtx.SetBranches(vtxTree);
-    brVtx.LoadVertices(vtxTree, nentries);
+    Long64_t nentriesSigVtx = vtxTree->GetEntries();
+    brVtx.LoadVertices(vtxTree, nentriesSigVtx);
 
     vtxFile->Close(); delete vtxFile;
+
+    TFile *vtxFileBkg = TFile::Open(vertices_inputfile_Bkg.c_str());
+    if (!vtxFileBkg || vtxFileBkg->IsZombie()) return 1;
+    TTree *vtxTreeBkg = (TTree *)vtxFileBkg->Get("vertices");
+    if (!vtxTreeBkg) {std::cerr << "Tree vertices not found" << std::endl; return 1;}
+    BranchManagerVertex brVtxBkg;   
+    brVtxBkg.SetBranches(vtxTreeBkg);
+    Long64_t nentriesBkgVtx = vtxTreeBkg->GetEntries();
+    brVtxBkg.LoadVertices(vtxTreeBkg, nentriesBkgVtx);
+
+    vtxFileBkg->Close(); delete vtxFileBkg;
 
     //....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
     // Calibration & Theory dEdx tables
@@ -189,7 +202,7 @@ int main(int argc, char **argv) {
             return 1; 
         }
         std::cout << "Processing background..." << std::endl;
-        RunBackgroundLoop(tBkg, dedxTABLE, calibration, hSelBkg, hCorrBkg);
+        RunBackgroundLoop(tBkg, brVtxBkg,dedxTABLE, calibration, hSelBkg, hCorrBkg);
         fBkg->Close(); delete fBkg;
 
         // Selection plots Signal-Background(cosmic) overlaid
@@ -206,21 +219,21 @@ int main(int argc, char **argv) {
         flow.Print();
         flow.PlotCutflow("Selection/cutflow.png");
 
-        // ABCD
-        ABCDResult abcd = RunABCD(
-            hSelSig.collectedEvents,
-            hSelBkg.collectedEvents,
-            // [](const EventVariables& ev){ return ev.correctedEnergy; },
-            [](const EventVariables& ev){ return ev.totalRecoEnergy; },
-            // [](const EventVariables& ev){ return ev.sphericity; },
-            [](const EventVariables& ev){ return ev.nChargedTracks; },
-            250.0,   
-            // 0.08,  
-            2,   
-            "TotalRecoEnergy",
-            "Sphericity",
-            "plots/Selection/"
-        );
+        // // ABCD
+        // ABCDResult abcd = RunABCD(
+        //     hSelSig.collectedEvents,
+        //     hSelBkg.collectedEvents,
+        //     // [](const EventVariables& ev){ return ev.correctedEnergy; },
+        //     [](const EventVariables& ev){ return ev.totalRecoEnergy; },
+        //     // [](const EventVariables& ev){ return ev.sphericity; },
+        //     [](const EventVariables& ev){ return ev.nChargedTracks; },
+        //     250.0,   
+        //     // 0.08,  
+        //     2,   
+        //     "TotalRecoEnergy",
+        //     "Sphericity",
+        //     "plots/Selection/"
+        // );
 
     }
 
@@ -230,10 +243,10 @@ int main(int argc, char **argv) {
     // if (cfg.doTruthAnalysis)   { hTruth.Plot("preSelection/");         hTruth.Cleanup();   }
     // if (cfg.doChargedAnalysis) { hCharged.Plot("preSelection/");       hCharged.Cleanup(); }
     // if (cfg.doEventVariables)  { hEvt.Plot("preSelection/");           hEvt.Cleanup();     }
-    if (cfg.doPi0Analysis)     { hPi0.Plot(nentries, "Neutral/"); hPi0.Cleanup();     }
-    if (cfg.doTruthAnalysis)   { hTruth.Plot("Truth/");           hTruth.Cleanup();   }
-    if (cfg.doChargedAnalysis) { hCharged.Plot("Charged/");       hCharged.Cleanup(); }
-    if (cfg.doEventVariables)  { hEvt.Plot("EventVar/");          hEvt.Cleanup();     }
+    if (cfg.doPi0Analysis)     { hPi0.Plot(nentries, "Neutral/");     hPi0.Cleanup();     }
+    if (cfg.doTruthAnalysis)   { hTruth.Plot("Truth/");               hTruth.Cleanup();   }
+    if (cfg.doChargedAnalysis) { hCharged.Plot(nentries, "Charged/"); hCharged.Cleanup(); }
+    if (cfg.doEventVariables)  { hEvt.Plot("EventVar/");              hEvt.Cleanup();     }
 
     f->Close(); delete f;
     return 0;

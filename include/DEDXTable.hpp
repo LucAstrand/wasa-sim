@@ -64,6 +64,7 @@ public:
     double Muon (double KE) const {return GetDEDX(13, KE); }
     double Electron (double KE) const {return GetDEDX(11, KE); }
 
+    TGraph* GetGraph (int pdg) const {return fGraphs.find(pdg)->second;}
 
 private:
     TFile* fFile = nullptr;

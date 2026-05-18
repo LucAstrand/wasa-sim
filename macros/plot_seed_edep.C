@@ -1,6 +1,6 @@
 #include <string.h>
 
-void plot_seed_edep(const char* fname="TEST.root",
+void plot_seed_edep(const char* fname="../../hibeam_g4/build/fullSignal_2026-04-29.root",
                     const char* tname="hibeam",
                     int nbins=200,
                     double xmin=0.0,

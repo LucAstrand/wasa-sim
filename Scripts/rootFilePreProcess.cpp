@@ -117,6 +117,7 @@ int main(int argc, char** argv) {
     std::vector<double>* TrueChargedPionE = nullptr;
     std::vector<double>* TrueChargedPionTrackID = nullptr;
     std::vector<double>* TrueChargedPionThroughTPC = nullptr;
+    std::vector<double>* TrueChargedPionthetaAtEntry = nullptr;
     std::vector<double>* TrueChargedPionCreationX = nullptr;
     std::vector<double>* TrueChargedPionCreationY = nullptr;
     std::vector<double>* TrueChargedPionCreationZ = nullptr;
@@ -173,6 +174,7 @@ int main(int argc, char** argv) {
     inTree->SetBranchAddress("TrueChargedPionE", &TrueChargedPionE);
     inTree->SetBranchAddress("TrueChargedPionTrackID", &TrueChargedPionTrackID);
     inTree->SetBranchAddress("TrueChargedPionThroughTPC", &TrueChargedPionThroughTPC);
+    inTree->SetBranchAddress("TrueChargedPionthetaAtEntry", &TrueChargedPionthetaAtEntry);
     inTree->SetBranchAddress("TrueChargedPionCreationX", &TrueChargedPionCreationX);
     inTree->SetBranchAddress("TrueChargedPionCreationY", &TrueChargedPionCreationY);
     inTree->SetBranchAddress("TrueChargedPionCreationZ", &TrueChargedPionCreationZ);
@@ -242,7 +244,7 @@ int main(int argc, char** argv) {
     std::vector<int> outTPC_trackID, outTPC_pdg;
     std::vector<double> outTPC_TrueKE, outTPC_smearedDedx, outTPC_theoryDedx; // outTPC_Psm,
     // std::vector<int> outTPC_nSteps;
-    std::vector<double> outTrueChargedPionX, outTrueChargedPionY, outTrueChargedPionZ, outTrueChargedPionE, outTrueChargedPionTrackID, outTrueChargedPionThroughTPC;
+    std::vector<double> outTrueChargedPionX, outTrueChargedPionY, outTrueChargedPionZ, outTrueChargedPionE, outTrueChargedPionTrackID, outTrueChargedPionThroughTPC, outTrueChargedPionthetaAtEntry;
     std::vector<double> outTrueChargedPionCreationX, outTrueChargedPionCreationY, outTrueChargedPionCreationZ, outTrueChargedPionEndX, outTrueChargedPionEndY, outTrueChargedPionEndZ;
     std::vector<double> outTrueChargedPionDecayedBeforeCal, outTrueChargedPionDecayedBeforeTPC, outTrueChargedPionDecayedTrackID;
     
@@ -281,6 +283,7 @@ int main(int argc, char** argv) {
     outTree->Branch("TrueChargedPionE", &outTrueChargedPionE);
     outTree->Branch("TrueChargedPionTrackID", &outTrueChargedPionTrackID);
     outTree->Branch("TrueChargedPionThroughTPC", &outTrueChargedPionThroughTPC);
+    outTree->Branch("TrueChargedPionthetaAtEntry", &outTrueChargedPionthetaAtEntry);
     outTree->Branch("TrueChargedPionCreationX", &outTrueChargedPionCreationX);
     outTree->Branch("TrueChargedPionCreationY", &outTrueChargedPionCreationY);
     outTree->Branch("TrueChargedPionCreationZ", &outTrueChargedPionCreationZ);
@@ -345,6 +348,7 @@ int main(int argc, char** argv) {
         outTrueChargedPionE = TrueChargedPionE ? *TrueChargedPionE : std::vector<double>();
         outTrueChargedPionTrackID = TrueChargedPionTrackID ? *TrueChargedPionTrackID : std::vector<double>();
         outTrueChargedPionThroughTPC = TrueChargedPionThroughTPC ? *TrueChargedPionThroughTPC : std::vector<double>();
+        outTrueChargedPionthetaAtEntry = TrueChargedPionthetaAtEntry ? *TrueChargedPionthetaAtEntry : std::vector<double>();
         outTrueChargedPionCreationX = TrueChargedPionCreationX ? *TrueChargedPionCreationX : std::vector<double>();
         outTrueChargedPionCreationY = TrueChargedPionCreationY ? *TrueChargedPionCreationY : std::vector<double>();
         outTrueChargedPionCreationZ = TrueChargedPionCreationZ ? *TrueChargedPionCreationZ : std::vector<double>();

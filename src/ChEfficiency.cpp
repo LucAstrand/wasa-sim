@@ -46,24 +46,112 @@ namespace {
     }
 }
 
+// // ── ChPi ──────────────────────────────────────────────────────────────────────
+// void ChEfficiency::ChPiProcessSignalEvent(
+//     const std::vector<TrueChPiInCal>& ChPiInCal,
+//     const std::vector<primaryChPi>& primaryChPis,
+//     const std::vector<ChargedCluster>& ChClusters)
+// {
+//     // --- Map: trackID -> generator p4 ---
+//     std::unordered_map<int, const primaryChPi*> p4Map;
+//     p4Map.reserve(primaryChPis.size());
+//     for (const auto& p : primaryChPis) {
+//         p4Map.emplace(p.trackID, &p);
+//     }
+
+//     // --- Set: reconstructed pion trackIDs (from reco objects) ---
+//     std::unordered_set<int> reconstructedIDs;
+//     reconstructedIDs.reserve(ChClusters.size());
+//     for (const auto& c : ChClusters) {
+//         if (std::abs(c.objectTruePDG) == 211) {
+//             reconstructedIDs.insert(c.trackID);
+//         }
+//     }
+
+//     // --- Precompute accepted truth pions (throughTPC) ---
+//     std::vector<const TrueChPiInCal*> accepted;
+//     accepted.reserve(ChPiInCal.size());
+
+//     for (const auto& d : ChPiInCal) {
+//         // if (d.throughTPC) {
+//             accepted.push_back(&d);
+//         // }
+//     }
+
+//     // ============================
+//     // === Fill histograms
+//     // ============================
+
+//     if (axisType_ == AccAxisTypeChPi::k2D) {
+
+//         for (const auto* d : accepted) {
+
+//             auto it = p4Map.find(d->trackID);
+//             if (it == p4Map.end()) continue;
+
+//             const auto& p4 = it->second->p4;
+
+//             double ekin  = p4.E() - p4.M();
+//             double theta = p4.Theta();
+
+//             h2_den_->Fill(ekin, theta);
+
+//             if (reconstructedIDs.count(d->trackID)) {
+//                 h2_num_->Fill(ekin, theta);
+//             }
+//         }
+
+//     } else if (axisType_ == AccAxisTypeChPi::kTracks) {
+
+//         // multiplicity = number of accepted truth pions
+//         double mult = static_cast<double>(accepted.size());
+
+//         for (const auto* d : accepted) {
+
+//             h_den_->Fill(mult);
+
+//             if (reconstructedIDs.count(d->trackID)) {
+//                 h_num_->Fill(mult);
+//             }
+//         }
+
+//     } else {
+
+//         // kEkin or kTheta
+//         for (const auto* d : accepted) {
+
+//             auto it = p4Map.find(d->trackID);
+//             if (it == p4Map.end()) continue;
+
+//             double val = getVar(it->second->p4, axisType_);
+
+//             h_den_->Fill(val);
+
+//             if (reconstructedIDs.count(d->trackID)) {
+//                 h_num_->Fill(val);
+//             }
+//         }
+//     }
+// }
+
 // ── ChPi ──────────────────────────────────────────────────────────────────────
 void ChEfficiency::ChPiProcessSignalEvent(
     const std::vector<TrueChPiInCal>& ChPiInCal,
     const std::vector<primaryChPi>& primaryChPis,
     const std::vector<ChargedCluster>& ChClusters)
 {
-    // --- Map: trackID -> generator p4 ---
-    std::unordered_map<int, const primaryChPi*> p4Map;
-    p4Map.reserve(primaryChPis.size());
-    for (const auto& p : primaryChPis) {
-        p4Map.emplace(p.trackID, &p);
+    // --- Map: trackID -> chpi theta ---
+    std::unordered_map<int, double> thetaMap;
+    thetaMap.reserve(primaryChPis.size());
+    for (const auto& d : ChPiInCal) {
+        if (d.throughTPC) thetaMap.emplace(d.trackID, d.theta);
     }
 
     // --- Set: reconstructed pion trackIDs (from reco objects) ---
     std::unordered_set<int> reconstructedIDs;
     reconstructedIDs.reserve(ChClusters.size());
     for (const auto& c : ChClusters) {
-        if (std::abs(c.objectTruePDG) == 211) {
+        if (std::abs(PIDToPDG(c.pidGuess)) == 211) {
             reconstructedIDs.insert(c.trackID);
         }
     }
@@ -84,22 +172,22 @@ void ChEfficiency::ChPiProcessSignalEvent(
 
     if (axisType_ == AccAxisTypeChPi::k2D) {
 
-        for (const auto* d : accepted) {
+        // for (const auto* d : accepted) {
 
-            auto it = p4Map.find(d->trackID);
-            if (it == p4Map.end()) continue;
+        //     auto it = p4Map.find(d->trackID);
+        //     if (it == p4Map.end()) continue;
 
-            const auto& p4 = it->second->p4;
+        //     const auto& p4 = it->second->p4;
 
-            double ekin  = p4.E() - p4.M();
-            double theta = p4.Theta();
+        //     double ekin  = p4.E() - p4.M();
+        //     double theta = p4.Theta();
 
-            h2_den_->Fill(ekin, theta);
+        //     h2_den_->Fill(ekin, theta);
 
-            if (reconstructedIDs.count(d->trackID)) {
-                h2_num_->Fill(ekin, theta);
-            }
-        }
+        //     if (reconstructedIDs.count(d->trackID)) {
+        //         h2_num_->Fill(ekin, theta);
+        //     }
+        // }
 
     } else if (axisType_ == AccAxisTypeChPi::kTracks) {
 
@@ -120,10 +208,11 @@ void ChEfficiency::ChPiProcessSignalEvent(
         // kEkin or kTheta
         for (const auto* d : accepted) {
 
-            auto it = p4Map.find(d->trackID);
-            if (it == p4Map.end()) continue;
+            auto it = thetaMap.find(d->trackID);
+            if (it == thetaMap.end()) continue;
 
-            double val = getVar(it->second->p4, axisType_);
+            // double val = getVar(it->second->p4, axisType_);
+            double val = it->second;
 
             h_den_->Fill(val);
 

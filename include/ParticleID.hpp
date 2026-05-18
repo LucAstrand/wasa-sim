@@ -10,8 +10,6 @@ double nSigmaCalc(
     double resolution
 );
 
-
-
 enum class PotentialGas { eArCO2_9010, eArCO2_8020, eAir };
 
 inline double PDGMassMeV(int pdg)
@@ -26,31 +24,28 @@ inline double PDGMassMeV(int pdg)
     }
 }
 
-// double BetheBloch(
-//     int pdg,
-//     double kineticE_MeV,
-//     PotentialGas gas
-// );
-
-inline double LikelihoodFromNSigma(double nSigma);
+// inline double LikelihoodFromNSigma(double nSigma);
 
 struct PIDLikelihoods {
     double Lpi;
     double Lp;
     double Le;
+    double Lm;
 
     double Ppi;
     double Pp;
     double Pe;
+    double Pm;
 };
 
 PIDLikelihoods ComputePIDLikelihoods(
     double nSigmaPi,
     double nSigmaE,
-    double nSigmaP
+    double nSigmaP,
+    double nSigmaM
 );
 
-enum class PID { Pion, Proton, Electron, Unknown };
+enum class PID { Pion, Proton, Electron, Muon, Unknown };
 
 inline const char* PIDToString(PID pid)
 {

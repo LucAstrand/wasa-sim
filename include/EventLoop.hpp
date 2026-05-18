@@ -38,6 +38,7 @@ void RunSignalLoop(
 
 void RunBackgroundLoop(
     TTree* tree,
+    BranchManagerVertex& brVtx,
     const DEDXTable& dedxTable,
     const ChargedKECalibration& calibration,
     SelectionHistograms& hSel,

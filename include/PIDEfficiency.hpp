@@ -9,7 +9,7 @@
 
 class PIDEfficiency {
 public:
-    PIDEfficiency(int nBins, double eMin, double eMax);
+    PIDEfficiency(const std::string& tag, int nBins, double eMin, double eMax);
 
     void ProcessEvent(const std::vector<ChargedCluster>& clusters);
 

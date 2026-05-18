@@ -20,9 +20,13 @@
 #include "TROOT.h"
 #include "TStyle.h"
 
+enum class FitType { Gaussian, GaussPlusPoly2, GaussPlusPoly3, GaussPlusPhaseSpace};
+
 struct PlotOptions {
     bool doFit = false;
-    std::string fitFunction = "gaus";  // e.g., "gaus", "pol2"
+    // std::string fitFunction = "gaus";  // e.g., "gaus", "pol2"
+    FitType fitType;
+    bool drawBkgComponent = false;
     double fitMin = -999;  // -999 means use hist range
     double fitMax = -999;
     bool showStats = false;  // For gStyle->SetOptStat
@@ -30,8 +34,9 @@ struct PlotOptions {
     std::vector<std::string> extraLegendLines;  // e.g., "2 photon events = X"
     std::vector<std::string> infoLines;  // e.g., {"GEANT4 pi0 sample", "1000 events"}
     std::string topLatex = "#bf{Hibeam} #it{Wasa full simulation}";
+    std::string topLatexRight = "#it{Signal dataset}";
     bool addTopLatex = true;
-    bool addInfoPave = true;
+    bool addInfoPave = false;
     bool addLegend = true;
     std::string legendDrawOpt = "l"; // "l" - Line , "p"
     std::string drawOption = "HIST";  // e.g., "HIST", "E", "COLZ" for 2D
@@ -49,6 +54,8 @@ struct PlotOptions {
     int fitLineWidth = 2;
     std::string xAxisTitle = "";
     std::string yAxisTitle = "";
+    std::string zAxisTitle = "";
+    bool setLogX = false;
 };
 
 // Core functions
@@ -60,6 +67,15 @@ void Plot2DOverlay(
     const std::vector<int>& colors,
     const std::string& plotname,
     const PlotOptions& options = PlotOptions()
+);
+
+void Plot2DOverlayGraph(
+    const std::vector<TH2*>& hists,
+    const std::vector<TGraph*>& graphs,
+    const std::vector<int>& colorsHists,
+    const std::vector<int>& colorsGraphs,
+    const std::string& plotname,
+    const PlotOptions& options
 );
 
 // void Plot2DWithBands(
@@ -89,6 +105,7 @@ void PlotGraph(TGraph* graph, const std::string& plotname, const PlotOptions& op
 void SetPrettyStyle();
 std::unique_ptr<TCanvas> PlotCreateCanvas(const std::string& name, int width = 800, int height = 600);
 void AddTopLatex(TCanvas* c, const std::string& text);
+void AddTopRightLatex(TCanvas* c, const std::string& text, double x = 0.75, double y = 0.93);
 // std::unique_ptr<TPaveText> PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2);
 TPaveText* PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2);
 // std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entries, const std::vector<std::string>& extraLines, double x1, double y1, double x2, double y2, const std::vector<TObject*>& objects = {});

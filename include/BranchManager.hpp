@@ -50,6 +50,7 @@ struct BranchManagerInput {
     std::vector<double> *TrueChargedPionE               = nullptr;
     std::vector<double> *TrueChargedPionTrackID         = nullptr;
     std::vector<double> *TrueChargedPionThroughTPC      = nullptr;
+    std::vector<double> *TrueChargedPionthetaAtEntry    = nullptr;
     std::vector<double> *TrueChargedPionCreationX       = nullptr;
     std::vector<double> *TrueChargedPionCreationY       = nullptr;
     std::vector<double> *TrueChargedPionCreationZ       = nullptr;
@@ -103,6 +104,7 @@ struct BranchManagerInput {
         SafeSetBranch(t, "TrueChargedPionE",               TrueChargedPionE);
         SafeSetBranch(t, "TrueChargedPionTrackID",         TrueChargedPionTrackID);
         SafeSetBranch(t, "TrueChargedPionThroughTPC",      TrueChargedPionThroughTPC);
+        SafeSetBranch(t, "TrueChargedPionthetaAtEntry",    TrueChargedPionthetaAtEntry);
         SafeSetBranch(t, "TrueChargedPionCreationX",       TrueChargedPionCreationX);
         SafeSetBranch(t, "TrueChargedPionCreationY",       TrueChargedPionCreationY);
         SafeSetBranch(t, "TrueChargedPionCreationZ",       TrueChargedPionCreationZ);
@@ -135,8 +137,11 @@ struct BranchManagerVertex {
     double   vtx_x       = 0;
     double   vtx_y       = 0;
     double   vtx_z       = 0;
+    double   vtx_r       = 0;
     double   chi2ndf     = 0;
-    UChar_t  accepted    = 0;
+    double   DCA         = 0;
+    // UChar_t  accepted    = 0;
+    Int_t accepted       = 0;
 
     // Processed result - best vertex per event
     std::vector<Vtx> bestVtx;
@@ -150,7 +155,9 @@ struct BranchManagerVertex {
         t->SetBranchAddress("vtx_x",        &vtx_x);
         t->SetBranchAddress("vtx_y",        &vtx_y);
         t->SetBranchAddress("vtx_z",        &vtx_z);
+        t->SetBranchAddress("vtx_r",        &vtx_r);
         t->SetBranchAddress("chi2ndf",      &chi2ndf);
+        t->SetBranchAddress("max_dca",          &DCA);
         t->SetBranchAddress("accepted",     &accepted);
     }
 
@@ -169,7 +176,8 @@ struct BranchManagerVertex {
             const bool better =
                 (!cur.has) ||
                 (n_tracks > cur.n_tracks) ||
-                (n_tracks == cur.n_tracks && chi2ndf < cur.chi2ndf);
+                // (n_tracks == cur.n_tracks && chi2ndf < cur.chi2ndf);
+                (n_tracks == cur.n_tracks && DCA < cur.DCA);
 
             if (better) {
                 cur.has      = true;
@@ -177,8 +185,10 @@ struct BranchManagerVertex {
                 // cur.y        = vtx_y;
                 // cur.z        = vtx_z;
                 cur.vertexVec = TVector3{vtx_x, vtx_y, vtx_z};
-                cur.n_tracks = n_tracks;
-                cur.chi2ndf  = chi2ndf;
+                cur.n_tracks  = n_tracks;
+                cur.chi2ndf   = chi2ndf;
+                cur.DCA       = DCA;
+                cur.vtx_r     = vtx_r;
             }
         }
 

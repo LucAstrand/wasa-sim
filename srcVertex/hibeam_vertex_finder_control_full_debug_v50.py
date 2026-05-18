@@ -76,7 +76,6 @@ def load_from_root(root_path: str, tree_name: str = "digitizedHits") -> pd.DataF
     branches = [
         "TPC_firstPosX", "TPC_firstPosY", "TPC_firstPosZ",
         "TPC_lastPosX",  "TPC_lastPosY",  "TPC_lastPosZ",
-        "TPC_PathLength",
         "TPC_pdg",
         "PrimaryPosX", "PrimaryPosY", "PrimaryPosZ",
     ]
@@ -97,8 +96,10 @@ def load_from_root(root_path: str, tree_name: str = "digitizedHits") -> pd.DataF
 
     # Truth vertex: take first primary vertex per event (PrimaryPosX/Y/Z are vectors)
     # If empty, set NaN.
+    # def first_or_nan(x):
+    #     return ak.where(ak.num(x) > 0, x[:, 0], np.nan)
     def first_or_nan(x):
-        return ak.where(ak.num(x) > 0, x[:, 0], np.nan)
+        return ak.fill_none(ak.firsts(x), np.nan)
 
     truth_x = first_or_nan(arr["PrimaryPosX"])
     truth_y = first_or_nan(arr["PrimaryPosY"])
@@ -113,7 +114,8 @@ def load_from_root(root_path: str, tree_name: str = "digitizedHits") -> pd.DataF
     ex = arr["TPC_firstPosX"]; ey = arr["TPC_firstPosY"]; ez = arr["TPC_firstPosZ"]
     lx = arr["TPC_lastPosX"];  ly = arr["TPC_lastPosY"];  lz = arr["TPC_lastPosZ"]
 
-    path = arr["TPC_PathLength"]
+    # path = arr["TPC_PathLength"]
+    path = np.sqrt((lx - ex)**2 + (ly - ey)**2 + (lz - ez)**2)
 
     # Define "gas_exited_flag" robustly:
     # valid if pathlength > 0 and coordinates finite
@@ -1346,7 +1348,7 @@ def main():
     # TPC resolution
     parser.add_argument("--tpc-sigma-x", dest="tpc_sigma_x", type=float, default=0.05)
     parser.add_argument("--tpc-sigma-y", dest="tpc_sigma_y", type=float, default=0.05)
-    parser.add_argument("--tpc-sigma-z", dest="tpc_sigma_z", type=float, default=0.10)
+    parser.add_argument("--tpc-sigma-z", dest="tpc_sigma_z", type=float, default=0.05)
 
     # parser.add_argument("--tpc-sigma-x", dest="tpc_sigma_x", type=float, default=0.78)
     # parser.add_argument("--tpc-sigma-y", dest="tpc_sigma_y", type=float, default=1.06)
@@ -1357,10 +1359,10 @@ def main():
     # parser.add_argument("--tpc-sigma-z", dest="tpc_sigma_z", type=float, default=0.10)
 
     # Quality cuts
-    # parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=5.0,
-    #                     help="Max chi2/ndf. Set <0 to disable chi2 cut.")
-    parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=15.0,
+    parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=5.0,
                         help="Max chi2/ndf. Set <0 to disable chi2 cut.")
+    # parser.add_argument("--chi2ndf-max", dest="chi2ndf_max", type=float, default=15.0,
+    #                     help="Max chi2/ndf. Set <0 to disable chi2 cut.")
     # parser.add_argument("--max-dca", dest="max_dca", type=float, default=-1.0,
     #                     help="Max DCA to fitted vertex [cm]. Set <0 to disable.")
     parser.add_argument("--max-dca", dest="max_dca", type=float, default=3,
@@ -1375,11 +1377,12 @@ def main():
     parser.add_argument("--z-constraint", dest="z_constraint", type=float, default=0.0)
 
     parser.add_argument("--use-tpc-smearing", dest="use_tpc_smearing", action="store_true")
-    # parser.set_defaults(use_tpc_smearing=True)
-    parser.set_defaults(use_tpc_smearing=False)
+    parser.set_defaults(use_tpc_smearing=True)
+    # parser.set_defaults(use_tpc_smearing=False)
 
     parser.add_argument("--use-ms-sigma", dest="use_ms_sigma", action="store_true")
-    parser.set_defaults(use_ms_sigma=False)
+    # parser.set_defaults(use_ms_sigma=False)
+    parser.set_defaults(use_ms_sigma=True)
 
     # MS parameters
     parser.add_argument("--ms-density", dest="ms_density", type=float, default=2.7)

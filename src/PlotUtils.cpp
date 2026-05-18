@@ -67,6 +67,14 @@ void AddTopLatex(TCanvas* c, const std::string& text) {
     l.DrawLatex(0.16, 0.93, text.c_str());
 }
 
+void AddTopRightLatex(TCanvas* c, const std::string& text, double x, double y) {
+    TLatex l;
+    l.SetNDC();
+    l.SetTextFont(42);
+    l.SetTextSize(0.045);
+    l.DrawLatex(x, y, text.c_str());
+}
+
 // std::unique_ptr<TPaveText> PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2) {
 TPaveText* PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, double y1, double x2, double y2) {
     // auto info = std::make_unique<TPaveText>(x1, y1, x2, y2, "NDC");
@@ -82,27 +90,18 @@ TPaveText* PlotCreateInfoPave(const std::vector<std::string>& lines, double x1, 
     return info;
 }
 
-// std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entries, const std::vector<std::string>& extraLines, double x1, double y1, double x2, double y2, const std::vector<TObject*>& objects) {
-//     auto leg = std::make_unique<TLegend>(x1, y1, x2, y2);
-//     leg->SetTextSize(0.03);
-//     leg->SetFillStyle(0);
-//     leg->SetBorderSize(0);
-//     for (size_t i = 0; i < entries.size(); ++i) {
-//         leg->AddEntry(objects.empty() ? nullptr : objects[i], entries[i].c_str(), "l");
-//     }
-//     for (const auto& line : extraLines) {
-//         leg->AddEntry((TObject*)0, line.c_str(), "");
-//     }
-//     return leg;
-// }
-
 std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entries, const std::vector<std::string>& extraLines, double x1, double y1, double x2, double y2, const std::vector<TObject*>& objects, const std::string legendPlotOpts) {
     auto leg = std::make_unique<TLegend>(x1, y1, x2, y2);
     leg->SetTextSize(0.03);
     leg->SetFillStyle(0);
     leg->SetBorderSize(0);
+    // for (size_t i = 0; i < entries.size(); ++i) {
+    //     leg->AddEntry(objects.empty() ? nullptr : objects[i], entries[i].c_str(), legendPlotOpts.c_str());
+    // }
     for (size_t i = 0; i < entries.size(); ++i) {
-        leg->AddEntry(objects.empty() ? nullptr : objects[i], entries[i].c_str(), legendPlotOpts.c_str());
+        TObject* obj = (i < objects.size()) ? objects[i] : nullptr;
+        const char* opt = (obj != nullptr) ? legendPlotOpts.c_str() : "";
+        leg->AddEntry(obj, entries[i].c_str(), opt);
     }
     for (const auto& line : extraLines) {
         leg->AddEntry((TObject*)0, line.c_str(), "");
@@ -110,58 +109,151 @@ std::unique_ptr<TLegend> PlotCreateLegend(const std::vector<std::string>& entrie
     return leg;
 }
 
-
-
+void SavePlot(TCanvas* c, const std::string& plotname) {
+    c->SaveAs(("plots/" + plotname).c_str());
+}
 
 void PerformFitAndAddToLegend(TH1* hist, TLegend* leg, const PlotOptions& options)
 {
     if (!hist || hist->GetEntries() < 5) return;
+    double fitMin = (options.fitMin == -999) ? hist->GetXaxis()->GetXmin() : options.fitMin;
+    double fitMax = (options.fitMax == -999) ? hist->GetXaxis()->GetXmax() : options.fitMax;
 
-    double fitMin = (options.fitMin == -999)
-                    ? hist->GetXaxis()->GetXmin()
-                    : options.fitMin;
-    double fitMax = (options.fitMax == -999)
-                    ? hist->GetXaxis()->GetXmax()
-                    : options.fitMax;
+    std::string formula;
+    int nPars = 0;
+    switch (options.fitType) {
+        case FitType::Gaussian:
+            formula = "[0]*TMath::Gaus(x,[1],[2],1)";
+            nPars = 3;
+            break;
+        case FitType::GaussPlusPoly2:
+            formula = "[0]*TMath::Gaus(x,[1],[2],1) + [3] + [4]*x + [5]*x*x";
+            nPars = 6;
+            break;
+        case FitType::GaussPlusPoly3:
+            formula = "[0]*TMath::Gaus(x,[1],[2],1) + [3] + [4]*x + [5]*x*x + [6]*x*x*x";
+            nPars = 7;
+            break;
+        case FitType::GaussPlusPhaseSpace:
+            formula = "[0]*TMath::Gaus(x,[1],[2],1) + [3]*TMath::Power(x,[4])*TMath::Exp([5]*x)";
+            nPars = 6;
+            break;
+    }
 
-    // ROOT must own this
-    TF1* f = new TF1(
-        Form("fit_%s", hist->GetName()),
-        options.fitFunction.c_str(),
-        fitMin,
-        fitMax
-    );
-
+    TF1* f = new TF1(Form("fit_%s", hist->GetName()), formula.c_str(), fitMin, fitMax);
     f->SetLineColor(kRed + 1);
     f->SetLineWidth(2);
 
-    double maxBin = hist->GetMaximum();
-    double meanGuess = hist->GetBinCenter(hist->GetMaximumBin());
-    double sigmaGuess = hist->GetRMS();
-    f->SetParameters(maxBin, meanGuess, sigmaGuess);
+    // double meanGuess  = hist->GetBinCenter(hist->GetMaximumBin());
+    // double sigmaGuess = 5.0;
+    // double peakHeight = hist->GetMaximum();
+    double rangeWidth = fitMax - fitMin;
+    double meanGuess  = hist->GetMean();          // better than max bin for symmetric dists
+    double sigmaGuess = hist->GetRMS();           // much better than hardcoded 5.0
+    sigmaGuess = std::clamp(sigmaGuess, rangeWidth * 0.05, rangeWidth * 0.5);
 
-    // "S" stores fit result
-    // "R" respects range
-    // "Q" quiet
-    hist->Fit(f, "SRQ");
+    double peakHeight = hist->GetMaximum();
+    // For normalized Gaus, amplitude ~ peak * sigma * sqrt(2pi)
+    double ampGuess = peakHeight * sigmaGuess * std::sqrt(2.0 * TMath::Pi());
 
-    double mean = f->GetParameter(1);
-    double sigma = f->GetParameter(2);
-    double errMu = f->GetParError(1);
-    double errSi = f->GetParError(2);
+    if (options.fitType == FitType::GaussPlusPhaseSpace) {
+        // Step 1: fit background only in sidebands, excluding peak region
+        double peakLo = meanGuess - 30.0;
+        double peakHi = meanGuess + 30.0;
 
+        TF1* fbkgOnly = new TF1(Form("bkgonly_%s", hist->GetName()),
+            "[0]*TMath::Power(x,[1])*TMath::Exp([2]*x)", fitMin, fitMax);
+        fbkgOnly->SetParameter(0, 1.0);
+        fbkgOnly->SetParameter(1, 2.0);
+        fbkgOnly->SetParameter(2, -0.02);
+        fbkgOnly->SetParLimits(0, 0.0, 1e9);
+        fbkgOnly->SetParLimits(1, 0.5, 5.0);
+        fbkgOnly->SetParLimits(2, -0.1, 0.0);
+
+        // Exclude peak region from background fit
+        hist->GetXaxis()->SetRangeUser(fitMin, peakLo);
+        hist->Fit(fbkgOnly, "SLRQN");
+        hist->GetXaxis()->SetRangeUser(peakLo, peakHi);
+        hist->Fit(fbkgOnly, "SLRQN+");  // + = add to existing
+        hist->GetXaxis()->SetRangeUser(peakHi, fitMax);
+        hist->Fit(fbkgOnly, "SLRQN+");
+        hist->GetXaxis()->UnZoom();
+
+        // Step 2: seed full fit from background result, fix bkg, fit signal
+        f->SetParameter(3, fbkgOnly->GetParameter(0));
+        f->SetParameter(4, fbkgOnly->GetParameter(1));
+        f->SetParameter(5, fbkgOnly->GetParameter(2));
+        f->FixParameter(3, fbkgOnly->GetParameter(0));
+        f->FixParameter(4, fbkgOnly->GetParameter(1));
+        f->FixParameter(5, fbkgOnly->GetParameter(2));
+
+        double bkgAtPeak = fbkgOnly->Eval(meanGuess);
+        f->SetParameter(0, std::max(peakHeight - bkgAtPeak, peakHeight * 0.1));
+        f->SetParLimits(0, peakHeight * 0.05, 1e9);
+        f->SetParameter(1, meanGuess);
+        f->SetParLimits(1, meanGuess - 30.0, meanGuess + 30.0);
+        f->SetParameter(2, sigmaGuess);
+        f->SetParLimits(2, 5.0, 25.0);
+
+        // Step 3: release background and refit everything
+        f->ReleaseParameter(3);
+        f->ReleaseParameter(4);
+        f->ReleaseParameter(5);
+    } else {
+        // f->SetParameter(0, peakHeight);
+        // f->SetParameter(1, meanGuess);
+        // f->SetParameter(2, sigmaGuess);
+        // f->SetParLimits(0, 0.0, 1e9);
+        // f->SetParLimits(2, 5.0, 25.0);
+        f->SetParameter(0, ampGuess);
+        f->SetParLimits(0, 0.0, ampGuess * 10.0);
+        f->SetParameter(1, meanGuess);
+        f->SetParLimits(1, fitMin, fitMax);
+        f->SetParameter(2, sigmaGuess);
+        f->SetParLimits(2, rangeWidth * 0.01, rangeWidth * 0.8);
+        if (nPars > 3) {
+            double edgeL = hist->GetBinContent(hist->FindBin(fitMin));
+            double edgeR = hist->GetBinContent(hist->FindBin(fitMax));
+            f->SetParameter(3, (edgeL + edgeR) / 2.0);
+            for (int p = 4; p < nPars; ++p) f->SetParameter(p, 0.0);
+        }
+    }
+
+    auto result = hist->Fit(f, "SLRQN");
     f->Draw("SAME");
 
-    if (leg) {
-        leg->AddEntry(f, "Gaussian Fit:", "l");
-        leg->AddEntry((TObject*)0, Form("#mu = %.1f #pm %.1f", mean, errMu), "");
-        leg->AddEntry((TObject*)0, Form("#sigma = %.1f #pm %.1f", sigma, errSi), "");
+    if (nPars > 3 && options.drawBkgComponent) {
+        TF1* fbkg = nullptr;
+        if (options.fitType == FitType::GaussPlusPhaseSpace) {
+            fbkg = new TF1(Form("bkg_%s", hist->GetName()),
+                "[0]*TMath::Power(x,[1])*TMath::Exp([2]*x)", fitMin, fitMax);
+            fbkg->SetParameter(0, f->GetParameter(3));
+            fbkg->SetParameter(1, f->GetParameter(4));
+            fbkg->SetParameter(2, f->GetParameter(5));
+        } else {
+            fbkg = new TF1(Form("bkg_%s", hist->GetName()),
+                (nPars == 6 ? "[0] + [1]*x + [2]*x*x"
+                            : "[0] + [1]*x + [2]*x*x + [3]*x*x*x"),
+                fitMin, fitMax);
+            for (int p = 0; p < nPars - 3; ++p)
+                fbkg->SetParameter(p, f->GetParameter(3 + p));
+        }
+        fbkg->SetLineColor(kBlack);
+        fbkg->SetLineStyle(2);
+        fbkg->Draw("SAME");
     }
-}
 
-
-void SavePlot(TCanvas* c, const std::string& plotname) {
-    c->SaveAs(("plots/" + plotname).c_str());
+    if (leg) {
+        bool isBkgFit = (nPars > 3);
+        leg->AddEntry(f, isBkgFit ? "Signal + Bkg fit" : "Gaussian fit", "l");
+        leg->AddEntry((TObject*)0,
+            Form("#mu = %.1f #pm %.1f MeV", f->GetParameter(1), f->GetParError(1)), "");
+        leg->AddEntry((TObject*)0,
+            Form("#sigma = %.1f #pm %.1f MeV", f->GetParameter(2), f->GetParError(2)), "");
+        // if (result.Get() && f->GetNDF() > 0)
+        //     leg->AddEntry((TObject*)0,
+        //         Form("#chi^{2}/ndf = %.2f", f->GetChisquare() / f->GetNDF()), "");
+    }
 }
 
 void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, const std::string& plotname, const PlotOptions& options) {
@@ -215,8 +307,9 @@ void Plot1D(const std::vector<TH1*>& hists, const std::vector<int>& colors, cons
         auto info = PlotCreateInfoPave(options.infoLines, options.infoX1, options.infoY1, options.infoX2, options.infoY2);
         info->Draw();
     }
-    if (options.addTopLatex) AddTopLatex(c.get(), options.topLatex);
+    if (options.addTopLatex) {AddTopLatex(c.get(), options.topLatex); AddTopRightLatex(c.get(), options.topLatexRight);};
     // c->SetLogy();
+    if (options.setLogX) c->SetLogx();
     SavePlot(c.get(), plotname);
 }
 
@@ -232,12 +325,11 @@ void Plot2D(TH2* hist, const std::string& plotname, const PlotOptions& opts) {
     std::unique_ptr<TCanvas> c;
     if (options.isHeatmap) {
         // we want a square canvas --> cells are squares
-        c = PlotCreateCanvas("c2D_" + plotname, 800, 800);
+        // c = PlotCreateCanvas("c2D_" + plotname, 800, 800);
+        c = PlotCreateCanvas("c2D_" + plotname);
         // make sure the colorbar ticks are visible
         c->cd();
         gPad->SetRightMargin(0.16);
-        // gPad->SetLeftMargin(0.12);
-        // gPad->SetBottomMargin(0.12);
     } else {
         // default to width=800, height=600
         c = PlotCreateCanvas("c2D_" + plotname);
@@ -245,7 +337,11 @@ void Plot2D(TH2* hist, const std::string& plotname, const PlotOptions& opts) {
     hist->SetLineColor(kBlack);
     hist->SetLineWidth(2);
     hist->Draw(options.drawOption.c_str());
-
+    if (options.addTopLatex) {
+        AddTopLatex(c.get(), options.topLatex);
+        if (options.isHeatmap) AddTopRightLatex(c.get(), options.topLatexRight, 0.65, 0.93);
+        else AddTopRightLatex(c.get(), options.topLatexRight);
+    }
     std::unique_ptr<TProfile> profX;
     if (options.overlayProfileX) {
         profX.reset(hist->ProfileX(
@@ -293,7 +389,6 @@ void Plot2D(TH2* hist, const std::string& plotname, const PlotOptions& opts) {
         auto info = PlotCreateInfoPave(options.infoLines, options.infoX1, options.infoY1, options.infoX2, options.infoY2);
         info->Draw();
     }
-    if (options.addTopLatex) AddTopLatex(c.get(), options.topLatex);
     gStyle->SetPalette(opts.colorMap);
     // TColor::InvertPalette();
     SavePlot(c.get(), plotname);
@@ -331,21 +426,20 @@ void Plot2DOverlay(
         leg->Draw();
     }
 
-    if (options.addTopLatex)
-        AddTopLatex(c.get(), options.topLatex);
+    if (options.addTopLatex) {AddTopLatex(c.get(), options.topLatex); AddTopRightLatex(c.get(), options.topLatexRight);};
 
-    // c->SetLogx();
+    if (options.setLogX) c->SetLogx();
     // TColor::InvertPalette();
     SavePlot(c.get(), plotname);
 }
 
-void Plot2DWithBands(
+void Plot2DOverlayGraph(
     const std::vector<TH2*>& hists,
-    const std::vector<int>& colors,
+    const std::vector<TGraph*>& graphs,
+    const std::vector<int>& colorsHists,
+    const std::vector<int>& colorsGraphs,
     const std::string& plotname,
-    const PlotOptions& options,
-    const std::vector<bool>& isTruth,
-    double smearedResolution)
+    const PlotOptions& options)
 {
     if (hists.empty() || !hists[0]) return;
 
@@ -355,7 +449,7 @@ void Plot2DWithBands(
 
     for (size_t i = 0; i < hists.size(); ++i) {
         auto* h = hists[i];
-        h->SetMarkerColor(colors.size() > i ? colors[i] : kBlack);
+        h->SetMarkerColor(colorsHists.size() > i ? colorsHists[i] : kBlack);
         h->SetMarkerStyle(20 + i);
         h->SetMarkerSize(0.6);
 
@@ -366,93 +460,149 @@ void Plot2DWithBands(
         h->Draw(drawOpt.c_str());
     }
 
-    std::vector<std::unique_ptr<TGraphErrors>> bands;
+    for (size_t i = 0; i < graphs.size(); ++i) {
+        auto* g = graphs[i];
+        g->SetMarkerColor(colorsGraphs.size() > i ? colorsGraphs[i] : kBlack);
+        g->SetMarkerStyle(20 + i);
+        g->SetMarkerSize(0.6);
 
-    for (size_t i = 0; i < hists.size(); ++i) {
-        bool doShade = isTruth.empty() || (i < isTruth.size() && isTruth[i]);
-        if (!doShade) continue;
+        std::string drawOpt = (i == 0)
+            ? options.drawOption
+            : "SAME " + options.drawOption;
 
-        auto* h = hists[i];
-        int nx = h->GetNbinsX();
-
-        // --- Build point lists dynamically to avoid stale (0,0) slots ---
-        std::vector<double> vX, vY, vEX, vEY;
-        vX.reserve(nx);
-        vY.reserve(nx);
-        vEX.reserve(nx);
-        vEY.reserve(nx);
-
-        for (int bx = 1; bx <= nx; ++bx) {
-            std::unique_ptr<TH1D> proj(h->ProjectionY(
-                ("_projY_" + std::string(h->GetName()) + "_" + std::to_string(bx)).c_str(),
-                bx, bx));
-
-            // Skip empty, zero-centre, or suspiciously low-stats bins
-            if (!proj || proj->GetEntries() < 5) continue;
-
-            double dEdx = proj->GetMean();
-            if (dEdx <= 0.0) continue;   // skip any (0,0)-type artefact
-
-            double ekin  = h->GetXaxis()->GetBinCenter(bx);
-            if (ekin  <= 0.0) continue;  // guard for log-x: skip non-positive x
-
-            vX .push_back(ekin);
-            vY .push_back(dEdx);
-            vEX.push_back(0.0);
-            vEY.push_back(dEdx * smearedResolution);
-        }
-
-        if (vX.empty()) continue;
-
-        auto gr = std::make_unique<TGraphErrors>(
-            (int)vX.size(), vX.data(), vY.data(), vEX.data(), vEY.data());
-
-        int col = (colors.size() > i) ? colors[i] : kBlack;
-
-        TColor* baseColor = gROOT->GetColor(col);
-        if (baseColor) {
-            int transIdx = TColor::GetFreeColorIndex();
-            new TColor(transIdx,
-                       baseColor->GetRed(),
-                       baseColor->GetGreen(),
-                       baseColor->GetBlue(),
-                       "transColor", 0.25);
-            gr->SetFillColorAlpha(transIdx, 0.25);
-        } else {
-            gr->SetFillColorAlpha(col, 0.25);
-        }
-
-        gr->SetFillStyle(1001);
-        gr->SetLineColor(col);
-        gr->SetLineWidth(2);
-
-        gr->Draw("E3 SAME");
-        gr->Draw("L SAME");
-
-        bands.push_back(std::move(gr));
+        g->Draw(drawOpt.c_str());
     }
 
     std::unique_ptr<TLegend> leg;
     if (options.addLegend) {
+        // std::vector<TObject*> objs(hists.begin(), hists.end());
         std::vector<TObject*> objs(hists.begin(), hists.end());
-        for (auto& gr : bands) objs.push_back(gr.get());
-
-        leg = PlotCreateLegend(
-            options.legendEntries, options.extraLegendLines,
-            options.legendX1, options.legendY1,
-            options.legendX2, options.legendY2,
-            objs, options.legendDrawOpt);
+        for (auto* g : graphs) objs.push_back(g);
+        leg = PlotCreateLegend(options.legendEntries, options.extraLegendLines, options.legendX1, options.legendY1, options.legendX2, options.legendY2, objs, options.legendDrawOpt);
         leg->Draw();
     }
 
-    if (options.addTopLatex)
-        AddTopLatex(c.get(), options.topLatex);
+    if (options.addTopLatex) {AddTopLatex(c.get(), options.topLatex); AddTopRightLatex(c.get(), options.topLatexRight);};
 
-    // --- Log x scale (set after all drawing so axis range is frozen) ---
-    c->SetLogx();
-
+    if (options.setLogX) c->SetLogx();
+    // TColor::InvertPalette();
     SavePlot(c.get(), plotname);
 }
+
+// void Plot2DWithBands(
+//     const std::vector<TH2*>& hists,
+//     const std::vector<int>& colors,
+//     const std::string& plotname,
+//     const PlotOptions& options,
+//     const std::vector<bool>& isTruth,
+//     double smearedResolution)
+// {
+//     if (hists.empty() || !hists[0]) return;
+
+//     SetPrettyStyle();
+//     gStyle->SetPalette(options.colorMap);
+//     auto c = PlotCreateCanvas("c2DOverlay_" + plotname);
+
+//     for (size_t i = 0; i < hists.size(); ++i) {
+//         auto* h = hists[i];
+//         h->SetMarkerColor(colors.size() > i ? colors[i] : kBlack);
+//         h->SetMarkerStyle(20 + i);
+//         h->SetMarkerSize(0.6);
+
+//         std::string drawOpt = (i == 0)
+//             ? options.drawOption
+//             : "SAME " + options.drawOption;
+
+//         h->Draw(drawOpt.c_str());
+//     }
+
+//     std::vector<std::unique_ptr<TGraphErrors>> bands;
+
+//     for (size_t i = 0; i < hists.size(); ++i) {
+//         bool doShade = isTruth.empty() || (i < isTruth.size() && isTruth[i]);
+//         if (!doShade) continue;
+
+//         auto* h = hists[i];
+//         int nx = h->GetNbinsX();
+
+//         // --- Build point lists dynamically to avoid stale (0,0) slots ---
+//         std::vector<double> vX, vY, vEX, vEY;
+//         vX.reserve(nx);
+//         vY.reserve(nx);
+//         vEX.reserve(nx);
+//         vEY.reserve(nx);
+
+//         for (int bx = 1; bx <= nx; ++bx) {
+//             std::unique_ptr<TH1D> proj(h->ProjectionY(
+//                 ("_projY_" + std::string(h->GetName()) + "_" + std::to_string(bx)).c_str(),
+//                 bx, bx));
+
+//             // Skip empty, zero-centre, or suspiciously low-stats bins
+//             if (!proj || proj->GetEntries() < 5) continue;
+
+//             double dEdx = proj->GetMean();
+//             if (dEdx <= 0.0) continue;   // skip any (0,0)-type artefact
+
+//             double ekin  = h->GetXaxis()->GetBinCenter(bx);
+//             if (ekin  <= 0.0) continue;  // guard for log-x: skip non-positive x
+
+//             vX .push_back(ekin);
+//             vY .push_back(dEdx);
+//             vEX.push_back(0.0);
+//             vEY.push_back(dEdx * smearedResolution);
+//         }
+
+//         if (vX.empty()) continue;
+
+//         auto gr = std::make_unique<TGraphErrors>(
+//             (int)vX.size(), vX.data(), vY.data(), vEX.data(), vEY.data());
+
+//         int col = (colors.size() > i) ? colors[i] : kBlack;
+
+//         TColor* baseColor = gROOT->GetColor(col);
+//         if (baseColor) {
+//             int transIdx = TColor::GetFreeColorIndex();
+//             new TColor(transIdx,
+//                        baseColor->GetRed(),
+//                        baseColor->GetGreen(),
+//                        baseColor->GetBlue(),
+//                        "transColor", 0.25);
+//             gr->SetFillColorAlpha(transIdx, 0.25);
+//         } else {
+//             gr->SetFillColorAlpha(col, 0.25);
+//         }
+
+//         gr->SetFillStyle(1001);
+//         gr->SetLineColor(col);
+//         gr->SetLineWidth(2);
+
+//         gr->Draw("E3 SAME");
+//         gr->Draw("L SAME");
+
+//         bands.push_back(std::move(gr));
+//     }
+
+//     std::unique_ptr<TLegend> leg;
+//     if (options.addLegend) {
+//         std::vector<TObject*> objs(hists.begin(), hists.end());
+//         for (auto& gr : bands) objs.push_back(gr.get());
+
+//         leg = PlotCreateLegend(
+//             options.legendEntries, options.extraLegendLines,
+//             options.legendX1, options.legendY1,
+//             options.legendX2, options.legendY2,
+//             objs, options.legendDrawOpt);
+//         leg->Draw();
+//     }
+
+//     if (options.addTopLatex)
+//         AddTopLatex(c.get(), options.topLatex);
+
+//     // --- Log x scale (set after all drawing so axis range is frozen) ---
+//     c->SetLogx();
+
+//     SavePlot(c.get(), plotname);
+// }
 
 
 void PlotGraph(TGraph* graph, const std::string& plotname, const PlotOptions& options)
@@ -499,8 +649,7 @@ void PlotGraph(TGraph* graph, const std::string& plotname, const PlotOptions& op
         info->Draw();
     }
 
-    if (options.addTopLatex)
-        AddTopLatex(c.get(), options.topLatex);
+    if (options.addTopLatex) {AddTopLatex(c.get(), options.topLatex); AddTopRightLatex(c.get(), options.topLatexRight);};
 
     SavePlot(c.get(), plotname);
 }

@@ -17,6 +17,8 @@ struct Vtx {
     TVector3 vertexVec{0,0,0};
     int n_tracks = 0;
     double chi2ndf = 1e99;
+    double DCA = 1e99;
+    double vtx_r = 1e99;
 };
 
 enum class HitOwner {
@@ -54,7 +56,7 @@ struct TruePi0 {
 struct TrueChPiInCal {
     int trackID;
     bool throughTPC;
-    TVector3 direction;
+    double theta;
 };
 
 struct TrueChPiDecayed {
@@ -123,6 +125,7 @@ struct ChargedCluster {
     double nSigmaPion;
     double nSigmaProton;
     double nSigmaElectron;
+    double nSigmaMuon;
     PIDLikelihoods pidL;
     PID pidGuess;
     bool isOrphanElectron = false;
